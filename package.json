@@ -1,0 +1,9 @@
+{
+  "name": "qivanta-chatbot",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.0",
+    "mongodb": "^6.10.0"
+  }
+}
