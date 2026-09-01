@@ -10,11 +10,9 @@
 //      sección API Docs) — típicamente algo como
 //      https://live-mt-server.wati.io/<tenantId> o https://live-server-XXXX.wati.io/<tenantId>.
 //      No es la misma para todas las cuentas, así que debe configurarse por env var.
-const Anthropic = require("@anthropic-ai/sdk");
+const { client } = require("./_anthropicClient");
 const { getDb } = require("./_mongo");
 const { SYSTEM_PROMPT } = require("./_systemPrompt");
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const MAX_HISTORY = 16;
 
 function extraerMensajeEntrante(body) {

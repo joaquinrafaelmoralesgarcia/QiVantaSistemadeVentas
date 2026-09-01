@@ -1,7 +1,5 @@
-const Anthropic = require("@anthropic-ai/sdk");
+const { client } = require("./_anthropicClient");
 const { SYSTEM_PROMPT } = require("./_systemPrompt");
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
