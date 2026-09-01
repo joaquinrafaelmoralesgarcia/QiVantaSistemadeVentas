@@ -18,25 +18,61 @@ backend solo dispara la llamada saliente y consulta su estado.
 - `api/_systemPrompt.js` — contexto de negocio de Qi-Vanta que usa el modelo
   para responder (servicios, industrias, contacto). Editar aquí si cambia
   algo del sitio.
-- `api/_mongo.js` — conexión a MongoDB, usada por el webhook de WATI para
-  recordar el historial de conversación por número de WhatsApp.
+- `api/_mongo.js` — conexión a MongoDB, usada por el webhook de WATI (memoria
+  de conversación) y por el módulo de prospección (leads).
+
+### Panel de prospección (`/admin.html`)
+
+Herramienta interna de ventas, NO expuesta a clientes: busca negocios en
+Google Maps vía Apify, los califica con Claude y genera un mensaje sugerido
+por negocio. Para los que sí tienen correo público, se agregan automáticamente
+a una campaña de Smartlead (correo frío). Para los que no, el panel da un
+botón "Abrir WhatsApp" con el mensaje precargado — **el envío por WhatsApp
+siempre lo dispara una persona con un clic, nunca es automático.** Esto es
+intencional: WhatsApp Business prohíbe enviar mensajes automatizados a
+números sin opt-in (riesgo real de que Meta suspenda la cuenta, la misma que
+usa el bot de atención a clientes) y contactar así también puede violar la
+LFPDPPP. Si en algún momento se te ocurre "solo automatizar el envío de
+WhatsApp también", no lo hagas sin resolver primero el tema de consentimiento.
+
+- `api/_apify.js` — dispara el scraping de Google Maps.
+- `api/_leadScript.js` — Claude genera calificación + mensaje de WhatsApp +
+  icebreaker de correo por negocio.
+- `api/_smartlead.js` — agrega el lead a tu campaña de Smartlead cuando hay
+  correo.
+- `api/leads-scrape.js` — orquesta todo lo anterior y guarda en Mongo
+  (colección `leads`), evitando duplicados por teléfono/URL de Google Maps.
+- `api/leads.js` — lista/filtra leads y permite marcar estado
+  (nuevo/contactado/descartado).
+- `api/_adminAuth.js` — protección simple por contraseña compartida
+  (header `X-Admin-Password`) para todas las rutas de leads.
 
 ## Variables de entorno necesarias (Vercel → Settings → Environment Variables)
 
 | Variable | Para qué |
 |---|---|
-| `ANTHROPIC_API_KEY` | Claude (chat web + WhatsApp) |
-| `MONGODB_URI` | Memoria de conversación de WhatsApp |
+| `ANTHROPIC_API_KEY` | Claude (chat web + WhatsApp + calificación de leads) |
+| `MONGODB_URI` | Memoria de conversación de WhatsApp + almacenamiento de leads |
 | `WATI_API_ENDPOINT` | URL base de tu cuenta WATI (panel → API Docs) |
 | `WATI_API_TOKEN` | Token de acceso de WATI |
 | `VAPI_API_KEY` | Private Key de tu cuenta Vapi |
 | `VAPI_PHONE_NUMBER_ID` | UUID del número de Twilio importado a Vapi |
 | `VAPI_ASSISTANT_ID` | ID del asistente de voz configurado en Vapi |
+| `APIFY_API_TOKEN` | Token de tu cuenta Apify |
+| `APIFY_ACTOR_ID` | Opcional — actor de Google Maps a usar (default `compass~crawler-google-places`) |
+| `SMARTLEAD_API_KEY` | API key de tu cuenta Smartlead |
+| `SMARTLEAD_CAMPAIGN_ID` | Campaña de Smartlead donde caen los leads con correo |
+| `ADMIN_PASSWORD` | Contraseña para entrar a `/admin.html` |
 
-## Pendiente de verificar con la cuenta real de WATI
+## Pendiente de verificar antes del primer uso real
 
-`api/wati-webhook.js` está escrito de forma defensiva porque el formato
-exacto del payload que WATI manda al webhook varía según la cuenta/versión.
-Cuando tengas el webhook conectado, revisa los logs de Vercel (`console.log`
-imprime el body crudo) para confirmar los nombres de campo reales y ajustar
-`extraerMensajeEntrante()` si hace falta.
+- **WATI** (`api/wati-webhook.js`): el formato exacto del payload del webhook
+  varía por cuenta. Revisa los logs de Vercel (`console.log` imprime el body
+  crudo) tras el primer mensaje de prueba y ajusta `extraerMensajeEntrante()`
+  si hace falta.
+- **Apify** (`api/_apify.js`): confirma en Apify Console el ID exacto del
+  actor de Google Maps que vas a usar y los nombres de campo de su output
+  (pueden diferir de los asumidos en `normalizarResultado()`).
+- **Smartlead** (`api/_smartlead.js`): confirma el `campaign_id` y el formato
+  del payload contra la documentación de tu cuenta antes del primer envío
+  real.
