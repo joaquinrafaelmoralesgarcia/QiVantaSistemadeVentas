@@ -1,11 +1,9 @@
-// Scraping de negocios en Google Maps vía Apify.
-//
-// Requiere una cuenta de Apify (apify.com) con el actor "Google Maps Scraper"
-// activado (Apify Store → busca "Google Maps Scraper", el más usado es
-// compass/crawler-google-places). El nombre exacto del actor y de los campos
-// de entrada/salida puede cambiar — verifica en la página del actor en Apify
-// Console (pestaña "Input"/"API") antes del primer uso real y ajusta
-// ACTOR_INPUT / el mapeo en normalizarResultado si hace falta.
+// Scraping de negocios en Google Maps vía Apify (actor compass/crawler-google-places).
+// Campos de entrada/salida verificados con una corrida real el 2026-09-01:
+// title, address, phone/phoneUnformatted, website, totalScore, reviewsCount,
+// categoryName, url y (con scrapeContacts:true) emails[] — coinciden con el
+// mapeo de normalizarResultado(). scrapeContacts es un add-on de pago: sin él
+// el actor nunca devuelve correo, así que va activado por default aquí.
 const APIFY_ACTOR_ID = process.env.APIFY_ACTOR_ID || "compass~crawler-google-places";
 
 async function buscarNegocios({ query, location, maxResultados = 30 }) {
@@ -25,6 +23,7 @@ async function buscarNegocios({ query, location, maxResultados = 30 }) {
       searchStringsArray: [searchString],
       maxCrawledPlacesPerSearch: maxResultados,
       language: "es",
+      scrapeContacts: true, // add-on de pago: sin esto nunca regresa "emails"
     }),
   });
 
