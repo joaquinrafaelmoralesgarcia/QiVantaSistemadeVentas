@@ -370,30 +370,58 @@
     cargarLeads();
   });
 
+  function esperar(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async function pollearBusqueda(runId, query, status) {
+    const maxIntentos = 40; // ~40 * 5s = ~3.3 min de margen
+    for (let i = 0; i < maxIntentos; i++) {
+      await esperar(5000);
+      const res = await fetch(`/api/leads-scrape-status?runId=${encodeURIComponent(runId)}&query=${encodeURIComponent(query)}`, {
+        headers: headers(),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        status.textContent = `Error: ${data.error || "no se pudo consultar la búsqueda."}`;
+        return;
+      }
+      if (!data.listo) {
+        status.textContent = `Apify sigue buscando/enriqueciendo contactos (${data.status || "en curso"})... esto puede tardar 1-2 min por cada 5 negocios.`;
+        continue;
+      }
+      status.textContent = `Listo: ${data.totalEncontrados} encontrados, ${data.nuevos} nuevos, ${data.duplicados} ya existían — ${data.conCorreo} con correo (pendiente de tu revisión), ${data.soloTelefono} solo con teléfono (WhatsApp manual).`;
+      cargarLeads();
+      return;
+    }
+    status.textContent = "La búsqueda está tardando más de lo esperado — revisa en unos minutos o busca menos negocios a la vez.";
+  }
+
   document.getElementById("scrapeForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const form = e.target;
     const btn = document.getElementById("scrapeBtn");
     const status = document.getElementById("scrapeStatus");
     btn.disabled = true;
-    status.textContent = "Buscando y calificando negocios (puede tardar uno o dos minutos)...";
+    status.textContent = "Iniciando búsqueda en Apify...";
 
     try {
-      const res = await fetch("/api/leads-scrape", {
+      const query = form.query.value;
+      const res = await fetch("/api/leads-scrape-start", {
         method: "POST",
         headers: headers(),
         body: JSON.stringify({
-          query: form.query.value,
+          query,
           location: form.location.value,
           maxResultados: Number(form.maxResultados.value) || 20,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        status.textContent = `Error: ${data.error || "no se pudo completar la búsqueda."}`;
+        status.textContent = `Error: ${data.error || "no se pudo iniciar la búsqueda."}`;
       } else {
-        status.textContent = `Listo: ${data.totalEncontrados} encontrados, ${data.nuevos} nuevos, ${data.duplicados} ya existían — ${data.conCorreo} con correo (pendiente de tu revisión), ${data.soloTelefono} solo con teléfono (WhatsApp manual).`;
-        cargarLeads();
+        status.textContent = "Búsqueda en curso en Apify (buscando negocios y visitando sus sitios para sacar el correo)...";
+        await pollearBusqueda(data.runId, query, status);
       }
     } catch (err) {
       status.textContent = "Error de conexión al buscar negocios.";

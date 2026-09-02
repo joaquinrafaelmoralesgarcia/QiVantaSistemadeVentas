@@ -6,7 +6,12 @@
 // el actor nunca devuelve correo, así que va activado por default aquí.
 const APIFY_ACTOR_ID = process.env.APIFY_ACTOR_ID || "compass~crawler-google-places";
 
-async function buscarNegocios({ query, location, maxResultados = 30 }) {
+// El scraping con scrapeContacts:true (necesario para sacar correos) es
+// lento — medido: ~87s para solo 5 negocios — y Vercel Hobby corta las
+// funciones a los 60s. Por eso se corre asíncrono: iniciarBusqueda() dispara
+// la corrida y regresa de inmediato (no espera), consultarBusqueda() se
+// llama después (desde el frontend, en polling) para ver si ya terminó.
+async function iniciarBusqueda({ query, location, maxResultados = 30 }) {
   const token = process.env.APIFY_API_TOKEN;
   if (!token) {
     throw new Error("Falta configurar APIFY_API_TOKEN.");
@@ -14,7 +19,7 @@ async function buscarNegocios({ query, location, maxResultados = 30 }) {
 
   const searchString = location ? `${query} en ${location}` : query;
 
-  const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/run-sync-get-dataset-items?token=${encodeURIComponent(token)}`;
+  const url = `https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/runs?token=${encodeURIComponent(token)}`;
 
   const res = await fetch(url, {
     method: "POST",
@@ -32,8 +37,40 @@ async function buscarNegocios({ query, location, maxResultados = 30 }) {
     throw new Error(`Apify respondió con error (${res.status}): ${errBody}`);
   }
 
-  const items = await res.json();
-  return (Array.isArray(items) ? items : []).map(normalizarResultado).filter((n) => n.nombre && n.telefono);
+  const data = await res.json();
+  return { runId: data.data.id, datasetId: data.data.defaultDatasetId, status: data.data.status };
+}
+
+// Devuelve { listo: false } mientras sigue corriendo, o { listo: true, negocios }
+// cuando terminó (SUCCEEDED). Lanza error si Apify marcó la corrida como fallida.
+async function consultarBusqueda(runId) {
+  const token = process.env.APIFY_API_TOKEN;
+  if (!token) {
+    throw new Error("Falta configurar APIFY_API_TOKEN.");
+  }
+
+  const resRun = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${encodeURIComponent(token)}`);
+  if (!resRun.ok) {
+    throw new Error(`No se pudo consultar el estado de la corrida (${resRun.status}).`);
+  }
+  const run = await resRun.json();
+  const status = run.data.status;
+
+  if (status === "FAILED" || status === "ABORTED" || status === "TIMED-OUT") {
+    throw new Error(`La corrida de Apify terminó con estado ${status}.`);
+  }
+  if (status !== "SUCCEEDED") {
+    return { listo: false, status };
+  }
+
+  const datasetId = run.data.defaultDatasetId;
+  const resItems = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(token)}`);
+  if (!resItems.ok) {
+    throw new Error(`No se pudieron obtener los resultados (${resItems.status}).`);
+  }
+  const items = await resItems.json();
+  const negocios = (Array.isArray(items) ? items : []).map(normalizarResultado).filter((n) => n.nombre && n.telefono);
+  return { listo: true, status, negocios };
 }
 
 function normalizarResultado(item) {
@@ -51,4 +88,4 @@ function normalizarResultado(item) {
   };
 }
 
-module.exports = { buscarNegocios };
+module.exports = { iniciarBusqueda, consultarBusqueda };
