@@ -29,29 +29,48 @@ module.exports = async function handler(req, res) {
     const db = await getDb();
     const coleccion = db.collection("leads");
 
-    let nuevos = 0;
-    let duplicados = 0;
-    let conCorreo = 0;
-    let soloTelefono = 0;
+    // Chequeo de duplicados en un solo query (en vez de uno por negocio) para
+    // no gastar el tiempo límite de la función (Hobby: 60s) en round-trips
+    // secuenciales a Mongo.
+    const telefonos = negocios.map((n) => normalizarTelefono(n.telefono)).filter(Boolean);
+    const urls = negocios.map((n) => n.googleMapsUrl).filter(Boolean);
+    const existentes = await coleccion
+      .find({ $or: [{ telefono: { $in: telefonos } }, { googleMapsUrl: { $in: urls } }] })
+      .project({ telefono: 1, googleMapsUrl: 1 })
+      .toArray();
+    const telefonosExistentes = new Set(existentes.map((e) => e.telefono));
+    const urlsExistentes = new Set(existentes.map((e) => e.googleMapsUrl));
 
+    const nuevosNegocios = [];
+    let duplicados = 0;
     for (const negocio of negocios) {
       const telefono = normalizarTelefono(negocio.telefono);
-      const existente = await coleccion.findOne({ $or: [{ telefono }, { googleMapsUrl: negocio.googleMapsUrl }] });
-      if (existente) {
+      if (telefonosExistentes.has(telefono) || urlsExistentes.has(negocio.googleMapsUrl)) {
         duplicados++;
         continue;
       }
+      nuevosNegocios.push({ ...negocio, telefono });
+    }
 
-      let script = null;
-      try {
-        script = await generarScript(negocio);
-      } catch (err) {
-        console.error("Error generando script para", negocio.nombre, err);
-      }
+    // Los llamados a Claude van en paralelo (antes eran secuenciales y con
+    // 10 negocios se pasaba del límite de 60s de la función en Vercel Hobby).
+    const scripts = await Promise.all(
+      nuevosNegocios.map((negocio) =>
+        generarScript(negocio).catch((err) => {
+          console.error("Error generando script para", negocio.nombre, err);
+          return null;
+        })
+      )
+    );
 
-      const lead = {
+    let conCorreo = 0;
+    let soloTelefono = 0;
+    const leads = nuevosNegocios.map((negocio, i) => {
+      const script = scripts[i];
+      if (negocio.correo) conCorreo++;
+      else soloTelefono++;
+      return {
         ...negocio,
-        telefono,
         calificacion: script?.calificacion || null,
         razonamiento: script?.razonamiento || "",
         mensajeWhatsapp: script?.mensajeWhatsapp || "",
@@ -64,17 +83,13 @@ module.exports = async function handler(req, res) {
         origenBusqueda: query,
         createdAt: new Date(),
       };
+    });
 
-      if (negocio.correo) conCorreo++;
-      else soloTelefono++;
-
-      await coleccion.insertOne(lead);
-      nuevos++;
-    }
+    if (leads.length) await coleccion.insertMany(leads);
 
     res.status(200).json({
       totalEncontrados: negocios.length,
-      nuevos,
+      nuevos: leads.length,
       duplicados,
       conCorreo,
       soloTelefono,
