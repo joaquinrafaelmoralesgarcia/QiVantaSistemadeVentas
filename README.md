@@ -13,6 +13,16 @@ backend solo dispara la llamada saliente y consulta su estado.
 - `api/chat.js` — chat de texto con Claude para el widget web.
 - `api/wati-webhook.js` — recibe mensajes de WhatsApp entrantes (webhook de
   WATI), responde con Claude y envía la respuesta de vuelta vía la API de WATI.
+  Deduplica por `whatsappMessageId` (WATI reintenta la entrega si no responde
+  rápido, y sin esto se mandaban respuestas duplicadas al cliente real).
+- `api/cron-seguimiento.js` — cron (cada 10 min, ver `vercel.json`) que manda
+  hasta 2 mensajes de seguimiento por WhatsApp si el cliente no responde
+  después de que el bot contestó (30 min y 1h). Solo aplica a clientes que
+  escribieron primero — nunca contactos fríos, sigue dentro de la ventana de
+  24h de WhatsApp. El "reloj" se reinicia cada vez que el bot vuelve a
+  contestar algo del cliente.
+- `api/_watiSend.js` — helper compartido para mandar mensajes de sesión por
+  WATI (usado por el webhook y por el cron de seguimiento).
 - `api/vapi-call.js` / `api/vapi-status.js` — disparan y consultan llamadas
   salientes de voz IA vía Vapi (usando tu propia cuenta de Vapi + Twilio).
 - `api/_systemPrompt.js` — contexto de negocio de Qi-Vanta que usa el modelo
@@ -63,6 +73,7 @@ WhatsApp también", no lo hagas sin resolver primero el tema de consentimiento.
 | `SMARTLEAD_API_KEY` | API key de tu cuenta Smartlead |
 | `SMARTLEAD_CAMPAIGN_ID` | Campaña de Smartlead donde caen los leads con correo |
 | `ADMIN_PASSWORD` | Contraseña para entrar a `/admin.html` |
+| `CRON_SECRET` | Protege `/api/cron-seguimiento` para que solo Vercel Cron pueda dispararlo |
 
 ## Pendiente de verificar antes del primer uso real
 

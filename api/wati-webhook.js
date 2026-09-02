@@ -13,6 +13,7 @@
 const { client } = require("./_anthropicClient");
 const { getDb } = require("./_mongo");
 const { SYSTEM_PROMPT } = require("./_systemPrompt");
+const { enviarRespuestaWati } = require("./_watiSend");
 const MAX_HISTORY = 16;
 
 function extraerMensajeEntrante(body) {
@@ -49,36 +50,24 @@ async function yaFueProcesado(db, idMensaje) {
   }
 }
 
-async function enviarRespuestaWati(waId, texto) {
-  const baseUrl = process.env.WATI_API_ENDPOINT;
-  const token = process.env.WATI_API_TOKEN;
-
-  if (!baseUrl || !token) {
-    throw new Error("Falta configurar WATI_API_ENDPOINT y/o WATI_API_TOKEN.");
-  }
-
-  const url = `${baseUrl.replace(/\/$/, "")}/api/v1/sendSessionMessage/${encodeURIComponent(waId)}?messageText=${encodeURIComponent(texto)}`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => "");
-    throw new Error(`WATI respondió con error (${res.status}): ${errBody}`);
-  }
-}
-
 async function obtenerHistorial(db, waId) {
   const doc = await db.collection("wati_conversaciones").findOne({ waId });
   return doc?.mensajes || [];
 }
 
 async function guardarHistorial(db, waId, mensajes) {
+  // seguimiento: arranca el reloj de los mensajes de seguimiento (30 min / 1h)
+  // sin respuesta del cliente — se reinicia cada vez que el bot contesta algo nuevo.
   await db.collection("wati_conversaciones").updateOne(
     { waId },
-    { $set: { waId, mensajes: mensajes.slice(-MAX_HISTORY), updatedAt: new Date() } },
+    {
+      $set: {
+        waId,
+        mensajes: mensajes.slice(-MAX_HISTORY),
+        updatedAt: new Date(),
+        seguimiento: { ultimaRespuestaBot: new Date(), seguimiento1Enviado: false, seguimiento2Enviado: false },
+      },
+    },
     { upsert: true }
   );
 }
