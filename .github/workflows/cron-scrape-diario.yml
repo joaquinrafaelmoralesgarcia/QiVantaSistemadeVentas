@@ -2,12 +2,12 @@ name: Scrapeo diario de leads (Apify)
 
 # Corre en los runners de GitHub Actions (máquinas de GitHub, no en Vercel
 # ni en tu computadora) — necesario porque Apify tarda varios minutos en
-# terminar y las funciones de Vercel Hobby se cortan a los 60s. Este
-# workflow dispara la búsqueda y hace polling hasta que termina, sin ese
-# límite de tiempo.
+# terminar y las funciones de Vercel Hobby se cortan a los 60s.
 #
-# Corre 5 búsquedas por día (rubro+ciudad al azar cada una, hasta 50
-# negocios por búsqueda) para tener volumen real de leads, no solo uno.
+# Sigue disparando búsquedas (rubro+ciudad al azar, hasta 50 negocios cada
+# una) hasta juntar un MÍNIMO de 50 leads nuevos ese día, con un tope de
+# seguridad de 10 búsquedas para no disparar el costo si un día le toca
+# mala racha de rubros/ciudades con poco volumen en Google Maps.
 on:
   schedule:
     # 14:00 UTC = 8:00 AM hora de Ciudad de México, antes de que abra la
@@ -19,36 +19,52 @@ on:
 jobs:
   scrapear:
     runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 1
-      matrix:
-        busqueda: [1, 2, 3, 4, 5]
     steps:
-      - name: "Búsqueda ${{ matrix.busqueda }} de 5 — disparar"
-        id: iniciar
+      - name: Buscar hasta juntar mínimo 50 leads nuevos
         run: |
-          respuesta=$(curl -sf -X POST "https://chatbotwati.vercel.app/api/cron-scrape" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
-          echo "Respuesta: $respuesta"
-          runId=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).runId))")
-          query=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).query))")
-          echo "runId=$runId" >> "$GITHUB_OUTPUT"
-          echo "query=$query" >> "$GITHUB_OUTPUT"
+          MIN_LEADS=50
+          MAX_INTENTOS=10
+          total=0
+          intento=0
 
-      - name: "Búsqueda ${{ matrix.busqueda }} de 5 — esperar y procesar"
-        run: |
-          runId="${{ steps.iniciar.outputs.runId }}"
-          query="${{ steps.iniciar.outputs.query }}"
-          for i in $(seq 1 40); do
-            sleep 15
-            respuesta=$(curl -sf "https://chatbotwati.vercel.app/api/cron-scrape?runId=$runId&query=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$query")" \
+          while [ "$total" -lt "$MIN_LEADS" ] && [ "$intento" -lt "$MAX_INTENTOS" ]; do
+            intento=$((intento + 1))
+            echo "=== Búsqueda $intento de hasta $MAX_INTENTOS (llevamos $total leads nuevos) ==="
+
+            respuesta=$(curl -sf -X POST "https://chatbotwati.vercel.app/api/cron-scrape" \
               -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
-            listo=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).listo))")
-            echo "intento $i: $respuesta"
-            if [ "$listo" = "true" ]; then
-              echo "Búsqueda terminada."
-              exit 0
+            echo "Inicio: $respuesta"
+            runId=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).runId))")
+            query=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).query))")
+
+            if [ -z "$runId" ]; then
+              echo "No se pudo iniciar esta búsqueda, se salta."
+              continue
+            fi
+
+            terminada="false"
+            for i in $(seq 1 40); do
+              sleep 15
+              estado=$(curl -sf "https://chatbotwati.vercel.app/api/cron-scrape?runId=$runId&query=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$query")" \
+                -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+              echo "  poll $i: $estado"
+              listo=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).listo))")
+              if [ "$listo" = "true" ]; then
+                nuevos=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).nuevos))")
+                total=$((total + nuevos))
+                terminada="true"
+                echo "Búsqueda $intento terminada: $nuevos nuevos (total del día: $total)."
+                break
+              fi
+            done
+
+            if [ "$terminada" != "true" ]; then
+              echo "Esta búsqueda no terminó dentro del tiempo de espera (10 min), se sigue con la siguiente."
             fi
           done
-          echo "Esta búsqueda no terminó dentro del tiempo de espera (10 min)."
-          exit 1
+
+          echo ""
+          echo "=== RESUMEN: $total leads nuevos en $intento búsqueda(s) ==="
+          if [ "$total" -lt "$MIN_LEADS" ]; then
+            echo "::warning::No se alcanzó el mínimo de $MIN_LEADS leads/día tras $MAX_INTENTOS intentos (se lograron $total)."
+          fi
