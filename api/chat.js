@@ -1,6 +1,7 @@
 const { client } = require("./_anthropicClient");
 const { SYSTEM_PROMPT } = require("./_systemPrompt");
 const { getDb } = require("./_mongo");
+const { aplicarCors } = require("./_cors");
 
 async function guardarConversacionWeb(sessionId, conversation, reply) {
   try {
@@ -24,6 +25,8 @@ async function guardarConversacionWeb(sessionId, conversation, reply) {
 }
 
 module.exports = async function handler(req, res) {
+  if (aplicarCors(req, res)) return;
+
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
