@@ -1,0 +1,47 @@
+name: Scrapeo diario de leads (Apify)
+
+# Corre en los runners de GitHub Actions (máquinas de GitHub, no en Vercel
+# ni en tu computadora) — necesario porque Apify tarda varios minutos en
+# terminar y las funciones de Vercel Hobby se cortan a los 60s. Este
+# workflow dispara la búsqueda y hace polling hasta que termina, sin ese
+# límite de tiempo.
+on:
+  schedule:
+    # 14:00 UTC = 8:00 AM hora de Ciudad de México, antes de que abra la
+    # ventana de envío de correos (10:15) para que los leads del día ya
+    # estén listos.
+    - cron: "0 14 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  scrapear:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar búsqueda
+        id: iniciar
+        run: |
+          respuesta=$(curl -sf -X POST "https://chatbotwati.vercel.app/api/cron-scrape-start" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          echo "Respuesta: $respuesta"
+          runId=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).runId))")
+          query=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).query))")
+          echo "runId=$runId" >> "$GITHUB_OUTPUT"
+          echo "query=$query" >> "$GITHUB_OUTPUT"
+
+      - name: Esperar y procesar resultado
+        run: |
+          runId="${{ steps.iniciar.outputs.runId }}"
+          query="${{ steps.iniciar.outputs.query }}"
+          for i in $(seq 1 40); do
+            sleep 15
+            respuesta=$(curl -sf "https://chatbotwati.vercel.app/api/cron-scrape-status?runId=$runId&query=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$query")" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+            listo=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).listo))")
+            echo "intento $i: $respuesta"
+            if [ "$listo" = "true" ]; then
+              echo "Scrapeo terminado."
+              exit 0
+            fi
+          done
+          echo "El scrapeo no terminó dentro del tiempo de espera (10 min)."
+          exit 1
