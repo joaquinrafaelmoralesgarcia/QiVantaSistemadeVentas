@@ -65,6 +65,25 @@
 
   .empty { color: var(--muted); text-align: center; padding: 30px; }
   .status-line { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex;
+    align-items: center; justify-content: center; z-index: 100; padding: 20px;
+  }
+  .modal-backdrop[hidden] { display: none; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+  }
+  .modal h3 { margin: 0 0 4px; font-size: 16px; }
+  .modal .sub { margin: 0 0 16px; }
+  .modal label { display: block; font-size: 12px; color: var(--muted); margin: 14px 0 6px; }
+  .modal input, .modal textarea {
+    width: 100%; background: #0a1120; border: 1px solid var(--line); border-radius: 8px;
+    color: var(--ink); padding: 9px 10px; font: 13px Archivo, system-ui, sans-serif; box-sizing: border-box;
+  }
+  .modal textarea { resize: vertical; min-height: 70px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
 </style>
 </head>
 <body>
@@ -75,7 +94,7 @@
 
 <div class="wrap" id="app" hidden>
   <h1>Panel de prospección — Qi-Vanta</h1>
-  <p class="sub">Busca negocios, califícalos con IA, y dispara tú mismo el contacto (WhatsApp manual con un clic, correo automático vía Smartlead).</p>
+  <p class="sub">Busca negocios, califícalos con IA, revisa o edita el mensaje, y dispara tú mismo el contacto (WhatsApp con un clic, correo vía Smartlead) — nada se manda sin que tú lo confirmes.</p>
 
   <div class="card">
     <h2>Buscar negocios nuevos</h2>
@@ -120,6 +139,31 @@
         </tbody>
       </table>
     </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="editModal" hidden>
+  <div class="modal">
+    <h3 id="editModalNombre">Editar mensajes</h3>
+    <p class="sub" id="editModalSub" style="font-size:12px;color:var(--muted);"></p>
+
+    <div id="editWhatsappBlock">
+      <label>Mensaje de WhatsApp</label>
+      <textarea id="editWhatsapp" maxlength="600"></textarea>
+    </div>
+
+    <div id="editEmailBlock">
+      <label>Asunto del correo</label>
+      <input id="editAsunto" maxlength="120" />
+      <label>Cuerpo del correo</label>
+      <textarea id="editCuerpo" maxlength="2000" style="min-height:120px;"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="ghost" id="editCancelar" type="button">Cancelar</button>
+      <button id="editGuardar" type="button">Guardar cambios</button>
+    </div>
+    <div class="status-line" id="editStatus"></div>
   </div>
 </div>
 
@@ -202,7 +246,69 @@
     cargarLeads();
   }
 
+  async function enviarCorreo(id) {
+    const status = document.getElementById("scrapeStatus");
+    status.textContent = "Enviando correo a Smartlead...";
+    const res = await fetch("/api/leads-send-email", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    status.textContent = res.ok ? "Correo enviado a Smartlead." : `Error: ${data.error || "no se pudo enviar."}`;
+    cargarLeads();
+  }
+
+  let leadsCache = {};
+
+  function abrirEditor(id) {
+    const lead = leadsCache[id];
+    if (!lead) return;
+    document.getElementById("editModal").dataset.leadId = id;
+    document.getElementById("editModalNombre").textContent = `Editar mensajes — ${lead.nombre}`;
+    document.getElementById("editModalSub").textContent = lead.correo
+      ? `WhatsApp: ${lead.telefono || "sin teléfono"} · Correo: ${lead.correo}`
+      : `WhatsApp: ${lead.telefono || "sin teléfono"} (sin correo)`;
+    document.getElementById("editWhatsapp").value = lead.mensajeWhatsapp || "";
+    document.getElementById("editAsunto").value = lead.asuntoEmail || "";
+    document.getElementById("editCuerpo").value = lead.cuerpoEmail || "";
+    document.getElementById("editEmailBlock").hidden = !lead.correo;
+    document.getElementById("editStatus").textContent = "";
+    document.getElementById("editModal").hidden = false;
+  }
+
+  function cerrarEditor() {
+    document.getElementById("editModal").hidden = true;
+  }
+
+  async function guardarEdicion() {
+    const id = document.getElementById("editModal").dataset.leadId;
+    const status = document.getElementById("editStatus");
+    status.textContent = "Guardando...";
+    const res = await fetch("/api/leads-update", {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({
+        id,
+        mensajeWhatsapp: document.getElementById("editWhatsapp").value,
+        asuntoEmail: document.getElementById("editAsunto").value,
+        cuerpoEmail: document.getElementById("editCuerpo").value,
+      }),
+    });
+    if (res.ok) {
+      status.textContent = "Guardado.";
+      await cargarLeads();
+      setTimeout(cerrarEditor, 500);
+    } else {
+      const data = await res.json();
+      status.textContent = `Error: ${data.error || "no se pudo guardar."}`;
+    }
+  }
+
   function renderLeads(leads) {
+    leadsCache = {};
+    leads.forEach((l) => { leadsCache[l._id] = l; });
+
     const body = document.getElementById("leadsBody");
     if (!leads.length) {
       body.innerHTML = `<tr><td colspan="7" class="empty">Sin leads todavía. Corre una búsqueda arriba.</td></tr>`;
@@ -211,13 +317,16 @@
 
     body.innerHTML = leads
       .map((lead) => {
-        const canalEmail = lead.correo
-          ? lead.emailEstado === "enviado_a_campana"
-            ? badge("email-ok", "Correo enviado (Smartlead)")
-            : lead.emailEstado === "error"
-              ? badge("email-error", "Error al enviar correo")
-              : badge("nuevo", "Correo pendiente")
-          : `<button class="ghost" onclick="window.open('${waLink(lead)}','_blank'); marcarEstado('${lead._id}','contactado')">Abrir WhatsApp</button>`;
+        let canal;
+        if (lead.correo) {
+          if (lead.emailEstado === "enviado_a_campana") canal = badge("email-ok", "Correo enviado");
+          else if (lead.emailEstado === "error") canal = `${badge("email-error", "Error al enviar")} <button class="ghost" onclick="enviarCorreo('${lead._id}')">Reintentar</button>`;
+          else canal = `<button onclick="enviarCorreo('${lead._id}')">Enviar correo</button>`;
+        } else if (lead.telefono) {
+          canal = `<button class="ghost" onclick="window.open('${waLink(lead)}','_blank'); marcarEstado('${lead._id}','contactado')">Abrir WhatsApp</button>`;
+        } else {
+          canal = '<span style="color:var(--muted)">sin correo ni teléfono</span>';
+        }
 
         return `<tr>
           <td>
@@ -231,10 +340,11 @@
           </td>
           <td>${badge(lead.calificacion || "", lead.calificacion || "-")}</td>
           <td class="msg-preview">${esc(lead.mensajeWhatsapp || lead.cuerpoEmail || "")}</td>
-          <td>${canalEmail}</td>
+          <td>${canal}</td>
           <td>${badge(lead.estado, lead.estado)}</td>
           <td>
             <div class="row-actions">
+              <button class="ghost" onclick="abrirEditor('${lead._id}')">Editar mensaje</button>
               ${lead.estado !== "contactado" ? `<button class="ghost" onclick="marcarEstado('${lead._id}','contactado')">Marcar contactado</button>` : ""}
               ${lead.estado !== "descartado" ? `<button class="ghost" onclick="marcarEstado('${lead._id}','descartado')">Descartar</button>` : ""}
             </div>
@@ -282,7 +392,7 @@
       if (!res.ok) {
         status.textContent = `Error: ${data.error || "no se pudo completar la búsqueda."}`;
       } else {
-        status.textContent = `Listo: ${data.totalEncontrados} encontrados, ${data.nuevos} nuevos, ${data.duplicados} ya existían, ${data.correosEnviados} correos enviados a Smartlead${data.erroresCorreo ? `, ${data.erroresCorreo} con error` : ""}.`;
+        status.textContent = `Listo: ${data.totalEncontrados} encontrados, ${data.nuevos} nuevos, ${data.duplicados} ya existían — ${data.conCorreo} con correo (pendiente de tu revisión), ${data.soloTelefono} solo con teléfono (WhatsApp manual).`;
         cargarLeads();
       }
     } catch (err) {
@@ -293,6 +403,14 @@
   });
 
   window.marcarEstado = marcarEstado;
+  window.enviarCorreo = enviarCorreo;
+  window.abrirEditor = abrirEditor;
+
+  document.getElementById("editCancelar").addEventListener("click", cerrarEditor);
+  document.getElementById("editGuardar").addEventListener("click", guardarEdicion);
+  document.getElementById("editModal").addEventListener("click", (e) => {
+    if (e.target.id === "editModal") cerrarEditor();
+  });
 
   iniciar();
 </script>

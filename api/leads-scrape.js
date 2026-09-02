@@ -2,7 +2,6 @@ const { getDb } = require("./_mongo");
 const { requiereAdmin } = require("./_adminAuth");
 const { buscarNegocios } = require("./_apify");
 const { generarScript } = require("./_leadScript");
-const { agregarLeadACampania } = require("./_smartlead");
 
 function normalizarTelefono(tel) {
   const digits = String(tel || "").replace(/[^\d+]/g, "");
@@ -32,8 +31,8 @@ module.exports = async function handler(req, res) {
 
     let nuevos = 0;
     let duplicados = 0;
-    let correosEnviados = 0;
-    let erroresCorreo = 0;
+    let conCorreo = 0;
+    let soloTelefono = 0;
 
     for (const negocio of negocios) {
       const telefono = normalizarTelefono(negocio.telefono);
@@ -56,35 +55,18 @@ module.exports = async function handler(req, res) {
         calificacion: script?.calificacion || null,
         razonamiento: script?.razonamiento || "",
         mensajeWhatsapp: script?.mensajeWhatsapp || "",
-        asuntoEmail: script?.asuntoEmail || "",
+        asuntoEmail: script?.asuntoEmail || (negocio.correo ? `Automatización e IA para ${negocio.nombre}` : ""),
         cuerpoEmail: script?.cuerpoEmail || "",
         estado: "nuevo", // nuevo | contactado | descartado
-        emailEstado: null, // null | "enviado_a_campana" | "error"
+        // El correo YA NO se manda automático — queda "pendiente" para que se
+        // revise/edite en el panel antes de disparar (api/leads-send-email.js).
+        emailEstado: negocio.correo ? "pendiente" : null, // null | "pendiente" | "enviado_a_campana" | "error"
         origenBusqueda: query,
         createdAt: new Date(),
       };
 
-      if (negocio.correo) {
-        try {
-          await agregarLeadACampania({
-            nombre: negocio.nombre,
-            correo: negocio.correo,
-            empresa: negocio.nombre,
-            telefono,
-            customFields: {
-              qi_vanta_subject: script?.asuntoEmail || "Automatización e IA para " + negocio.nombre,
-              qi_vanta_message: script?.cuerpoEmail || "",
-            },
-          });
-          lead.emailEstado = "enviado_a_campana";
-          correosEnviados++;
-        } catch (err) {
-          console.error("Error mandando a Smartlead:", err);
-          lead.emailEstado = "error";
-          lead.emailError = err.message;
-          erroresCorreo++;
-        }
-      }
+      if (negocio.correo) conCorreo++;
+      else soloTelefono++;
 
       await coleccion.insertOne(lead);
       nuevos++;
@@ -94,8 +76,8 @@ module.exports = async function handler(req, res) {
       totalEncontrados: negocios.length,
       nuevos,
       duplicados,
-      correosEnviados,
-      erroresCorreo,
+      conCorreo,
+      soloTelefono,
     });
   } catch (err) {
     console.error(err);
