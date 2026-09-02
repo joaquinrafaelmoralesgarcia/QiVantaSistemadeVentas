@@ -249,7 +249,7 @@
   async function enviarCorreo(id) {
     const status = document.getElementById("scrapeStatus");
     status.textContent = "Enviando correo a Smartlead...";
-    const res = await fetch("/api/leads-send-email", {
+    const res = await fetch("/api/leads", {
       method: "POST",
       headers: headers(),
       body: JSON.stringify({ id }),
@@ -285,7 +285,7 @@
     const id = document.getElementById("editModal").dataset.leadId;
     const status = document.getElementById("editStatus");
     status.textContent = "Guardando...";
-    const res = await fetch("/api/leads-update", {
+    const res = await fetch("/api/leads", {
       method: "PATCH",
       headers: headers(),
       body: JSON.stringify({
@@ -385,7 +385,7 @@
     const maxIntentos = 40; // ~40 * 5s = ~3.3 min de margen
     for (let i = 0; i < maxIntentos; i++) {
       await esperar(5000);
-      const res = await fetch(`/api/leads-scrape-status?runId=${encodeURIComponent(runId)}&query=${encodeURIComponent(query)}`, {
+      const res = await fetch(`/api/leads-scrape?runId=${encodeURIComponent(runId)}&query=${encodeURIComponent(query)}`, {
         headers: headers(),
       });
       const data = await res.json();
@@ -414,7 +414,7 @@
 
     try {
       const query = form.query.value;
-      const res = await fetch("/api/leads-scrape-start", {
+      const res = await fetch("/api/leads-scrape", {
         method: "POST",
         headers: headers(),
         body: JSON.stringify({

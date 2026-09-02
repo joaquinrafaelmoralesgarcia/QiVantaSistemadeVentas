@@ -1,8 +1,15 @@
 // Vista unificada de conversaciones (WhatsApp vía WATI + widget web) para el
 // panel /admin-mensajes.html. Es de solo lectura: la IA ya responde ambos
 // canales automáticamente, este endpoint no envía nada, solo muestra.
+// Lista (sin 'id') y detalle de una conversación (con 'id') consolidados en
+// un solo archivo por el límite de 12 funciones serverless de Vercel Hobby.
 const { getDb } = require("./_mongo");
 const { requiereAdmin } = require("./_adminAuth");
+
+const COLECCION_POR_CANAL = {
+  whatsapp: { nombre: "wati_conversaciones", campoId: "waId" },
+  web: { nombre: "widget_conversaciones", campoId: "sessionId" },
+};
 
 function ultimoTexto(mensajes) {
   const ultimo = (mensajes || [])[mensajes.length - 1];
@@ -18,7 +25,18 @@ module.exports = async function handler(req, res) {
 
   try {
     const db = await getDb();
-    const { canal } = req.query || {};
+    const { canal, id } = req.query || {};
+
+    if (id) {
+      const config = COLECCION_POR_CANAL[canal];
+      if (!config) {
+        res.status(400).json({ error: "'canal' inválido (usa 'whatsapp' o 'web')." });
+        return;
+      }
+      const doc = await db.collection(config.nombre).findOne({ [config.campoId]: id });
+      res.status(200).json({ mensajes: doc?.mensajes || [] });
+      return;
+    }
 
     const whatsapp =
       canal && canal !== "whatsapp"

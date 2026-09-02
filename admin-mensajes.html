@@ -192,7 +192,7 @@
 
   async function cargarConversacion() {
     if (!activo) return;
-    const res = await fetch(`/api/mensajes-conversacion?canal=${encodeURIComponent(activo.canal)}&id=${encodeURIComponent(activo.id)}`, {
+    const res = await fetch(`/api/mensajes?canal=${encodeURIComponent(activo.canal)}&id=${encodeURIComponent(activo.id)}`, {
       headers: headers(),
     });
     const data = await res.json();
