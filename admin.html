@@ -328,11 +328,18 @@
           canal = '<span style="color:var(--muted)">sin correo ni teléfono</span>';
         }
 
+        const nombreHtml = lead.googleMapsUrl
+          ? `<a href="${esc(lead.googleMapsUrl)}" target="_blank" rel="noopener" style="color:var(--ink); text-decoration:underline; text-decoration-color:var(--line);"><strong>${esc(lead.nombre)}</strong></a>`
+          : `<strong>${esc(lead.nombre)}</strong>`;
+        const sitioWebHtml = lead.tieneSitioWeb
+          ? (lead.sitioWeb ? `<a href="${esc(lead.sitioWeb)}" target="_blank" rel="noopener" style="color:var(--cyan);">Con sitio web ↗</a>` : "Con sitio web")
+          : "Sin sitio web";
+
         return `<tr>
           <td>
-            <strong>${esc(lead.nombre)}</strong><br/>
+            ${nombreHtml}<br/>
             <span style="color:var(--muted); font-size:12px;">${esc(lead.categoria || "")}</span><br/>
-            <span style="color:var(--muted); font-size:11px;">${lead.tieneSitioWeb ? "Con sitio web" : "Sin sitio web"}${lead.calificacionGoogle ? " · " + lead.calificacionGoogle + "★" : ""}</span>
+            <span style="color:var(--muted); font-size:11px;">${sitioWebHtml}${lead.calificacionGoogle ? " · " + lead.calificacionGoogle + "★" : ""}</span>
           </td>
           <td style="font-size:12px;">
             ${esc(lead.telefono || "")}<br/>
