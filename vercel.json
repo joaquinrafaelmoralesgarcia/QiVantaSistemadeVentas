@@ -2,10 +2,8 @@
   "functions": {
     "api/wati-webhook.js": { "maxDuration": 30 },
     "api/chat.js": { "maxDuration": 30 },
-    "api/leads-scrape-start.js": { "maxDuration": 30 },
-    "api/leads-scrape-status.js": { "maxDuration": 60 },
+    "api/leads-scrape.js": { "maxDuration": 60 },
     "api/cron-seguimiento.js": { "maxDuration": 30 },
-    "api/cron-scrape-start.js": { "maxDuration": 30 },
-    "api/cron-scrape-status.js": { "maxDuration": 60 }
+    "api/cron-scrape.js": { "maxDuration": 60 }
   }
 }
