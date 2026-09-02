@@ -20,7 +20,7 @@ jobs:
       - name: Disparar búsqueda
         id: iniciar
         run: |
-          respuesta=$(curl -sf -X POST "https://chatbotwati.vercel.app/api/cron-scrape-start" \
+          respuesta=$(curl -sf -X POST "https://chatbotwati.vercel.app/api/cron-scrape" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
           echo "Respuesta: $respuesta"
           runId=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).runId))")
@@ -34,7 +34,7 @@ jobs:
           query="${{ steps.iniciar.outputs.query }}"
           for i in $(seq 1 40); do
             sleep 15
-            respuesta=$(curl -sf "https://chatbotwati.vercel.app/api/cron-scrape-status?runId=$runId&query=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$query")" \
+            respuesta=$(curl -sf "https://chatbotwati.vercel.app/api/cron-scrape?runId=$runId&query=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$query")" \
               -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
             listo=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).listo))")
             echo "intento $i: $respuesta"
