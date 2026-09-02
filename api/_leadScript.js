@@ -1,4 +1,5 @@
 const { client } = require("./_anthropicClient");
+const { PROSPECTING_SYSTEM_PROMPT } = require("./_prospectingPrompt");
 
 const SCHEMA = {
   type: "object",
@@ -43,6 +44,7 @@ async function generarScript(negocio) {
   const response = await client.messages.create({
     model: "claude-sonnet-5",
     max_tokens: 600,
+    system: PROSPECTING_SYSTEM_PROMPT,
     output_config: {
       effort: "low",
       format: { type: "json_schema", schema: SCHEMA },
@@ -50,7 +52,7 @@ async function generarScript(negocio) {
     messages: [
       {
         role: "user",
-        content: `Eres un asistente de prospección comercial para Qi-Vanta (consultoría de automatización e IA empresarial: SDLC inteligente, RPA+IA, modernización legacy, DevSecOps, copilotos, RAG/analítica). Con estos datos públicos de un negocio, genera un mensaje de primer contacto personalizado y honesto (nunca inventes datos que no te dieron):\n\n${detalles}`,
+        content: `Con estos datos públicos de un negocio, genera el mensaje de primer contacto (nunca inventes datos que no te dieron):\n\n${detalles}`,
       },
     ],
   });
