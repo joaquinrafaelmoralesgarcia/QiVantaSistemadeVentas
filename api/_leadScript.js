@@ -16,12 +16,16 @@ const SCHEMA = {
       type: "string",
       description: "Mensaje corto (máx. 350 caracteres), tono cercano y directo en español de México, mencionando algo específico y observable del negocio (ej. que no tiene sitio web, o que su sitio es básico) y proponiendo un agente de IA de Qi-Vanta que atienda clientes 24/7 por WhatsApp. Termina con una pregunta abierta e invitación a platicar. No suena a plantilla genérica ni a spam masivo.",
     },
-    iceBreakerEmail: {
+    asuntoEmail: {
       type: "string",
-      description: "1-2 frases en español para usar como primera línea personalizada de un correo frío (el resto del correo ya está en una secuencia predefinida de Smartlead). Debe mencionar algo específico y observable del negocio.",
+      description: "Asunto corto (máx. 60 caracteres) para un correo frío en español, específico al negocio, sin sonar a plantilla ni a spam.",
+    },
+    cuerpoEmail: {
+      type: "string",
+      description: "Correo frío completo en español (3-5 frases cortas, sin HTML), mencionando algo específico y observable del negocio, presentando brevemente qué es Qi-Vanta y cómo podría ayudarle, y cerrando con una invitación abierta a agendar una breve llamada. Firma como 'Equipo Qi-Vanta'.",
     },
   },
-  required: ["calificacion", "razonamiento", "mensajeWhatsapp", "iceBreakerEmail"],
+  required: ["calificacion", "razonamiento", "mensajeWhatsapp", "asuntoEmail", "cuerpoEmail"],
   additionalProperties: false,
 };
 

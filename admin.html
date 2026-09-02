@@ -230,7 +230,7 @@
             ${lead.correo ? esc(lead.correo) : '<span style="color:var(--muted)">sin correo</span>'}
           </td>
           <td>${badge(lead.calificacion || "", lead.calificacion || "-")}</td>
-          <td class="msg-preview">${esc(lead.mensajeWhatsapp || lead.iceBreakerEmail || "")}</td>
+          <td class="msg-preview">${esc(lead.mensajeWhatsapp || lead.cuerpoEmail || "")}</td>
           <td>${canalEmail}</td>
           <td>${badge(lead.estado, lead.estado)}</td>
           <td>

@@ -56,7 +56,8 @@ module.exports = async function handler(req, res) {
         calificacion: script?.calificacion || null,
         razonamiento: script?.razonamiento || "",
         mensajeWhatsapp: script?.mensajeWhatsapp || "",
-        iceBreakerEmail: script?.iceBreakerEmail || "",
+        asuntoEmail: script?.asuntoEmail || "",
+        cuerpoEmail: script?.cuerpoEmail || "",
         estado: "nuevo", // nuevo | contactado | descartado
         emailEstado: null, // null | "enviado_a_campana" | "error"
         origenBusqueda: query,
@@ -70,7 +71,10 @@ module.exports = async function handler(req, res) {
             correo: negocio.correo,
             empresa: negocio.nombre,
             telefono,
-            customFields: { icebreaker: script?.iceBreakerEmail || "" },
+            customFields: {
+              qi_vanta_subject: script?.asuntoEmail || "Automatización e IA para " + negocio.nombre,
+              qi_vanta_message: script?.cuerpoEmail || "",
+            },
           });
           lead.emailEstado = "enviado_a_campana";
           correosEnviados++;

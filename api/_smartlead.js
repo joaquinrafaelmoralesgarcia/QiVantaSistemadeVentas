@@ -1,9 +1,10 @@
-// Agrega un lead a una campaña de Smartlead para que el correo frío salga
-// automáticamente rotando entre tus cuentas de workspace configuradas ahí.
-// Verifica el campaign ID y el formato exacto del payload contra la
-// documentación de tu cuenta (Smartlead → Campaign → API) antes del primer
-// envío real; este endpoint sigue el patrón documentado públicamente
-// (POST /api/v1/campaigns/{campaign_id}/leads con api_key como query param).
+// Agrega un lead a la campaña "Qi-Vanta | Piloto LATAM | Decisores" (id
+// verificado: 3842244) para que el correo frío salga rotando entre las 6
+// cuentas de workspace ya configuradas en Smartlead.
+// Verificado con la cuenta real el 2026-09-02: la secuencia de esa campaña
+// usa los merge tags {{qi_vanta_subject}} y {{qi_vanta_message}} en vez de
+// los campos estándar de Smartlead — hay que mandarlos como custom_fields
+// con esos nombres exactos (ver _leadScript.js) o el correo sale vacío.
 const SMARTLEAD_BASE_URL = "https://server.smartlead.ai/api/v1";
 
 async function agregarLeadACampania({ nombre, correo, empresa, telefono, customFields }) {
