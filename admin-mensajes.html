@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Qi-Vanta — Mensajes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #070b16; --panel: #0c1424; --line: rgba(255,255,255,0.08);
+    --ink: #eef2f9; --muted: #8f9bb8; --cyan: #22d3ee; --blue: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: Archivo, system-ui, sans-serif; min-height: 100vh; }
+
+  .topnav { display: flex; gap: 4px; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .topnav a {
+    color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 700;
+    padding: 8px 14px; border-radius: 8px;
+  }
+  .topnav a.active { color: #04121f; background: linear-gradient(135deg, var(--cyan), var(--blue)); }
+
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+
+  .filters { display: flex; gap: 8px; margin-bottom: 16px; }
+  .filters button {
+    padding: 6px 14px; font-size: 12.5px; border-radius: 20px; cursor: pointer;
+    border: 1px solid var(--line); background: transparent; color: var(--muted); font-family: inherit;
+  }
+  .filters button.active { background: rgba(34,211,238,.18); color: #67e8f9; border-color: transparent; }
+
+  .grid { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+
+  .contact { padding: 12px; border-radius: 10px; cursor: pointer; margin-bottom: 4px; border: 1px solid transparent; }
+  .contact:hover { background: rgba(255,255,255,0.03); }
+  .contact.active { background: rgba(34,211,238,.1); border-color: var(--cyan); }
+  .contact-top { display: flex; justify-content: space-between; gap: 8px; }
+  .contact-name { font-size: 13px; font-weight: 700; }
+  .contact-badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 700; text-transform: uppercase; }
+  .contact-badge.whatsapp { background: rgba(52,199,123,.18); color: #79e6a8; }
+  .contact-badge.web { background: rgba(59,111,237,.18); color: #a9c4ff; }
+  .contact-preview { font-size: 11.5px; color: var(--muted); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .contact-meta { font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+
+  .thread-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .thread-title { font-size: 15px; font-weight: 700; }
+  .thread-sub { font-size: 12px; color: var(--muted); }
+
+  .thread-body { display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; padding-right: 4px; }
+  .bubble { max-width: 78%; padding: 10px 13px; border-radius: 12px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
+  .bubble.user { align-self: flex-start; background: #101a30; border: 1px solid var(--line); }
+  .bubble.assistant { align-self: flex-end; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; }
+
+  .empty { color: var(--muted); text-align: center; padding: 40px; font-size: 13px; }
+
+  .login-box { max-width: 320px; margin: 80px auto; text-align: center; }
+  .login-box input { width: 100%; margin: 12px 0; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: #0a1120; color: var(--ink); }
+  .login-box button { border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, var(--cyan), var(--blue)); color: #04121f; font-family: inherit; }
+  .status-line { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+</style>
+</head>
+<body>
+<div id="topnav" class="topnav" hidden>
+  <a href="/admin.html">Leads (prospección)</a>
+  <a href="/admin-mensajes.html" class="active">Mensajes</a>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <h1>Mensajes — Vista omnicanal</h1>
+  <p class="sub">WhatsApp (WATI) y widget web centralizados. Solo lectura: la IA ya responde ambos canales automáticamente.</p>
+
+  <div class="filters" id="filters">
+    <button data-canal="" class="active">Todos los canales</button>
+    <button data-canal="whatsapp">WhatsApp</button>
+    <button data-canal="web">Web</button>
+  </div>
+
+  <div class="grid">
+    <div class="card" id="listaContactos">
+      <div class="empty">Cargando…</div>
+    </div>
+    <div class="card">
+      <div id="threadHeader"></div>
+      <div class="thread-body" id="threadBody">
+        <div class="empty">Selecciona una conversación de la izquierda.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="login-box" id="loginBox">
+  <h1>Mensajes — Qi-Vanta</h1>
+  <p class="sub">Ingresa la contraseña de administrador.</p>
+  <input type="password" id="pwInput" placeholder="Contraseña" />
+  <button id="pwSubmit">Entrar</button>
+  <div class="status-line" id="loginStatus"></div>
+</div>
+
+<script>
+  const STORAGE_KEY = "qv_admin_pw";
+  let ADMIN_PW = localStorage.getItem(STORAGE_KEY) || "";
+  let canalFiltro = "";
+  let activo = null; // { canal, id }
+
+  const app = document.getElementById("app");
+  const loginBox = document.getElementById("loginBox");
+  const topnav = document.getElementById("topnav");
+
+  function headers() {
+    return { "Content-Type": "application/json", "X-Admin-Password": ADMIN_PW };
+  }
+
+  async function probarAcceso() {
+    const res = await fetch("/api/mensajes", { headers: headers() });
+    return res.status !== 401;
+  }
+
+  async function iniciar() {
+    if (ADMIN_PW && (await probarAcceso())) {
+      loginBox.hidden = true;
+      app.hidden = false;
+      topnav.hidden = false;
+      cargarLista();
+    } else {
+      loginBox.hidden = false;
+      app.hidden = true;
+      topnav.hidden = true;
+    }
+  }
+
+  document.getElementById("pwSubmit").addEventListener("click", async () => {
+    ADMIN_PW = document.getElementById("pwInput").value;
+    if (await probarAcceso()) {
+      localStorage.setItem(STORAGE_KEY, ADMIN_PW);
+      loginBox.hidden = true;
+      app.hidden = false;
+      topnav.hidden = false;
+      cargarLista();
+    } else {
+      document.getElementById("loginStatus").textContent = "Contraseña incorrecta.";
+    }
+  });
+
+  function esc(str) {
+    const d = document.createElement("div");
+    d.textContent = str || "";
+    return d.innerHTML;
+  }
+
+  async function cargarLista() {
+    const url = canalFiltro ? `/api/mensajes?canal=${encodeURIComponent(canalFiltro)}` : "/api/mensajes";
+    const res = await fetch(url, { headers: headers() });
+    const data = await res.json();
+    renderLista(data.conversaciones || []);
+  }
+
+  function renderLista(items) {
+    const cont = document.getElementById("listaContactos");
+    if (!items.length) {
+      cont.innerHTML = '<div class="empty">Sin conversaciones todavía.</div>';
+      return;
+    }
+    cont.innerHTML = items
+      .map((c) => {
+        const key = `${c.canal}:${c.id}`;
+        const activeCls = activo && activo.canal === c.canal && activo.id === c.id ? "active" : "";
+        return `<div class="contact ${activeCls}" data-canal="${esc(c.canal)}" data-id="${esc(c.id)}">
+          <div class="contact-top">
+            <span class="contact-name">${esc(c.contacto)}</span>
+            <span class="contact-badge ${esc(c.canal)}">${c.canal === "whatsapp" ? "WhatsApp" : "Web"}</span>
+          </div>
+          <div class="contact-preview">${esc(c.ultimoMensaje)}</div>
+          <div class="contact-meta">${c.totalMensajes} mensajes · ${c.updatedAt ? new Date(c.updatedAt).toLocaleString("es-MX") : ""}</div>
+        </div>`;
+      })
+      .join("");
+  }
+
+  document.getElementById("listaContactos").addEventListener("click", (e) => {
+    const el = e.target.closest(".contact");
+    if (!el) return;
+    activo = { canal: el.dataset.canal, id: el.dataset.id };
+    document.querySelectorAll(".contact").forEach((c) => c.classList.remove("active"));
+    el.classList.add("active");
+    cargarConversacion();
+  });
+
+  async function cargarConversacion() {
+    if (!activo) return;
+    const res = await fetch(`/api/mensajes-conversacion?canal=${encodeURIComponent(activo.canal)}&id=${encodeURIComponent(activo.id)}`, {
+      headers: headers(),
+    });
+    const data = await res.json();
+    const mensajes = data.mensajes || [];
+
+    document.getElementById("threadHeader").innerHTML = `
+      <div class="thread-header">
+        <div>
+          <div class="thread-title">${esc(activo.canal === "whatsapp" ? activo.id : "Visitante " + activo.id.slice(-6))}</div>
+          <div class="thread-sub">${activo.canal === "whatsapp" ? "WhatsApp vía WATI" : "Widget web"}</div>
+        </div>
+      </div>`;
+
+    const body = document.getElementById("threadBody");
+    if (!mensajes.length) {
+      body.innerHTML = '<div class="empty">Sin mensajes.</div>';
+      return;
+    }
+    body.innerHTML = mensajes
+      .map((m) => `<div class="bubble ${m.role === "assistant" ? "assistant" : "user"}">${esc(m.content)}</div>`)
+      .join("");
+    body.scrollTop = body.scrollHeight;
+  }
+
+  document.getElementById("filters").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    document.querySelectorAll("#filters button").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    canalFiltro = btn.dataset.canal;
+    activo = null;
+    document.getElementById("threadBody").innerHTML = '<div class="empty">Selecciona una conversación de la izquierda.</div>';
+    document.getElementById("threadHeader").innerHTML = "";
+    cargarLista();
+  });
+
+  iniciar();
+</script>
+</body>
+</html>

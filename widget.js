@@ -116,6 +116,21 @@
   const conversation = [];
   let opened = false;
 
+  function getSessionId() {
+    try {
+      let id = localStorage.getItem("qv_session_id");
+      if (!id) {
+        id = `web_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        localStorage.setItem("qv_session_id", id);
+      }
+      return id;
+    } catch (err) {
+      return `web_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    }
+  }
+
+  const sessionId = getSessionId();
+
   function addBubble(role, text) {
     const row = document.createElement("div");
     row.className = `qv-msg ${role === "user" ? "user" : "bot"}`;
@@ -173,7 +188,7 @@
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: conversation }),
+        body: JSON.stringify({ messages: conversation, sessionId }),
       });
       const data = await res.json();
       removeTyping();

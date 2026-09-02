@@ -1,5 +1,27 @@
 const { client } = require("./_anthropicClient");
 const { SYSTEM_PROMPT } = require("./_systemPrompt");
+const { getDb } = require("./_mongo");
+
+async function guardarConversacionWeb(sessionId, conversation, reply) {
+  try {
+    const db = await getDb();
+    await db.collection("widget_conversaciones").updateOne(
+      { sessionId },
+      {
+        $set: {
+          sessionId,
+          mensajes: [...conversation, { role: "assistant", content: reply }].slice(-16),
+          updatedAt: new Date(),
+        },
+        $setOnInsert: { createdAt: new Date() },
+      },
+      { upsert: true }
+    );
+  } catch (err) {
+    // No debe romper la respuesta al usuario si falla el guardado del historial
+    console.error("Error guardando conversación web:", err);
+  }
+}
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
@@ -13,7 +35,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { messages } = req.body || {};
+    const { messages, sessionId } = req.body || {};
 
     if (!Array.isArray(messages) || messages.length === 0) {
       res.status(400).json({ error: "Falta el arreglo 'messages'." });
@@ -35,14 +57,16 @@ module.exports = async function handler(req, res) {
     });
 
     if (response.stop_reason === "refusal") {
-      res.status(200).json({
-        reply: "No puedo responder a esa solicitud. ¿Quieres que te conecte con el equipo de Qi-Vanta?",
-      });
+      const reply = "No puedo responder a esa solicitud. ¿Quieres que te conecte con el equipo de Qi-Vanta?";
+      if (sessionId) await guardarConversacionWeb(sessionId, conversation, reply);
+      res.status(200).json({ reply });
       return;
     }
 
     const textBlock = response.content.find((b) => b.type === "text");
-    res.status(200).json({ reply: textBlock ? textBlock.text : "" });
+    const reply = textBlock ? textBlock.text : "";
+    if (sessionId) await guardarConversacionWeb(sessionId, conversation, reply);
+    res.status(200).json({ reply });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ocurrió un error al contactar al asistente." });
