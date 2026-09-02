@@ -1,0 +1,20 @@
+name: Cron de seguimiento WhatsApp
+
+# Vercel Hobby solo permite cron jobs 1x/día, así que este workflow dispara
+# el endpoint de seguimiento (30 min / 1h sin respuesta del cliente) cada 10
+# minutos desde GitHub Actions en su lugar. Requiere el secret CRON_SECRET
+# configurado en Settings → Secrets and variables → Actions de este repo,
+# con el mismo valor que la variable de entorno CRON_SECRET en Vercel.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  disparar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a /api/cron-seguimiento
+        run: |
+          curl -sf -X POST "https://chatbotwati.vercel.app/api/cron-seguimiento" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
