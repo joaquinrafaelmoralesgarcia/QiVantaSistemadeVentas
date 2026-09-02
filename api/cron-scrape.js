@@ -6,7 +6,7 @@ const { iniciarBusqueda, consultarBusqueda } = require("./_apify");
 const { procesarNegocios } = require("./_leadsProcessor");
 const { CATEGORIAS, CIUDADES, elegirAlAzar } = require("./_prospectingSegments");
 
-const MAX_RESULTADOS = 30;
+const MAX_RESULTADOS = 50;
 
 module.exports = async function handler(req, res) {
   if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
