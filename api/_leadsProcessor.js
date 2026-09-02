@@ -1,4 +1,5 @@
 const { generarScript } = require("./_leadScript");
+const { agregarLeadACampania } = require("./_smartlead");
 
 function normalizarTelefono(tel) {
   const digits = String(tel || "").replace(/[^\d+]/g, "");
@@ -44,27 +45,60 @@ async function procesarNegocios(coleccion, negocios, query) {
 
   let conCorreo = 0;
   let soloTelefono = 0;
-  const leads = nuevosNegocios.map((negocio, i) => {
+  let correosEnviados = 0;
+  let erroresCorreo = 0;
+
+  const leads = [];
+  for (let i = 0; i < nuevosNegocios.length; i++) {
+    const negocio = nuevosNegocios[i];
     const script = scripts[i];
-    if (negocio.correo) conCorreo++;
-    else soloTelefono++;
-    return {
+    const asuntoEmail = script?.asuntoEmail || (negocio.correo ? `Automatización e IA para ${negocio.nombre}` : "");
+    const cuerpoEmail = script?.cuerpoEmail || "";
+
+    const lead = {
       ...negocio,
       calificacion: script?.calificacion || null,
       razonamiento: script?.razonamiento || "",
       mensajeWhatsapp: script?.mensajeWhatsapp || "",
-      asuntoEmail: script?.asuntoEmail || (negocio.correo ? `Automatización e IA para ${negocio.nombre}` : ""),
-      cuerpoEmail: script?.cuerpoEmail || "",
+      asuntoEmail,
+      cuerpoEmail,
       estado: "nuevo",
-      emailEstado: negocio.correo ? "pendiente" : null,
+      emailEstado: null, // null | "enviado_a_campana" | "error"
       origenBusqueda: query,
       createdAt: new Date(),
     };
-  });
+
+    if (negocio.correo) {
+      conCorreo++;
+      // El correo se manda automático a la campaña de Smartlead — el
+      // asunto/cuerpo ya lo revisas/editas en el panel DESPUÉS (Smartlead
+      // solo dispara el envío real cuando tú actives la campaña ahí).
+      try {
+        await agregarLeadACampania({
+          nombre: negocio.nombre,
+          correo: negocio.correo,
+          empresa: negocio.nombre,
+          telefono: negocio.telefono,
+          customFields: { qi_vanta_subject: asuntoEmail, qi_vanta_message: cuerpoEmail },
+        });
+        lead.emailEstado = "enviado_a_campana";
+        correosEnviados++;
+      } catch (err) {
+        console.error("Error mandando a Smartlead:", negocio.nombre, err.message);
+        lead.emailEstado = "error";
+        lead.emailError = err.message;
+        erroresCorreo++;
+      }
+    } else {
+      soloTelefono++;
+    }
+
+    leads.push(lead);
+  }
 
   if (leads.length) await coleccion.insertMany(leads);
 
-  return { totalEncontrados: negocios.length, nuevos: leads.length, duplicados, conCorreo, soloTelefono };
+  return { totalEncontrados: negocios.length, nuevos: leads.length, duplicados, conCorreo, soloTelefono, correosEnviados, erroresCorreo };
 }
 
 module.exports = { procesarNegocios, normalizarTelefono };

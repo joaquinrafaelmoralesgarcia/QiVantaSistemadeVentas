@@ -397,7 +397,7 @@
         status.textContent = `Apify sigue buscando/enriqueciendo contactos (${data.status || "en curso"})... esto puede tardar 1-2 min por cada 5 negocios.`;
         continue;
       }
-      status.textContent = `Listo: ${data.totalEncontrados} encontrados, ${data.nuevos} nuevos, ${data.duplicados} ya existían — ${data.conCorreo} con correo (pendiente de tu revisión), ${data.soloTelefono} solo con teléfono (WhatsApp manual).`;
+      status.textContent = `Listo: ${data.totalEncontrados} encontrados, ${data.nuevos} nuevos, ${data.duplicados} ya existían — ${data.correosEnviados} correos agregados a la campaña de Smartlead${data.erroresCorreo ? ` (${data.erroresCorreo} con error)` : ""}, ${data.soloTelefono} solo con teléfono (WhatsApp manual).`;
       cargarLeads();
       return;
     }

@@ -43,7 +43,10 @@ async function generarScript(negocio) {
 
   const response = await client.messages.create({
     model: "claude-sonnet-5",
-    max_tokens: 600,
+    // 600 se quedaba corto: con negocio real, ~4 de 9 en paralelo fallaban
+    // con "Unterminated string in JSON" porque el cuerpoEmail se cortaba a
+    // medio generar. Verificado y corregido con los mismos negocios reales.
+    max_tokens: 1200,
     system: PROSPECTING_SYSTEM_PROMPT,
     output_config: {
       effort: "low",
