@@ -23,6 +23,11 @@ function extraerMensajeEntrante(body) {
   const texto = d.text || d.messageText || d.body || body?.text;
   const tipo = d.type || d.eventType || body?.eventType || "";
   const nombre = d.senderName || d.name || "";
+  // WATI reintenta la entrega del webhook (confirmado: mismo mensaje repetido
+  // cada ~10 min si algo falla del lado nuestro) — se necesita un id estable
+  // para deduplicar. whatsappMessageId es el id real de Meta; "id" es el
+  // identificador interno de WATI, siempre presente como respaldo.
+  const idMensaje = d.whatsappMessageId || d.id || body?.whatsappMessageId || body?.id;
 
   // Ignora eventos que no sean mensajes de texto entrantes (ej. "sent"/"delivered"/"read" de nuestros propios envíos).
   const esEntrante =
@@ -30,7 +35,18 @@ function extraerMensajeEntrante(body) {
 
   if (!waId || !texto || !esEntrante) return null;
 
-  return { waId: String(waId), texto: String(texto), nombre: String(nombre || "") };
+  return { waId: String(waId), texto: String(texto), nombre: String(nombre || ""), idMensaje: idMensaje ? String(idMensaje) : null };
+}
+
+async function yaFueProcesado(db, idMensaje) {
+  if (!idMensaje) return false; // sin id no podemos deduplicar, se procesa (mejor a que se pierda)
+  try {
+    await db.collection("wati_mensajes_procesados").insertOne({ _id: idMensaje, processedAt: new Date() });
+    return false; // se pudo insertar -> es la primera vez que se ve este mensaje
+  } catch (err) {
+    if (err?.code === 11000) return true; // ya existía -> reintento duplicado de WATI
+    throw err;
+  }
 }
 
 async function enviarRespuestaWati(waId, texto) {
@@ -90,6 +106,12 @@ module.exports = async function handler(req, res) {
     }
 
     const db = await getDb();
+
+    if (await yaFueProcesado(db, mensaje.idMensaje)) {
+      res.status(200).json({ ok: true, duplicado: true });
+      return;
+    }
+
     const historial = await obtenerHistorial(db, mensaje.waId);
 
     const conversacion = [
