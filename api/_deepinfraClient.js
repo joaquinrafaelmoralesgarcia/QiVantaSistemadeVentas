@@ -1,14 +1,21 @@
-// Cliente para DeepInfra (endpoint OpenAI-compatible), usado SOLO por el
-// flujo de prospección (_leadScript.js) para dejar de depender de saldo de
-// Anthropic en esa tarea. El chat en vivo de qi-vanta.com y WhatsApp
-// (chat.js / wati-webhook.js) sigue en Claude — no tocar eso aquí.
+// Cliente compartido para DeepInfra (endpoint OpenAI-compatible), usado por
+// los 3 flujos que antes dependían de saldo de Anthropic: prospección
+// (_leadScript.js), WhatsApp (wati-webhook.js) y el widget web (chat.js).
 //
-// Qwen3.5-9B trae "thinking" activado por default: sin chat_template_kwargs
-// enable_thinking:false, el modelo gasta todo max_tokens razonando en inglés
-// y nunca llega a escribir el JSON final (finish_reason "length", content
-// vacío) — verificado el 2026-09-03 con una llamada real.
+// Modelo elegido tras comparar 3 opciones el 2026-09-03 con los prompts
+// reales del proyecto (4 negocios + 4 escenarios de chat en paralelo):
+// Mistral-Small-3.2-24B ganó en todo — JSON 100% válido, 3-6x más rápido
+// (1-3.5s vs 8-22s) y mismo costo o menor que Qwen3.5-9B. Llama-3.3-70B
+// quedó descartado: pese a ser "más grande", envolvía el JSON en ```json
+// pese a la instrucción explícita de no hacerlo.
+//
+// chat_template_kwargs.enable_thinking:false se deja siempre presente aunque
+// Mistral no lo necesite (no le hace daño, verificado) — es la protección
+// contra el bug real que sí tuvo Qwen3.5-9B: sin ese flag, gastaba todo
+// max_tokens "pensando" en inglés y nunca escribía el JSON final. Si el
+// modelo vuelve a cambiar a uno con "thinking", este flag ya está puesto.
 const DEEPINFRA_BASE_URL = "https://api.deepinfra.com/v1/openai/chat/completions";
-const MODEL = "Qwen/Qwen3.5-9B";
+const MODEL = "mistralai/Mistral-Small-3.2-24B-Instruct-2506";
 
 async function llamarDeepInfra(body) {
   const res = await fetch(DEEPINFRA_BASE_URL, {
