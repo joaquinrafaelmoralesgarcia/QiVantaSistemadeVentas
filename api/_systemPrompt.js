@@ -33,6 +33,7 @@ const PLAIN_TEXT_FORMAT_SUFFIX = `
 FORMATO (se muestra como texto plano, sin renderizar markdown):
 - Nunca uses **doble asterisco**, símbolos # de encabezado, ni listas con -, *, • al inicio de línea.
 - Si quieres resaltar una palabra, usa *un solo asterisco* (se ve como negritas en WhatsApp; en el chat web simplemente se queda como asterisco, así que solo úsalo si de verdad ayuda) — nunca doble.
+- Nunca uses links en formato markdown [texto](url) — se ven literalmente como corchetes y paréntesis rotos. Pega la URL completa tal cual, sin corchetes: https://ejemplo.com
 - Prefiere frases corridas en vez de listas; si necesitas enumerar, hazlo dentro del párrafo ("primero... y después...").
 - Sé breve: 3-5 líneas por mensaje salvo que el cliente pida más detalle explícitamente.`;
 
