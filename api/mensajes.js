@@ -1,6 +1,9 @@
 // Vista unificada de conversaciones (WhatsApp vía WATI + widget web) para el
-// panel /admin-mensajes.html. Es de solo lectura: la IA ya responde ambos
-// canales automáticamente, este endpoint no envía nada, solo muestra.
+// panel /admin-mensajes.html. Mayormente de solo lectura: la IA ya responde
+// ambos canales automáticamente, este endpoint no manda mensajes. La única
+// escritura es PATCH para reactivar el bot en una conversación de WhatsApp
+// que quedó pausada porque un humano (tú) le contestó directo — sin esto la
+// pausa sería permanente sin forma de deshacerla desde el panel.
 // Lista (sin 'id') y detalle de una conversación (con 'id') consolidados en
 // un solo archivo por el límite de 12 funciones serverless de Vercel Hobby.
 const { getDb } = require("./_mongo");
@@ -17,7 +20,7 @@ function ultimoTexto(mensajes) {
 }
 
 module.exports = async function handler(req, res) {
-  if (req.method !== "GET") {
+  if (req.method !== "GET" && req.method !== "PATCH") {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
@@ -27,6 +30,18 @@ module.exports = async function handler(req, res) {
     const db = await getDb();
     const { canal, id } = req.query || {};
 
+    if (req.method === "PATCH") {
+      if (canal !== "whatsapp" || !id) {
+        res.status(400).json({ error: "PATCH solo aplica a canal=whatsapp con 'id' (waId)." });
+        return;
+      }
+      await db
+        .collection("wati_conversaciones")
+        .updateOne({ waId: id }, { $set: { humanTomoControl: false }, $unset: { humanTomoControlPor: "", humanTomoControlEn: "" } });
+      res.status(200).json({ ok: true });
+      return;
+    }
+
     if (id) {
       const config = COLECCION_POR_CANAL[canal];
       if (!config) {
@@ -34,7 +49,12 @@ module.exports = async function handler(req, res) {
         return;
       }
       const doc = await db.collection(config.nombre).findOne({ [config.campoId]: id });
-      res.status(200).json({ mensajes: doc?.mensajes || [], datosContacto: doc?.contacto || null });
+      res.status(200).json({
+        mensajes: doc?.mensajes || [],
+        datosContacto: doc?.contacto || null,
+        humanTomoControl: !!doc?.humanTomoControl,
+        humanTomoControlPor: doc?.humanTomoControlPor || null,
+      });
       return;
     }
 
@@ -53,6 +73,7 @@ module.exports = async function handler(req, res) {
         canal: "whatsapp",
         id: c.waId,
         contacto: c.waId,
+        humanTomoControl: !!c.humanTomoControl,
         totalMensajes: (c.mensajes || []).length,
         ultimoMensaje: ultimoTexto(c.mensajes),
         updatedAt: c.updatedAt,

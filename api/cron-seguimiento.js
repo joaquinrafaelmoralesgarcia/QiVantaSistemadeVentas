@@ -30,9 +30,15 @@ module.exports = async function handler(req, res) {
     let seguimiento1 = 0;
     let seguimiento2 = 0;
 
-    // Seguimiento 1: 30+ min sin respuesta, todavía no se mandó.
+    // Seguimiento 1: 30+ min sin respuesta, todavía no se mandó, y el bot
+    // sigue activo en esa conversación (no la tomó un humano — ver
+    // detectarTomaDeControlHumano en wati-webhook.js).
     const candidatos1 = await coleccion
-      .find({ "seguimiento.ultimaRespuestaBot": { $lte: new Date(ahora - TREINTA_MIN_MS) }, "seguimiento.seguimiento1Enviado": false })
+      .find({
+        "seguimiento.ultimaRespuestaBot": { $lte: new Date(ahora - TREINTA_MIN_MS) },
+        "seguimiento.seguimiento1Enviado": false,
+        humanTomoControl: { $ne: true },
+      })
       .toArray();
 
     for (const conv of candidatos1) {
@@ -57,6 +63,7 @@ module.exports = async function handler(req, res) {
         "seguimiento.ultimaRespuestaBot": { $lte: new Date(ahora - UNA_HORA_MS) },
         "seguimiento.seguimiento1Enviado": true,
         "seguimiento.seguimiento2Enviado": false,
+        humanTomoControl: { $ne: true },
       })
       .toArray();
 

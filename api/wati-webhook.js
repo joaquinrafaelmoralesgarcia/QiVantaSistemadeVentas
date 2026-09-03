@@ -10,6 +10,13 @@
 //      sección API Docs) — típicamente algo como
 //      https://live-mt-server.wati.io/<tenantId> o https://live-server-XXXX.wati.io/<tenantId>.
 //      No es la misma para todas las cuentas, así que debe configurarse por env var.
+//   3) detectarTomaDeControlHumano() abajo intenta detectar cuándo TÚ (no el
+//      bot) le contestaste a un cliente desde el dashboard de WATI, usando
+//      los campos más comunes de WATI para esto (operatorName/operatorEmail/
+//      assignedName). PENDIENTE DE VERIFICAR con un envío real tuyo desde el
+//      dashboard — si no pausa el bot correctamente la primera vez, revisa
+//      el log crudo del webhook para ver qué campo sí trae tu nombre/correo
+//      y ajusta la función.
 const { chatCompletionText } = require("./_deepinfraClient");
 const { getDb } = require("./_mongo");
 const { SYSTEM_PROMPT, PLAIN_TEXT_FORMAT_SUFFIX } = require("./_systemPrompt");
@@ -37,6 +44,21 @@ function extraerMensajeEntrante(body) {
   if (!waId || !texto || !esEntrante) return null;
 
   return { waId: String(waId), texto: String(texto), nombre: String(nombre || ""), idMensaje: idMensaje ? String(idMensaje) : null };
+}
+
+// Detecta un mensaje SALIENTE (owner/fromMe true) que trae el nombre/correo
+// de un operador humano — eso significa que TÚ contestaste desde el
+// dashboard de WATI, no nuestro bot (el bot manda por API, sin operador
+// logueado). Pedido explícito del usuario el 2026-09-04: en cuanto tú
+// escribes directo, el bot debe dejar de responder esa conversación.
+function detectarTomaDeControlHumano(body) {
+  const d = body?.data || body || {};
+  const waId = d.waId || d.whatsappNumber || d.phone || body?.waId;
+  const esSaliente = d.owner === true || d.fromMe === true;
+  const operador = d.operatorName || d.operatorEmail || d.assignedName || d.senderName || "";
+
+  if (!waId || !esSaliente || !String(operador || "").trim()) return null;
+  return { waId: String(waId), operador: String(operador).trim() };
 }
 
 async function yaFueProcesado(db, idMensaje) {
@@ -73,9 +95,11 @@ async function buscarContextoWebPrevio(db, waId) {
   return candidatos.find((c) => soloDigitos(c.contacto.telefono).endsWith(digitos.slice(-10))) || null;
 }
 
-async function obtenerHistorial(db, waId) {
+async function obtenerConversacion(db, waId) {
   const doc = await db.collection("wati_conversaciones").findOne({ waId });
-  if (doc?.mensajes?.length) return doc.mensajes;
+  const humanTomoControl = !!doc?.humanTomoControl;
+
+  if (doc?.mensajes?.length) return { mensajes: doc.mensajes, humanTomoControl };
 
   // Sin historial propio todavía (primer mensaje de este waId) — buscar si
   // viene de una conversación previa en el widget web.
@@ -84,10 +108,21 @@ async function obtenerHistorial(db, waId) {
     await db
       .collection("widget_conversaciones")
       .updateOne({ _id: previo._id }, { $set: { "contacto.vinculadoWaId": waId } });
-    return previo.mensajes;
+    return { mensajes: previo.mensajes, humanTomoControl };
   }
 
-  return [];
+  return { mensajes: [], humanTomoControl };
+}
+
+// Para cuando el bot está pausado (humanTomoControl): solo guarda el
+// mensaje entrante en el historial (para que lo veas en el panel), sin
+// tocar el reloj de seguimiento — ya no aplica, tú estás contestando.
+async function guardarMensajeEntrante(db, waId, mensajes) {
+  await db.collection("wati_conversaciones").updateOne(
+    { waId },
+    { $set: { waId, mensajes: mensajes.slice(-MAX_HISTORY), updatedAt: new Date() } },
+    { upsert: true }
+  );
 }
 
 async function guardarHistorial(db, waId, mensajes) {
@@ -116,6 +151,27 @@ module.exports = async function handler(req, res) {
   console.log("WATI webhook body:", JSON.stringify(req.body));
 
   try {
+    const db = await getDb();
+
+    const tomaDeControl = detectarTomaDeControlHumano(req.body);
+    if (tomaDeControl) {
+      await db.collection("wati_conversaciones").updateOne(
+        { waId: tomaDeControl.waId },
+        {
+          $set: {
+            waId: tomaDeControl.waId,
+            humanTomoControl: true,
+            humanTomoControlPor: tomaDeControl.operador,
+            humanTomoControlEn: new Date(),
+          },
+        },
+        { upsert: true }
+      );
+      console.log(`Humano (${tomaDeControl.operador}) tomó control de la conversación con ${tomaDeControl.waId} — bot pausado ahí.`);
+      res.status(200).json({ ok: true, humanTomoControl: true });
+      return;
+    }
+
     const mensaje = extraerMensajeEntrante(req.body);
     if (!mensaje) {
       // No es un mensaje de texto entrante (ej. evento de estado) — se responde 200 igual para que WATI no reintente.
@@ -129,14 +185,20 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const db = await getDb();
-
     if (await yaFueProcesado(db, mensaje.idMensaje)) {
       res.status(200).json({ ok: true, duplicado: true });
       return;
     }
 
-    const historial = await obtenerHistorial(db, mensaje.waId);
+    const { mensajes: historial, humanTomoControl } = await obtenerConversacion(db, mensaje.waId);
+
+    if (humanTomoControl) {
+      // Tú ya tomaste esta conversación — el bot solo guarda el mensaje
+      // entrante (para que lo veas en el panel) y no responde nada.
+      await guardarMensajeEntrante(db, mensaje.waId, [...historial, { role: "user", content: mensaje.texto }]);
+      res.status(200).json({ ok: true, pausadoPorHumano: true });
+      return;
+    }
 
     const conversacion = [
       ...historial,
