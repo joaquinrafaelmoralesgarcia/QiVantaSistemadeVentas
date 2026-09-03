@@ -1,7 +1,9 @@
 const { chatCompletionText } = require("./_deepinfraClient");
-const { SYSTEM_PROMPT, PLAIN_TEXT_FORMAT_SUFFIX } = require("./_systemPrompt");
+const { SYSTEM_PROMPT, PLAIN_TEXT_FORMAT_SUFFIX, WEB_FORM_TRIGGER_SUFFIX } = require("./_systemPrompt");
 const { getDb } = require("./_mongo");
 const { aplicarCors } = require("./_cors");
+
+const MARCA_FORMULARIO = /\s*\[\[MOSTRAR_FORMULARIO\]\]\s*$/;
 
 async function guardarConversacionWeb(sessionId, conversation, reply) {
   try {
@@ -54,7 +56,7 @@ module.exports = async function handler(req, res) {
     let reply;
     try {
       reply = await chatCompletionText({
-        system: SYSTEM_PROMPT + PLAIN_TEXT_FORMAT_SUFFIX,
+        system: SYSTEM_PROMPT + PLAIN_TEXT_FORMAT_SUFFIX + WEB_FORM_TRIGGER_SUFFIX,
         messages: conversation,
         maxTokens: 700,
       });
@@ -63,8 +65,11 @@ module.exports = async function handler(req, res) {
       reply = "Disculpa, no pude generar una respuesta. ¿Puedes reformular tu pregunta?";
     }
 
+    const mostrarFormulario = MARCA_FORMULARIO.test(reply);
+    if (mostrarFormulario) reply = reply.replace(MARCA_FORMULARIO, "");
+
     if (sessionId) await guardarConversacionWeb(sessionId, conversation, reply);
-    res.status(200).json({ reply });
+    res.status(200).json({ reply, mostrarFormulario });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ocurrió un error al contactar al asistente." });

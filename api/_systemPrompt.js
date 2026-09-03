@@ -34,4 +34,15 @@ FORMATO (se muestra como texto plano, sin renderizar markdown):
 - Prefiere frases corridas en vez de listas; si necesitas enumerar, hazlo dentro del párrafo ("primero... y después...").
 - Sé breve: 3-5 líneas por mensaje salvo que el cliente pida más detalle explícitamente.`;
 
-module.exports = { SYSTEM_PROMPT, PLAIN_TEXT_FORMAT_SUFFIX };
+// Solo para el widget web (chat.js) — WhatsApp no tiene un formulario en
+// pantalla, ahí el bot SÍ debe seguir pidiendo los datos por texto (única
+// opción disponible en ese canal). En el widget web sí hay un formulario
+// real con campos (nombre, teléfono, empresa, número de empleados) que
+// aparece dentro del chat — verificado el 2026-09-04: sin esta instrucción,
+// el bot pedía los mismos datos por texto ANTES de que apareciera el
+// formulario real, generando una doble captura confusa para el cliente.
+const WEB_FORM_TRIGGER_SUFFIX = `
+
+FORMULARIO DE CONTACTO (solo canal web): este chat vive dentro de una página que tiene un formulario real con campos (nombre, teléfono, empresa, número de empleados) que aparece automáticamente en pantalla cuando corresponde. Por eso, cuando el cliente muestre que quiere agendar una sesión, dejar sus datos o que lo contacten, NUNCA le preguntes tú nombre/empresa/correo/teléfono/etc. por texto — en vez de eso di algo breve como "Perfecto, te va a aparecer un formulario aquí abajo para dejar tus datos" y termina tu respuesta agregando exactamente esta marca al final, en su propia línea, sin explicarla ni mencionarla al cliente: [[MOSTRAR_FORMULARIO]]`;
+
+module.exports = { SYSTEM_PROMPT, PLAIN_TEXT_FORMAT_SUFFIX, WEB_FORM_TRIGGER_SUFFIX };

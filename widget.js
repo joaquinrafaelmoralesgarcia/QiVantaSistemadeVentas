@@ -303,7 +303,11 @@
       } else {
         addBubble("bot", data.reply);
         conversation.push({ role: "assistant", content: data.reply });
-        if (mensajesUsuario >= 3 && !formularioMostrado) {
+        // El bot avisa con data.mostrarFormulario cuando el cliente ya
+        // quiere agendar/dejar datos — dispara el formulario en ese momento
+        // exacto. El conteo de mensajes (>=6) queda solo de respaldo, por si
+        // el bot nunca llega a ese punto en la conversación.
+        if (!formularioMostrado && (data.mostrarFormulario || mensajesUsuario >= 6)) {
           formularioMostrado = true;
           mostrarFormularioContacto();
         }
