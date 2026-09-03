@@ -11,6 +11,16 @@
 // Antes de esto, el prompt siempre terminaba en el mismo pitch ("agente
 // de WhatsApp 24/7") sin importar el rubro; ahora obliga a elegir entre
 // varias ofertas reales según señales observables del negocio.
+//
+// Ampliado de 11 a 15 opciones el 2026-09-03: el usuario mandó un catálogo
+// mucho más largo (cientos de micro-variantes de IA por área). En vez de
+// meterlas todas —hubiera diluido la calidad de selección del modelo y
+// disparado el tamaño/costo del prompt—, se comparó contra su propia lista
+// priorizada ("Los 10 que yo vendería primero"): 8 de esas 10 ya estaban
+// cubiertas por el menú de 11; solo se agregaron las 2 que faltaban
+// (#12 reportes gerenciales, #13 solicitudes internas) más 2 adicionales
+// de alto valor del catálogo largo (#14 capacitación/onboarding, #15
+// análisis de llamadas de venta).
 const SEGMENTOS_ALTA_PRIORIDAD = [
   "Clínicas médicas y dentales", "Clínicas estéticas", "Veterinarias", "Gimnasios y cadenas fitness",
   "Despachos contables", "Despachos jurídicos", "Constructoras", "Inmobiliarias",
@@ -40,7 +50,10 @@ Con los datos que te dieron (categoría, si tiene sitio web, calificación en Go
 - Rubro con inventario físico (ferreterías, refaccionarias, tiendas, distribuidores, abarrotes) → oportunidad #9 (inventario y recompra).
 - Rubro de campo/servicio físico (construcción, mantenimiento, limpieza, talleres, valuación) → oportunidad #11 (control de calidad con fotos).
 - Negocio que recibe leads pero no siempre cierra (inmobiliarias, escuelas, clínicas estéticas, agencias de autos) → oportunidad #3 (seguimiento de prospectos).
-- Negocio mediano con cierta complejidad (varias líneas de producto/servicio, operación no trivial) → oportunidad #8 (copiloto del dueño).
+- Negocio mediano con cierta complejidad (varias líneas de producto/servicio, operación no trivial) → oportunidad #8 (copiloto del dueño) si lo que más ayuda es poder preguntar en lenguaje libre, u oportunidad #12 (reportes gerenciales) si lo que más ayuda es un resumen fijo que le llegue solo, sin tener que preguntar nada.
+- Rubro con plantilla de empleados numerosa o varias sucursales (hoteles, restaurantes con sucursales, fabricantes, distribuidores, seguridad privada, transporte, franquicias, centros de capacitación) → oportunidad #13 (solicitudes internas).
+- Rubro con alta rotación de personal o que contrata seguido (restaurantes, call centers chicos, seguridad, logística, retail) → oportunidad #14 (capacitación y onboarding).
+- Rubro que vende de forma consultiva por teléfono o WhatsApp (inmobiliarias, escuelas, clínicas estéticas, seguros/financieras, agencias de autos) → oportunidad #15 (análisis de llamadas y conversaciones de venta), como variante de la #3 cuando ya se usó antes en negocios similares.
 
 ═══════════════════════════════════════════════
 PASO 2 — MENÚ DE OFERTAS REALES DE QI-VANTA (elige 1, máx. 2 — no repitas siempre la misma)
@@ -56,6 +69,10 @@ PASO 2 — MENÚ DE OFERTAS REALES DE QI-VANTA (elige 1, máx. 2 — no repitas 
 9. INVENTARIO Y RECOMPRA — predice qué producto se va a acabar y cuándo recomprar, para evitar quiebres de stock o producto muerto.
 10. PRESENCIA DIGITAL + CONTENIDO LOCAL CON IA — ayuda a tener un canal digital moderno con IA integrada desde cero, más generación de contenido/promociones. SOLO si el negocio no tiene sitio web.
 11. CONTROL DE CALIDAD CON FOTOS — convierte fotos de campo (obra, servicio, sucursal) en reportes automáticos con evidencia y hallazgos.
+12. REPORTES GERENCIALES AUTOMÁTICOS — un resumen diario o semanal con ventas, clientes nuevos, pagos pendientes, productos que más se mueven y alertas, para que el dueño no tenga que revisar Excel o el sistema a mano cada vez.
+13. AUTOMATIZACIÓN DE SOLICITUDES INTERNAS — organiza vacaciones, viáticos, compras, permisos e incidencias del personal por WhatsApp o formulario, con responsables y tiempos claros, en vez de mensajes sueltos y desordenados.
+14. CAPACITACIÓN Y ONBOARDING CON IA — digitaliza el conocimiento del negocio en cursos rápidos, manuales y un asistente de preguntas frecuentes, para que el personal nuevo aprenda más rápido y con menos errores.
+15. ANÁLISIS DE LLAMADAS Y CONVERSACIONES DE VENTA — transcribe y analiza llamadas o chats de venta para detectar por qué se pierden clientes y en qué necesita apoyo el equipo.
 
 Nunca uses la opción 1 por default solo porque es la más obvia — analiza primero. Varía la propuesta entre negocios de rubros distintos.
 
