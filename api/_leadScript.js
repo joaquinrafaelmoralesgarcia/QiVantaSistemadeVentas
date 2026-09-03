@@ -11,11 +11,27 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin t
 {
   "calificacion": "alta" | "media" | "baja" (qué tan buen prospecto es: alta si claramente necesita automatización/IA y parece tener presupuesto, baja si no aplica bien),
   "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
-  "mensajeWhatsapp": "mensaje corto, máx 350 caracteres, tono cercano y directo en español de México, cierra con pregunta abierta",
+  "mensajeWhatsapp": "mensaje corto, máx 280 caracteres, tono cercano y directo en español de México, cierra con pregunta abierta. NO incluyas firma ni datos de contacto, se agregan automáticamente después",
   "asuntoEmail": "asunto corto, máx 60 caracteres, específico al negocio, sin sonar a plantilla",
-  "cuerpoEmail": "correo frío completo, 3-5 frases cortas, sin HTML, firma como 'Equipo Qi-Vanta' (la firma va DENTRO de este texto, no como clave aparte)"
+  "cuerpoEmail": "correo frío completo, 3-5 frases cortas, sin HTML. No te presentes por nombre en ningún punto del texto (ni al inicio ni al final) — nunca escribas 'me llamo...' ni placeholders entre corchetes como [Nombre]. No incluyas firma, despedida ('Saludos', 'Equipo Qi-Vanta') ni datos de contacto — todo eso se agrega automáticamente después, fuera de este texto. Empieza directo con el gancho sobre el negocio y termina en la pregunta/invitación a platicar"
 }
 No agregues ninguna clave adicional fuera de esas 5.`;
+
+// Se agrega en código, no se le pide al modelo que la escriba (riesgo de que
+// invente o altere el correo/nombre real) — pedido explícito del usuario el
+// 2026-09-03: los mensajes no traían forma de verificar que Qi-Vanta es real.
+const FIRMA_WHATSAPP = `
+
+— Joaquín Morales | Qi-Vanta
+https://www.qi-vanta.com`;
+
+const FIRMA_EMAIL = `
+
+Joaquín Morales
+Strategic Transformation Advisor | Qi-Vanta
+AI-Native SDLC & Automatización
+https://www.qi-vanta.com
+joaquin.morales@qi-vantatech.com`;
 
 async function generarScript(negocio) {
   const detalles = [
@@ -28,11 +44,15 @@ async function generarScript(negocio) {
     .filter(Boolean)
     .join("\n");
 
-  return chatCompletionJSON({
+  const script = await chatCompletionJSON({
     system: PROSPECTING_SYSTEM_PROMPT + JSON_INSTRUCTIONS,
     user: `Con estos datos públicos de un negocio, genera el mensaje de primer contacto (nunca inventes datos que no te dieron):\n\n${detalles}`,
     maxTokens: 800,
   });
+
+  if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
+  if (script.cuerpoEmail) script.cuerpoEmail += FIRMA_EMAIL;
+  return script;
 }
 
 module.exports = { generarScript };
