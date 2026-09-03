@@ -4,10 +4,13 @@ name: Scrapeo diario de leads (Apify)
 # ni en tu computadora) — necesario porque Apify tarda varios minutos en
 # terminar y las funciones de Vercel Hobby se cortan a los 60s.
 #
-# Sigue disparando búsquedas (rubro+ciudad al azar, hasta 50 negocios cada
-# una) hasta juntar un MÍNIMO de 50 leads nuevos ese día, con un tope de
-# seguridad de 10 búsquedas para no disparar el costo si un día le toca
-# mala racha de rubros/ciudades con poco volumen en Google Maps.
+# Objetivo real: 150 leads CON CORREO/día (25 correos x 6 cuentas de envío
+# de Smartlead) — no 150 negocios en total. Como solo ~40-45% de los
+# negocios encontrados traen correo, sigue disparando búsquedas (rubro+
+# ciudad al azar, hasta 50 negocios cada una) hasta juntar ese mínimo de
+# leads con correo, con un tope de seguridad de 25 búsquedas para acotar
+# el costo si un día toca mala racha de rubros/ciudades con poco correo
+# público.
 on:
   schedule:
     # 14:00 UTC = 8:00 AM hora de Ciudad de México, antes de que abra la
@@ -20,16 +23,17 @@ jobs:
   scrapear:
     runs-on: ubuntu-latest
     steps:
-      - name: Buscar hasta juntar mínimo 50 leads nuevos
+      - name: Buscar hasta juntar mínimo 150 leads con correo
         run: |
-          MIN_LEADS=50
-          MAX_INTENTOS=10
-          total=0
+          MIN_CON_CORREO=150
+          MAX_INTENTOS=25
+          totalConCorreo=0
+          totalNuevos=0
           intento=0
 
-          while [ "$total" -lt "$MIN_LEADS" ] && [ "$intento" -lt "$MAX_INTENTOS" ]; do
+          while [ "$totalConCorreo" -lt "$MIN_CON_CORREO" ] && [ "$intento" -lt "$MAX_INTENTOS" ]; do
             intento=$((intento + 1))
-            echo "=== Búsqueda $intento de hasta $MAX_INTENTOS (llevamos $total leads nuevos) ==="
+            echo "=== Búsqueda $intento de hasta $MAX_INTENTOS (llevamos $totalConCorreo con correo / $totalNuevos negocios nuevos) ==="
 
             respuesta=$(curl -sf -X POST "https://chatbotwati.vercel.app/api/cron-scrape" \
               -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
@@ -51,9 +55,11 @@ jobs:
               listo=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).listo))")
               if [ "$listo" = "true" ]; then
                 nuevos=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).nuevos))")
-                total=$((total + nuevos))
+                conCorreo=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).conCorreo))")
+                totalNuevos=$((totalNuevos + nuevos))
+                totalConCorreo=$((totalConCorreo + conCorreo))
                 terminada="true"
-                echo "Búsqueda $intento terminada: $nuevos nuevos (total del día: $total)."
+                echo "Búsqueda $intento terminada: $nuevos nuevos, $conCorreo con correo (total del día: $totalConCorreo con correo / $totalNuevos negocios)."
                 break
               fi
             done
@@ -64,7 +70,7 @@ jobs:
           done
 
           echo ""
-          echo "=== RESUMEN: $total leads nuevos en $intento búsqueda(s) ==="
-          if [ "$total" -lt "$MIN_LEADS" ]; then
-            echo "::warning::No se alcanzó el mínimo de $MIN_LEADS leads/día tras $MAX_INTENTOS intentos (se lograron $total)."
+          echo "=== RESUMEN: $totalConCorreo leads con correo ($totalNuevos negocios nuevos en total) en $intento búsqueda(s) ==="
+          if [ "$totalConCorreo" -lt "$MIN_CON_CORREO" ]; then
+            echo "::warning::No se alcanzó el mínimo de $MIN_CON_CORREO leads con correo tras $MAX_INTENTOS intentos (se lograron $totalConCorreo)."
           fi
