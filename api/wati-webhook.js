@@ -10,11 +10,24 @@
 //      sección API Docs) — típicamente algo como
 //      https://live-mt-server.wati.io/<tenantId> o https://live-server-XXXX.wati.io/<tenantId>.
 //      No es la misma para todas las cuentas, así que debe configurarse por env var.
-const { client } = require("./_anthropicClient");
+const { chatCompletionText } = require("./_deepinfraClient");
 const { getDb } = require("./_mongo");
 const { SYSTEM_PROMPT } = require("./_systemPrompt");
 const { enviarRespuestaWati } = require("./_watiSend");
 const MAX_HISTORY = 16;
+
+// WhatsApp no renderiza markdown como un chat web (verificado el 2026-09-03
+// probando el SYSTEM_PROMPT compartido sin ajustar: el modelo devuelve
+// **negritas** y listas con "*", que en WhatsApp real se ven como asteriscos
+// literales rotos, no como texto resaltado). Este sufijo es SOLO para el
+// canal de WhatsApp — chat.js (widget web) usa SYSTEM_PROMPT sin tocar.
+const WHATSAPP_FORMAT_SUFFIX = `
+
+FORMATO PARA WHATSAPP (este canal no renderiza markdown de encabezados/listas):
+- Nunca uses **doble asterisco**, símbolos # de encabezado, ni listas con -, *, • al inicio de línea.
+- Si quieres resaltar una palabra, usa *un solo asterisco* (así sí se ve en negritas en WhatsApp) — nunca doble.
+- Prefiere frases corridas en vez de listas; si necesitas enumerar, hazlo dentro del párrafo ("primero... y después...").
+- Sé breve: 3-5 líneas por mensaje salvo que el cliente pida más detalle explícitamente.`;
 
 function extraerMensajeEntrante(body) {
   // WATI puede mandar el payload plano o envuelto en "data" según el evento.
@@ -88,8 +101,8 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.error("Falta ANTHROPIC_API_KEY.");
+    if (!process.env.DEEPINFRA_API_KEY) {
+      console.error("Falta DEEPINFRA_API_KEY.");
       res.status(200).json({ ok: false });
       return;
     }
@@ -108,19 +121,17 @@ module.exports = async function handler(req, res) {
       { role: "user", content: mensaje.texto },
     ];
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-5",
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      output_config: { effort: "low" },
-      messages: conversacion,
-    });
-
-    const textBlock = response.content.find((b) => b.type === "text");
-    const respuesta =
-      response.stop_reason === "refusal"
-        ? "No puedo responder a eso. ¿Quieres que te conecte con el equipo de Qi-Vanta?"
-        : (textBlock ? textBlock.text : "Disculpa, no pude generar una respuesta. ¿Puedes reformular tu pregunta?");
+    let respuesta;
+    try {
+      respuesta = await chatCompletionText({
+        system: SYSTEM_PROMPT + WHATSAPP_FORMAT_SUFFIX,
+        messages: conversacion,
+        maxTokens: 700,
+      });
+    } catch (err) {
+      console.error("Error generando respuesta con DeepInfra:", err.message);
+      respuesta = "Disculpa, no pude generar una respuesta. ¿Puedes reformular tu pregunta?";
+    }
 
     await enviarRespuestaWati(mensaje.waId, respuesta);
 

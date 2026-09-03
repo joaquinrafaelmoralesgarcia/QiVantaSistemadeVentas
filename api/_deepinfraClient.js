@@ -10,7 +10,7 @@
 const DEEPINFRA_BASE_URL = "https://api.deepinfra.com/v1/openai/chat/completions";
 const MODEL = "Qwen/Qwen3.5-9B";
 
-async function chatCompletionJSON({ system, user, maxTokens = 800, temperature = 0.7 }) {
+async function llamarDeepInfra(body) {
   const res = await fetch(DEEPINFRA_BASE_URL, {
     method: "POST",
     headers: {
@@ -19,14 +19,8 @@ async function chatCompletionJSON({ system, user, maxTokens = 800, temperature =
     },
     body: JSON.stringify({
       model: MODEL,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: maxTokens,
-      temperature,
       chat_template_kwargs: { enable_thinking: false },
+      ...body,
     }),
   });
 
@@ -34,10 +28,37 @@ async function chatCompletionJSON({ system, user, maxTokens = 800, temperature =
   if (!res.ok) {
     throw new Error(`DeepInfra respondió con error (${res.status}): ${data?.error?.message || JSON.stringify(data)}`);
   }
+  return data;
+}
+
+async function chatCompletionJSON({ system, user, maxTokens = 800, temperature = 0.7 }) {
+  const data = await llamarDeepInfra({
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: maxTokens,
+    temperature,
+  });
 
   const texto = data.choices?.[0]?.message?.content;
   if (!texto) throw new Error("DeepInfra no devolvió contenido (respuesta vacía)");
   return JSON.parse(texto);
 }
 
-module.exports = { chatCompletionJSON };
+// Para conversación libre (chat en vivo) — sin response_format json_object,
+// recibe el historial completo de turnos [{role, content}, ...].
+async function chatCompletionText({ system, messages, maxTokens = 700, temperature = 0.7 }) {
+  const data = await llamarDeepInfra({
+    messages: [{ role: "system", content: system }, ...messages],
+    max_tokens: maxTokens,
+    temperature,
+  });
+
+  const texto = data.choices?.[0]?.message?.content;
+  if (!texto) throw new Error("DeepInfra no devolvió contenido (respuesta vacía)");
+  return texto;
+}
+
+module.exports = { chatCompletionJSON, chatCompletionText };
