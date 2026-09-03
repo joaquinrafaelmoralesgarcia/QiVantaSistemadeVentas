@@ -175,7 +175,9 @@
             <span class="contact-badge ${esc(c.canal)}">${c.canal === "whatsapp" ? "WhatsApp" : "Web"}</span>
           </div>
           <div class="contact-preview">${esc(c.ultimoMensaje)}</div>
-          <div class="contact-meta">${c.totalMensajes} mensajes · ${c.updatedAt ? new Date(c.updatedAt).toLocaleString("es-MX") : ""}</div>
+          <div class="contact-meta">
+            ${c.datosContacto ? esc(c.datosContacto.empresa) + " · " : ""}${c.totalMensajes} mensajes · ${c.updatedAt ? new Date(c.updatedAt).toLocaleString("es-MX") : ""}
+          </div>
         </div>`;
       })
       .join("");
@@ -197,13 +199,23 @@
     });
     const data = await res.json();
     const mensajes = data.mensajes || [];
+    const dc = data.datosContacto;
+
+    const datosHtml = dc
+      ? `<div style="font-size:12px; color:var(--muted); margin-top:4px; display:flex; gap:14px; flex-wrap:wrap;">
+          ${dc.telefono ? `<span>📞 ${esc(dc.telefono)}</span>` : ""}
+          ${dc.empresa ? `<span>🏢 ${esc(dc.empresa)}</span>` : ""}
+          ${dc.numEmpleados ? `<span>👥 ${esc(dc.numEmpleados)} empleados</span>` : ""}
+        </div>`
+      : "";
 
     document.getElementById("threadHeader").innerHTML = `
-      <div class="thread-header">
+      <div class="thread-header" style="flex-direction:column; align-items:flex-start; gap:4px;">
         <div>
-          <div class="thread-title">${esc(activo.canal === "whatsapp" ? activo.id : "Visitante " + activo.id.slice(-6))}</div>
-          <div class="thread-sub">${activo.canal === "whatsapp" ? "WhatsApp vía WATI" : "Widget web"}</div>
+          <div class="thread-title">${esc(dc?.nombre || (activo.canal === "whatsapp" ? activo.id : "Visitante " + activo.id.slice(-6)))}</div>
+          <div class="thread-sub">${activo.canal === "whatsapp" ? "WhatsApp vía WATI" : "Widget web"}${activo.canal === "web" ? " · " + esc(activo.id) : ""}</div>
         </div>
+        ${datosHtml}
       </div>`;
 
     const body = document.getElementById("threadBody");

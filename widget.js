@@ -3,6 +3,10 @@
 // El script se inyecta a sí mismo (CSS + DOM), no requiere nada más en la página host.
 (function () {
   const API_BASE = document.currentScript?.dataset?.apiBase || "";
+  // Número de WhatsApp Business real (con código de país, solo dígitos, ej.
+  // "5217206442283") — opcional: si no se configura, simplemente no se
+  // muestra el botón de "Continuar por WhatsApp" tras el formulario.
+  const WHATSAPP_NUMBER = document.currentScript?.dataset?.whatsapp || "";
 
   const STYLE = `
     .qv-fab {
@@ -72,6 +76,17 @@
     }
     .qv-send:disabled, .qv-input:disabled { opacity: .6; cursor: not-allowed; }
     .qv-hidden { display: none !important; }
+    .qv-formcard { width: 100%; }
+    .qv-leadform { display: grid; gap: 8px; margin-top: 8px; }
+    .qv-leadform input, .qv-leadform select {
+      border: 1px solid rgba(255,255,255,0.14); border-radius: 8px;
+      background: #0c1424; color: #eef2f9; padding: 8px 10px;
+      font: 13px Archivo, system-ui, sans-serif; outline: none;
+    }
+    .qv-leadform input::placeholder { color: #5a6787; }
+    .qv-formactions { display: flex; gap: 12px; align-items: center; margin-top: 2px; }
+    .qv-skip { background: transparent; border: 0; color: #8f9bb8; font-size: 12px; cursor: pointer; text-decoration: underline; padding: 0; }
+    .qv-formstatus { font-size: 11px; color: #f87171; min-height: 14px; }
   `;
 
   const styleEl = document.createElement("style");
@@ -115,6 +130,8 @@
 
   const conversation = [];
   let opened = false;
+  let mensajesUsuario = 0;
+  let formularioMostrado = false;
 
   function getSessionId() {
     try {
@@ -155,6 +172,93 @@
     document.getElementById("qv-typing-row")?.remove();
   }
 
+  // Se muestra una sola vez por sesión, después del 3er mensaje del usuario,
+  // para capturar datos de contacto sin interrumpir el arranque de la
+  // conversación (pedido del usuario: quiere poder dar seguimiento después).
+  function mostrarFormularioContacto() {
+    const row = document.createElement("div");
+    row.className = "qv-msg bot";
+    row.innerHTML = `
+      <div class="qv-bubble qv-formcard">
+        <p style="margin:0;">Para que alguien de nuestro equipo te contacte directamente, ¿nos compartes estos datos?</p>
+        <form class="qv-leadform">
+          <input name="nombre" placeholder="Nombre completo" required />
+          <input name="telefono" type="tel" placeholder="Teléfono con código de país, ej. +52 55 1234 5678" required pattern="\+[0-9 ]{7,20}" />
+          <input name="empresa" placeholder="Empresa" required />
+          <select name="numEmpleados" required>
+            <option value="" disabled selected>Número de empleados</option>
+            <option value="1-10">1-10</option>
+            <option value="11-50">11-50</option>
+            <option value="51-200">51-200</option>
+            <option value="201-500">201-500</option>
+            <option value="500+">Más de 500</option>
+          </select>
+          <div class="qv-formactions">
+            <button type="submit" class="qv-send">Enviar</button>
+            <button type="button" class="qv-skip">Ahora no</button>
+          </div>
+          <div class="qv-formstatus"></div>
+        </form>
+      </div>
+    `;
+    body.appendChild(row);
+    body.scrollTop = body.scrollHeight;
+
+    const formEl = row.querySelector(".qv-leadform");
+    const statusEl = row.querySelector(".qv-formstatus");
+    const submitBtn = formEl.querySelector('button[type="submit"]');
+
+    row.querySelector(".qv-skip").addEventListener("click", () => row.remove());
+
+    formEl.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(formEl);
+      const payload = {
+        sessionId,
+        nombre: String(fd.get("nombre") || "").trim(),
+        telefono: String(fd.get("telefono") || "").trim(),
+        empresa: String(fd.get("empresa") || "").trim(),
+        numEmpleados: fd.get("numEmpleados"),
+      };
+      submitBtn.disabled = true;
+      statusEl.style.color = "#8f9bb8";
+      statusEl.textContent = "Enviando...";
+      try {
+        const res = await fetch(`${API_BASE}/api/chat-lead`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error();
+        const nombreCorto = payload.nombre ? payload.nombre.split(" ")[0] : "";
+
+        row.innerHTML = "";
+        const bubble = document.createElement("div");
+        bubble.className = "qv-bubble";
+        bubble.textContent = `¡Gracias${nombreCorto ? ", " + nombreCorto : ""}! Ya tenemos tus datos, un miembro de nuestro equipo te contactará pronto.`;
+        row.appendChild(bubble);
+
+        if (WHATSAPP_NUMBER) {
+          const mensajeWa = encodeURIComponent(
+            `Hola, soy ${payload.nombre} de ${payload.empresa}. Vengo del chat de qi-vanta.com y quiero continuar la conversación por aquí.`
+          );
+          const link = document.createElement("a");
+          link.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${mensajeWa}`;
+          link.target = "_blank";
+          link.rel = "noopener";
+          link.textContent = "Continuar por WhatsApp →";
+          link.style.cssText =
+            "display:inline-block; margin-top:8px; padding:8px 14px; border-radius:8px; background:linear-gradient(135deg,#22d3ee,#2563eb); color:#04121f; font-weight:700; text-decoration:none; font-size:13px;";
+          row.appendChild(link);
+        }
+      } catch {
+        statusEl.style.color = "#f87171";
+        statusEl.textContent = "No se pudo enviar, intenta de nuevo.";
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
   function openShell() {
     shell.classList.remove("qv-hidden");
     fab.classList.add("qv-hidden");
@@ -182,6 +286,7 @@
 
     addBubble("user", text);
     conversation.push({ role: "user", content: text });
+    mensajesUsuario++;
     addTyping();
 
     try {
@@ -198,6 +303,10 @@
       } else {
         addBubble("bot", data.reply);
         conversation.push({ role: "assistant", content: data.reply });
+        if (mensajesUsuario >= 3 && !formularioMostrado) {
+          formularioMostrado = true;
+          mostrarFormularioContacto();
+        }
       }
     } catch (err) {
       removeTyping();

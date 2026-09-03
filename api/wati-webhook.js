@@ -50,9 +50,44 @@ async function yaFueProcesado(db, idMensaje) {
   }
 }
 
+function soloDigitos(v) {
+  return String(v || "").replace(/\D/g, "");
+}
+
+// Si el cliente ya habló con el bot en el widget web de qi-vanta.com y dejó
+// su teléfono en el formulario, y esta es su PRIMERA vez escribiendo por
+// WhatsApp, se hereda ese historial como contexto inicial — así no tiene
+// que repetir lo que ya platicó. Pedido explícito del usuario el 2026-09-03
+// ("para tener toda la conversación ese bot debe brincar a WATI").
+async function buscarContextoWebPrevio(db, waId) {
+  const digitos = soloDigitos(waId);
+  if (!digitos || digitos.length < 8) return null;
+
+  const candidatos = await db
+    .collection("widget_conversaciones")
+    .find({ "contacto.telefono": { $exists: true }, "contacto.vinculadoWaId": { $exists: false } })
+    .sort({ "contacto.capturadoEn": -1 })
+    .limit(50)
+    .toArray();
+
+  return candidatos.find((c) => soloDigitos(c.contacto.telefono).endsWith(digitos.slice(-10))) || null;
+}
+
 async function obtenerHistorial(db, waId) {
   const doc = await db.collection("wati_conversaciones").findOne({ waId });
-  return doc?.mensajes || [];
+  if (doc?.mensajes?.length) return doc.mensajes;
+
+  // Sin historial propio todavía (primer mensaje de este waId) — buscar si
+  // viene de una conversación previa en el widget web.
+  const previo = await buscarContextoWebPrevio(db, waId);
+  if (previo?.mensajes?.length) {
+    await db
+      .collection("widget_conversaciones")
+      .updateOne({ _id: previo._id }, { $set: { "contacto.vinculadoWaId": waId } });
+    return previo.mensajes;
+  }
+
+  return [];
 }
 
 async function guardarHistorial(db, waId, mensajes) {

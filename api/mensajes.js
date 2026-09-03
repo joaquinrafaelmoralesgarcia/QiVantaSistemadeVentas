@@ -34,7 +34,7 @@ module.exports = async function handler(req, res) {
         return;
       }
       const doc = await db.collection(config.nombre).findOne({ [config.campoId]: id });
-      res.status(200).json({ mensajes: doc?.mensajes || [] });
+      res.status(200).json({ mensajes: doc?.mensajes || [], datosContacto: doc?.contacto || null });
       return;
     }
 
@@ -60,7 +60,8 @@ module.exports = async function handler(req, res) {
       ...web.map((c) => ({
         canal: "web",
         id: c.sessionId,
-        contacto: `Visitante ${String(c.sessionId).slice(-6)}`,
+        contacto: c.contacto?.nombre || `Visitante ${String(c.sessionId).slice(-6)}`,
+        datosContacto: c.contacto || null,
         totalMensajes: (c.mensajes || []).length,
         ultimoMensaje: ultimoTexto(c.mensajes),
         updatedAt: c.updatedAt,
