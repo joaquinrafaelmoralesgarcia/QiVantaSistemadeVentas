@@ -115,6 +115,9 @@
 
   <div class="card">
     <h2>Leads</h2>
+    <div style="background:#3a2410; border:1px solid #a35b1f; color:#ffcf8f; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:13px;">
+      ⏸️ Envío de WhatsApp en pausa — esperando plantilla aprobada por Meta. El botón de WhatsApp está deshabilitado; el envío de correo (Smartlead) sigue funcionando normal.
+    </div>
     <div class="filters" id="filters">
       <button data-estado="" class="active">Todos</button>
       <button data-estado="nuevo">Nuevos</button>
@@ -323,7 +326,9 @@
           else if (lead.emailEstado === "error") canal = `${badge("email-error", "Error al enviar")} <button class="ghost" onclick="enviarCorreo('${lead._id}')">Reintentar</button>`;
           else canal = `<button onclick="enviarCorreo('${lead._id}')">Enviar correo</button>`;
         } else if (lead.telefono) {
-          canal = `<button class="ghost" onclick="window.open('${waLink(lead)}','_blank'); marcarEstado('${lead._id}','contactado')">Abrir WhatsApp</button>`;
+          // Pausado hasta tener plantilla de WhatsApp aprobada por Meta (2026-09-03) —
+          // no quitar el link/mensaje generado, solo deshabilitar el envío desde aquí.
+          canal = `<button class="ghost" disabled title="Pausado: esperando plantilla aprobada por Meta">WhatsApp (pausado)</button>`;
         } else {
           canal = '<span style="color:var(--muted)">sin correo ni teléfono</span>';
         }
