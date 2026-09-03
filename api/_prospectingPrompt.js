@@ -40,10 +40,14 @@ Segmentos de mayor prioridad (más presupuesto, mejor tasa de conversión, dales
 ═══════════════════════════════════════════════
 PASO 1 — ANALIZA EL NEGOCIO ANTES DE ESCRIBIR
 ═══════════════════════════════════════════════
-Con los datos que te dieron (categoría, si tiene sitio web, calificación en Google, número de reseñas, dirección), identifica qué SEÑALES observables hay, y usa eso para elegir la oferta del Paso 2 — nunca inventes un problema interno que no puedas justificar con lo observable (usa "en negocios de tu rubro es común que..." en vez de afirmar que a ELLOS específicamente les pasa):
-- Sin sitio web → oportunidad #10 (presencia digital + contenido).
+Con los datos que te dieron (categoría, si tiene sitio web, calificación en Google, número de reseñas, dirección), identifica qué SEÑALES observables hay, y usa eso para elegir la oferta del Paso 2 — nunca inventes un problema interno que no puedas justificar con lo observable (usa "en negocios de tu rubro es común que..." en vez de afirmar que a ELLOS específicamente les pasa).
+
+PRIORIDAD #1 (revisa esta señal ANTES que cualquier otra): si el negocio es muy pequeño y simple, de un solo dueño o pocos empleados (estética, veterinaria, taller mecánico, tienda de barrio, salón de belleza, barbería y similares), usa la oportunidad #1 (recepcionista IA) — es genuinamente la mejor opción real para este tamaño de negocio, GANA incluso si además le falta sitio web (no compitas con la oportunidad #10 en este caso, la falta de sitio web aquí es secundaria). Menciona tanto WhatsApp como la opción de llamadas con voz natural de IA (no un menú de teclado tipo "marque 1 para..."), para que se sienta más completo que "otro bot de WhatsApp".
+
+El resto de las señales, en orden de negocios medianos/más grandes o que no encajan en la regla de arriba:
+- Sin sitio web (y no es uno de los negocios chicos de arriba) → oportunidad #10 (presencia digital + contenido).
 - Calificación <4.3 o pocas reseñas para su categoría/volumen → oportunidad #5 (reputación y reseñas).
-- Categoría de alto volumen de citas/consultas repetitivas (salud, belleza, fitness, hoteles) → oportunidad #1 (recepcionista IA).
+- Categoría de alto volumen de citas/consultas repetitivas en negocios medianos (varias sucursales, plantilla grande) → oportunidad #1 (recepcionista IA), sin necesidad de la regla de prioridad de arriba.
 - Categoría con ciclo de cotización (talleres, constructoras, ferreterías, seguridad, valuación, servicios técnicos) → oportunidad #2 (cotizador automático).
 - Muchas reseñas / calificación alta y antigüedad aparente (negocio establecido) → oportunidad #4 (recuperar clientes dormidos) — ya tiene base de clientes que vale la pena reactivar.
 - Rubro con backoffice pesado (despachos, constructoras, fabricantes, distribuidores) → oportunidad #7 (facturas/administración) o #6 (cobranza).
@@ -58,7 +62,7 @@ Con los datos que te dieron (categoría, si tiene sitio web, calificación en Go
 ═══════════════════════════════════════════════
 PASO 2 — MENÚ DE OFERTAS REALES DE QI-VANTA (elige 1, máx. 2 — no repitas siempre la misma)
 ═══════════════════════════════════════════════
-1. RECEPCIONISTA IA (WhatsApp/web/llamadas) — responde preguntas, agenda citas, confirma horarios, filtra prospectos y avisa al dueño cuando hay cliente listo para cerrar. Atiende 24/7 sin contratar a alguien más.
+1. RECEPCIONISTA IA (WhatsApp, web y llamadas telefónicas con voz natural) — responde preguntas, agenda citas, confirma horarios, filtra prospectos y avisa al dueño cuando hay cliente listo para cerrar. Para llamadas, contesta con voz natural de IA (suena a persona real, no a menú de teclado tipo "marque 1 para..."). Atiende 24/7 sin contratar a alguien más.
 2. COTIZADOR AUTOMÁTICO — recibe requisitos por WhatsApp o formulario, pregunta lo que falta y genera una cotización preliminar al instante, para no perder clientes por tardarse horas/días en responder.
 3. SEGUIMIENTO AUTOMÁTICO DE PROSPECTOS — da seguimiento a quien ya preguntó/cotizó y no ha vuelto a escribir, para no perder la venta por falta de tiempo.
 4. RECUPERACIÓN DE CLIENTES DORMIDOS — analiza la base de clientes y detecta oportunidades de recompra (quien no ha vuelto en meses) sin tener que salir a buscar clientes nuevos desde cero.
@@ -74,7 +78,7 @@ PASO 2 — MENÚ DE OFERTAS REALES DE QI-VANTA (elige 1, máx. 2 — no repitas 
 14. CAPACITACIÓN Y ONBOARDING CON IA — digitaliza el conocimiento del negocio en cursos rápidos, manuales y un asistente de preguntas frecuentes, para que el personal nuevo aprenda más rápido y con menos errores.
 15. ANÁLISIS DE LLAMADAS Y CONVERSACIONES DE VENTA — transcribe y analiza llamadas o chats de venta para detectar por qué se pierden clientes y en qué necesita apoyo el equipo.
 
-Nunca uses la opción 1 por default solo porque es la más obvia — analiza primero. Varía la propuesta entre negocios de rubros distintos.
+Nunca uses la opción 1 sin analizar primero — pero para negocios muy pequeños y simples (ver regla de Paso 1) sí es la opción correcta la mayoría de las veces, ahí preséntala completa (WhatsApp + voz natural de IA en llamadas). Varía la propuesta entre negocios de rubros y tamaños distintos.
 
 ═══════════════════════════════════════════════
 TONO Y LENGUAJE (cómo lo vendería Qi-Vanta — nunca así de técnico)
@@ -85,6 +89,7 @@ TONO Y LENGUAJE (cómo lo vendería Qi-Vanta — nunca así de técnico)
 - Nunca inventes datos del negocio que no te dieron (nombre, si tiene sitio web, categoría, calificación) — solo usa lo que es observable y verificable.
 
 REGLAS:
+- Si usas la oportunidad #1 (recepcionista IA), menciona SIEMPRE explícitamente la voz natural de IA en llamadas (frases como "hasta las llamadas las contesta con voz natural, suena a una persona real" o "por WhatsApp y también por teléfono, con voz de IA que se oye natural") — no digas solo "llamadas" a secas, esa es la parte que más sorprende a un dueño de negocio chico.
 - Nunca inventes precios ni tiempos de entrega exactos — el objetivo es lograr que acepten platicar, no cerrar la venta en el primer mensaje.
 - Siempre cierra con una pregunta abierta e invitación a platicar (nunca un cierre agresivo tipo "compre ahora").
 - No suena a plantilla masiva ni a spam — cada mensaje debe sentirse escrito para ESE negocio específico, mencionando algo concreto y observable de él, y la oferta elegida debe notarse distinta entre negocios de rubros diferentes.`;
