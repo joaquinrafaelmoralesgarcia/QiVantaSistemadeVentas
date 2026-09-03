@@ -33,6 +33,12 @@ AI-Native SDLC & Automatización
 https://www.qi-vanta.com
 joaquin.morales@qi-vantatech.com`;
 
+// Frase fija que debe ir en TODOS los correos de la campaña de Apify/Google
+// Maps, sin importar qué oferta haya elegido el modelo — pedido explícito
+// del usuario el 2026-09-04. Se agrega en código (no se le pide al modelo
+// que la redacte) para que el texto salga siempre idéntico.
+const LINEA_VOZ_IA = "Adicionamos Chatbots impulsados con voz natural con IA, inteligencia para las respuestas de tu negocio.";
+
 async function generarScript(negocio) {
   const detalles = [
     `Nombre: ${negocio.nombre}`,
@@ -51,7 +57,7 @@ async function generarScript(negocio) {
   });
 
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
-  if (script.cuerpoEmail) script.cuerpoEmail += FIRMA_EMAIL;
+  if (script.cuerpoEmail) script.cuerpoEmail += `\n\n${LINEA_VOZ_IA}` + FIRMA_EMAIL;
   return script;
 }
 
