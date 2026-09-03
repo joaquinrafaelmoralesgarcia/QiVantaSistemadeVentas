@@ -1,5 +1,5 @@
-const { client } = require("./_anthropicClient");
-const { SYSTEM_PROMPT } = require("./_systemPrompt");
+const { chatCompletionText } = require("./_deepinfraClient");
+const { SYSTEM_PROMPT, PLAIN_TEXT_FORMAT_SUFFIX } = require("./_systemPrompt");
 const { getDb } = require("./_mongo");
 const { aplicarCors } = require("./_cors");
 
@@ -32,8 +32,8 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    res.status(500).json({ error: "El servidor no tiene configurada la clave de Anthropic (ANTHROPIC_API_KEY)." });
+  if (!process.env.DEEPINFRA_API_KEY) {
+    res.status(500).json({ error: "El servidor no tiene configurada la clave de DeepInfra (DEEPINFRA_API_KEY)." });
     return;
   }
 
@@ -51,23 +51,18 @@ module.exports = async function handler(req, res) {
       content: String(m.content || "").slice(0, 4000),
     }));
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-5",
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      output_config: { effort: "low" },
-      messages: conversation,
-    });
-
-    if (response.stop_reason === "refusal") {
-      const reply = "No puedo responder a esa solicitud. ¿Quieres que te conecte con el equipo de Qi-Vanta?";
-      if (sessionId) await guardarConversacionWeb(sessionId, conversation, reply);
-      res.status(200).json({ reply });
-      return;
+    let reply;
+    try {
+      reply = await chatCompletionText({
+        system: SYSTEM_PROMPT + PLAIN_TEXT_FORMAT_SUFFIX,
+        messages: conversation,
+        maxTokens: 700,
+      });
+    } catch (err) {
+      console.error("Error generando respuesta con DeepInfra:", err.message);
+      reply = "Disculpa, no pude generar una respuesta. ¿Puedes reformular tu pregunta?";
     }
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    const reply = textBlock ? textBlock.text : "";
     if (sessionId) await guardarConversacionWeb(sessionId, conversation, reply);
     res.status(200).json({ reply });
   } catch (err) {
