@@ -1,6 +1,26 @@
 // Disparar (POST) y consultar (GET) llamadas de voz IA vía Vapi — consolidado
 // en un solo archivo por el límite de 12 funciones serverless de Vercel Hobby.
+// CORS abierto: se llama desde call-widget.js embebido en qi-vanta.com
+// (origen distinto a este backend en Vercel) — pedido del usuario el
+// 2026-09-04 para el botón "Llámame" del portal.
+const { aplicarCors } = require("./_cors");
+const { getDb } = require("./_mongo");
+
 const VAPI_API_URL = "https://api.vapi.ai/call";
+const COOLDOWN_MS = 10 * 60 * 1000; // 10 min entre solicitudes al mismo número
+
+// Este endpoint queda expuesto sin login (lo llama call-widget.js desde
+// visitantes anónimos del portal) — sin este freno, cualquiera podría
+// spamear llamadas al mismo número una y otra vez, con costo real de
+// Vapi/Twilio cada vez. También sirve de bitácora de quién pidió que le
+// llamaran.
+async function permitirLlamada(db, numero) {
+  const coleccion = db.collection("vapi_llamadas");
+  const reciente = await coleccion.findOne({ numero, creadoEn: { $gte: new Date(Date.now() - COOLDOWN_MS) } });
+  if (reciente) return false;
+  await coleccion.insertOne({ numero, creadoEn: new Date() });
+  return true;
+}
 
 async function iniciarLlamada(req, res) {
   const vapiKey = process.env.VAPI_API_KEY;
@@ -43,6 +63,12 @@ async function iniciarLlamada(req, res) {
       res.status(400).json({
         error: `El número "${phoneNumber}" no parece válido. Usa formato E.164, ej. +527206442283.`,
       });
+      return;
+    }
+
+    const db = await getDb();
+    if (!(await permitirLlamada(db, normalized))) {
+      res.status(429).json({ error: "Ya se solicitó una llamada a este número hace poco. Espera unos minutos e intenta de nuevo." });
       return;
     }
 
@@ -135,6 +161,7 @@ async function consultarLlamada(req, res) {
 }
 
 module.exports = async function handler(req, res) {
+  if (aplicarCors(req, res)) return;
   if (req.method === "POST") return iniciarLlamada(req, res);
   if (req.method === "GET") return consultarLlamada(req, res);
   res.status(405).json({ error: "Method not allowed" });
