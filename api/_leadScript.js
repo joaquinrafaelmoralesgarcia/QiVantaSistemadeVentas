@@ -1,34 +1,21 @@
-const { client } = require("./_anthropicClient");
+const { chatCompletionJSON } = require("./_deepinfraClient");
 const { PROSPECTING_SYSTEM_PROMPT } = require("./_prospectingPrompt");
 
-const SCHEMA = {
-  type: "object",
-  properties: {
-    calificacion: {
-      type: "string",
-      enum: ["alta", "media", "baja"],
-      description: "Qué tan buen prospecto es para Qi-Vanta: alta si claramente necesita automatización/IA y parece tener presupuesto, baja si no aplica bien.",
-    },
-    razonamiento: {
-      type: "string",
-      description: "1 frase interna explicando la calificación (no se envía al lead, es para el vendedor).",
-    },
-    mensajeWhatsapp: {
-      type: "string",
-      description: "Mensaje corto (máx. 350 caracteres), tono cercano y directo en español de México, mencionando algo específico y observable del negocio (ej. que no tiene sitio web, o que su sitio es básico) y proponiendo un agente de IA de Qi-Vanta que atienda clientes 24/7 por WhatsApp. Termina con una pregunta abierta e invitación a platicar. No suena a plantilla genérica ni a spam masivo.",
-    },
-    asuntoEmail: {
-      type: "string",
-      description: "Asunto corto (máx. 60 caracteres) para un correo frío en español, específico al negocio, sin sonar a plantilla ni a spam.",
-    },
-    cuerpoEmail: {
-      type: "string",
-      description: "Correo frío completo en español (3-5 frases cortas, sin HTML), mencionando algo específico y observable del negocio, presentando brevemente qué es Qi-Vanta y cómo podría ayudarle, y cerrando con una invitación abierta a agendar una breve llamada. Firma como 'Equipo Qi-Vanta'.",
-    },
-  },
-  required: ["calificacion", "razonamiento", "mensajeWhatsapp", "asuntoEmail", "cuerpoEmail"],
-  additionalProperties: false,
-};
+// DeepInfra (Qwen3.5-9B) no soporta el modo estricto output_config/json_schema
+// de Anthropic — en vez de eso, el formato exacto se exige por instrucción de
+// texto (verificado el 2026-09-03: sin "no agregues clave adicional" el
+// modelo a veces mete una clave "firma" suelta además de cuerpoEmail).
+const JSON_INSTRUCTIONS = `
+
+Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 5 claves:
+{
+  "calificacion": "alta" | "media" | "baja" (qué tan buen prospecto es: alta si claramente necesita automatización/IA y parece tener presupuesto, baja si no aplica bien),
+  "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
+  "mensajeWhatsapp": "mensaje corto, máx 350 caracteres, tono cercano y directo en español de México, cierra con pregunta abierta",
+  "asuntoEmail": "asunto corto, máx 60 caracteres, específico al negocio, sin sonar a plantilla",
+  "cuerpoEmail": "correo frío completo, 3-5 frases cortas, sin HTML, firma como 'Equipo Qi-Vanta' (la firma va DENTRO de este texto, no como clave aparte)"
+}
+No agregues ninguna clave adicional fuera de esas 5.`;
 
 async function generarScript(negocio) {
   const detalles = [
@@ -41,28 +28,11 @@ async function generarScript(negocio) {
     .filter(Boolean)
     .join("\n");
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-5",
-    // 600 se quedaba corto: con negocio real, ~4 de 9 en paralelo fallaban
-    // con "Unterminated string in JSON" porque el cuerpoEmail se cortaba a
-    // medio generar. Verificado y corregido con los mismos negocios reales.
-    max_tokens: 1200,
-    system: PROSPECTING_SYSTEM_PROMPT,
-    output_config: {
-      effort: "low",
-      format: { type: "json_schema", schema: SCHEMA },
-    },
-    messages: [
-      {
-        role: "user",
-        content: `Con estos datos públicos de un negocio, genera el mensaje de primer contacto (nunca inventes datos que no te dieron):\n\n${detalles}`,
-      },
-    ],
+  return chatCompletionJSON({
+    system: PROSPECTING_SYSTEM_PROMPT + JSON_INSTRUCTIONS,
+    user: `Con estos datos públicos de un negocio, genera el mensaje de primer contacto (nunca inventes datos que no te dieron):\n\n${detalles}`,
+    maxTokens: 800,
   });
-
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock) return null;
-  return JSON.parse(textBlock.text);
 }
 
 module.exports = { generarScript };
