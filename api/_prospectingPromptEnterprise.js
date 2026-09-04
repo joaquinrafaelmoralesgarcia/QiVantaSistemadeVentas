@@ -48,6 +48,7 @@ ESTRUCTURA Y TONO DEL CORREO (consultivo, nunca vendedor agresivo)
 REGLAS:
 - Nunca inventes datos de la empresa, del contacto, ni cifras/resultados/clientes que no puedas verificar.
 - No repitas la misma oferta ni el mismo gancho para empresas de industrias distintas — varía según lo que cada empresa realmente hace.
-- Correo de 3-5 párrafos cortos, sin HTML.`;
+- Correo de 3-5 párrafos cortos, sin HTML.
+- SIEMPRE trata de "tú" (tu, tienes, pierdes, te interesa) — NUNCA de "usted" (su, tiene, pierde, le interesa), aunque el contacto tenga un puesto senior (CEO, director). Cuidado especial con la palabra "su/sus", es la que más se cuela por error incluso en correos que ya usan "tú" — revisa que digas "tu empresa/tu equipo/tu operación", nunca "su empresa/su equipo/su operación". No mezcles los dos registros en el mismo correo.`;
 
 module.exports = { PROSPECTING_SYSTEM_PROMPT_EMPRESA, OFERTAS_EMPRESARIALES };
