@@ -1,5 +1,6 @@
 const { generarScript } = require("./_leadScript");
 const { agregarLeadACampania } = require("./_smartlead");
+const { correoTieneServidorValido } = require("./_emailVerify");
 
 function normalizarTelefono(tel) {
   const digits = String(tel || "").replace(/[^\d+]/g, "");
@@ -33,6 +34,27 @@ async function procesarNegocios(coleccion, negocios, query) {
     }
     nuevosNegocios.push({ ...negocio, telefono });
   }
+
+  // Verifica que el dominio del correo scrapeado exista y acepte correo
+  // (registros MX) ANTES de mandarlo a Smartlead — pedido del usuario el
+  // 2026-09-04 tras ver su bandeja llena de rebotes. No es verificación
+  // completa (no confirma que el buzón específico exista), pero descarta
+  // la causa más común y más barata de detectar: dominios muertos o mal
+  // escritos. Si sale inválido, se trata como "solo teléfono" en vez de
+  // descartar el lead — sigue siendo contactable por WhatsApp cuando esté
+  // disponible.
+  let correosInvalidos = 0;
+  await Promise.all(
+    nuevosNegocios.map(async (negocio) => {
+      if (!negocio.correo) return;
+      const valido = await correoTieneServidorValido(negocio.correo);
+      if (!valido) {
+        negocio.correoInvalido = negocio.correo;
+        negocio.correo = null;
+        correosInvalidos++;
+      }
+    })
+  );
 
   const scripts = await Promise.all(
     nuevosNegocios.map((negocio) =>
@@ -98,7 +120,7 @@ async function procesarNegocios(coleccion, negocios, query) {
 
   if (leads.length) await coleccion.insertMany(leads);
 
-  return { totalEncontrados: negocios.length, nuevos: leads.length, duplicados, conCorreo, soloTelefono, correosEnviados, erroresCorreo };
+  return { totalEncontrados: negocios.length, nuevos: leads.length, duplicados, conCorreo, soloTelefono, correosEnviados, erroresCorreo, correosInvalidos };
 }
 
 module.exports = { procesarNegocios, normalizarTelefono };
