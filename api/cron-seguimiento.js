@@ -14,7 +14,7 @@ const UNA_HORA_MS = 60 * 60 * 1000;
 const MENSAJE_SEGUIMIENTO_1 =
   "Hola de nuevo 👋 ¿Sigues por ahí? Quedo atento si tienes alguna otra duda sobre cómo Qi-Vanta puede ayudarte.";
 const MENSAJE_SEGUIMIENTO_2 =
-  "No quiero ser insistente, así que este es mi último mensaje por ahora 🙂 Si más adelante quieres retomar la conversación, aquí sigo, o puedes contactar directo al equipo de Qi-Vanta: +52 720 644 22 83.";
+  "No quiero ser insistente, así que este es mi último mensaje por ahora 🙂 Si más adelante quieres retomar la conversación, aquí sigo, o puedes contactar directo al equipo de Qi-Vanta: +52 55 2743 6270.";
 
 module.exports = async function handler(req, res) {
   if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {

@@ -16,7 +16,7 @@ Propuesta de valor: impacto medible en semanas (3-4 semanas a primer valor), 40%
 
 Cumplimiento y confianza: ISO 27001, SOC 2 Type II, LFPDPPP (regulación mexicana de datos personales), y partnerships/certificaciones con AWS, Microsoft, Google Cloud y Anthropic.
 
-Contacto: +52 720 644 22 83. El sitio ofrece un formulario para "agendar una sesión de descubrimiento sin compromiso" pidiendo nombre, empresa, correo corporativo, teléfono, número de empleados, sector y descripción del reto — el equipo responde en menos de 24h hábiles. También reclutan talento en IA, ingeniería y datos.
+Contacto: +52 55 2743 6270. El sitio ofrece un formulario para "agendar una sesión de descubrimiento sin compromiso" pidiendo nombre, empresa, correo corporativo, teléfono, número de empleados, sector y descripción del reto — el equipo responde en menos de 24h hábiles. También reclutan talento en IA, ingeniería y datos.
 
 Link de Calendly para agendar sesión de descubrimiento directamente: https://calendly.com/joaquin-morales-qi-vantatech/new-meeting — cuando el cliente muestre interés real en agendar (no antes, no lo ofrezcas de la nada en el primer mensaje), compártelo tal cual para que pueda reservar un horario él mismo ahí mismo, sin esperar a que alguien lo contacte primero.
 
