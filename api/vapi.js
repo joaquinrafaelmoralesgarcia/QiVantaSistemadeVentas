@@ -17,9 +17,9 @@ const COOLDOWN_MS = 10 * 60 * 1000; // 10 min entre solicitudes al mismo número
 async function permitirLlamada(db, numero) {
   const coleccion = db.collection("vapi_llamadas");
   const reciente = await coleccion.findOne({ numero, creadoEn: { $gte: new Date(Date.now() - COOLDOWN_MS) } });
-  if (reciente) return false;
-  await coleccion.insertOne({ numero, creadoEn: new Date() });
-  return true;
+  if (reciente) return null;
+  const { insertedId } = await coleccion.insertOne({ numero, creadoEn: new Date() });
+  return insertedId;
 }
 
 async function iniciarLlamada(req, res) {
@@ -67,7 +67,8 @@ async function iniciarLlamada(req, res) {
     }
 
     const db = await getDb();
-    if (!(await permitirLlamada(db, normalized))) {
+    const registroId = await permitirLlamada(db, normalized);
+    if (!registroId) {
       res.status(429).json({ error: "Ya se solicitó una llamada a este número hace poco. Espera unos minutos e intenta de nuevo." });
       return;
     }
@@ -92,6 +93,13 @@ async function iniciarLlamada(req, res) {
         error: data.message || data.error || "Vapi rechazó la solicitud de llamada.",
       });
       return;
+    }
+
+    // Guarda el callId en el mismo doc de cooldown para que vapi-webhook.js
+    // pueda ligar el resultado de la llamada (datos capturados, resumen)
+    // cuando Vapi nos avise que terminó.
+    if (data.id) {
+      await db.collection("vapi_llamadas").updateOne({ _id: registroId }, { $set: { callId: data.id } });
     }
 
     res.status(200).json({ callId: data.id, status: data.status });

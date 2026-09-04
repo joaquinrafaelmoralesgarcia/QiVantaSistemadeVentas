@@ -3,6 +3,7 @@
     "api/wati-webhook.js": { "maxDuration": 30 },
     "api/chat.js": { "maxDuration": 30 },
     "api/chat-lead.js": { "maxDuration": 20 },
+    "api/vapi-webhook.js": { "maxDuration": 20 },
     "api/leads-scrape.js": { "maxDuration": 60 },
     "api/cron-seguimiento.js": { "maxDuration": 30 },
     "api/cron-scrape.js": { "maxDuration": 60 }
