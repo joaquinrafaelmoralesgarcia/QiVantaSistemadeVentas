@@ -128,4 +128,29 @@ async function generarScript(negocio) {
   return script;
 }
 
-module.exports = { generarScript, generarScriptEmpresa };
+// Para leads que YA se mandaron a Smartlead antes de que existiera el
+// seguimiento (2026-09-05) — genera solo los 2 seguimientos a partir del
+// correo que ya se envió, en vez de regenerar todo desde cero (evitaría
+// que el 2do intento elija una oferta/gancho distinta a la ya enviada,
+// dejando los seguimientos inconsistentes con el correo 1 real).
+const JSON_INSTRUCTIONS_SOLO_SEGUIMIENTOS = `
+
+Ya se mandó un correo inicial (te lo doy abajo, ya con firma incluida — ignora la firma, solo úsalo como contexto). Genera SOLO los 2 seguimientos para ese mismo correo, refiriéndote a su gancho/oferta sin repetirlo completo. Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`) con exactamente estas 2 claves:
+{
+  ${REGLA_SEGUIMIENTOS}
+}
+No agregues ninguna clave adicional fuera de esas 2.`;
+
+async function generarSeguimientos(cuerpoEmailOriginal, { esEmpresa = false } = {}) {
+  const promptBase = esEmpresa ? PROSPECTING_SYSTEM_PROMPT_EMPRESA : PROSPECTING_SYSTEM_PROMPT;
+  const script = await chatCompletionJSON({
+    system: promptBase + JSON_INSTRUCTIONS_SOLO_SEGUIMIENTOS,
+    user: `Correo inicial ya enviado:\n\n${cuerpoEmailOriginal}`,
+    maxTokens: 500,
+  });
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + FIRMA_EMAIL;
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + FIRMA_EMAIL;
+  return script;
+}
+
+module.exports = { generarScript, generarScriptEmpresa, generarSeguimientos };

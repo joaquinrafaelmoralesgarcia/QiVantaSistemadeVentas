@@ -115,8 +115,9 @@
 
   <div class="card">
     <h2>Leads</h2>
-    <div style="background:#3a2410; border:1px solid #a35b1f; color:#ffcf8f; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:13px;">
-      ⏸️ Envío de WhatsApp en pausa — esperando plantilla aprobada por Meta. El botón de WhatsApp está deshabilitado; el envío de correo (Smartlead) sigue funcionando normal.
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px; flex-wrap:wrap;">
+      <p style="margin:0; font-size:12px; color:var(--muted); max-width:520px;">El envío de WhatsApp sigue siendo 100% manual — tú das "enviar" en cada uno. La cola solo te ahorra tener que buscar cada lead en la tabla.</p>
+      <button id="btnAbrirCola">▶ Cola rápida de WhatsApp</button>
     </div>
     <div class="filters" id="filters">
       <button data-estado="" class="active">Todos</button>
@@ -167,6 +168,29 @@
       <button id="editGuardar" type="button">Guardar cambios</button>
     </div>
     <div class="status-line" id="editStatus"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="colaModal" hidden>
+  <div class="modal">
+    <h3>Cola rápida de WhatsApp</h3>
+    <p class="sub" id="colaProgreso" style="font-size:12px;color:var(--muted);"></p>
+
+    <div id="colaContenido">
+      <div style="background:#0a1120; border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:14px;">
+        <strong id="colaNombre" style="display:block; margin-bottom:4px;"></strong>
+        <span id="colaCategoria" style="color:var(--muted); font-size:12px; display:block; margin-bottom:10px;"></span>
+        <div id="colaMensaje" class="msg-preview" style="max-width:none;"></div>
+      </div>
+    </div>
+
+    <div id="colaVacio" class="empty" hidden>No hay más leads pendientes de WhatsApp. ¡Listo!</div>
+
+    <div class="modal-actions">
+      <button class="ghost" id="colaSaltarBtn" type="button">Saltar sin marcar</button>
+      <button class="ghost" id="colaCerrarBtn" type="button">Cerrar</button>
+      <button id="colaAbrirBtn" type="button">Abrir WhatsApp y siguiente →</button>
+    </div>
   </div>
 </div>
 
@@ -326,9 +350,11 @@
           else if (lead.emailEstado === "error") canal = `${badge("email-error", "Error al enviar")} <button class="ghost" onclick="enviarCorreo('${lead._id}')">Reintentar</button>`;
           else canal = `<button onclick="enviarCorreo('${lead._id}')">Enviar correo</button>`;
         } else if (lead.telefono) {
-          // Pausado hasta tener plantilla de WhatsApp aprobada por Meta (2026-09-03) —
-          // no quitar el link/mensaje generado, solo deshabilitar el envío desde aquí.
-          canal = `<button class="ghost" disabled title="Pausado: esperando plantilla aprobada por Meta">WhatsApp (pausado)</button>`;
+          // Reactivado el 2026-09-05: el envío manual (humano da "enviar" en
+          // WhatsApp) no pasa por la API de Meta, así que la plantilla de
+          // negocio-inicia-conversación no le aplica — solo aplicaba al
+          // envío automatizado, que sigue sin existir.
+          canal = `<button class="ghost" onclick="window.open('${waLink(lead)}','_blank'); marcarEstado('${lead._id}','contactado')">Abrir WhatsApp</button>`;
         } else {
           canal = '<span style="color:var(--muted)">sin correo ni teléfono</span>';
         }
@@ -441,6 +467,72 @@
 
     btn.disabled = false;
   });
+
+  // Cola rápida de WhatsApp — el envío sigue siendo manual (tú das
+  // "enviar" en cada uno), esto solo evita tener que buscar cada lead en
+  // la tabla larga. Pedido explícito del usuario el 2026-09-05.
+  let colaLeads = [];
+  let colaIndice = 0;
+
+  async function iniciarCola() {
+    const res = await fetch("/api/leads?estado=nuevo", { headers: headers() });
+    const data = await res.json();
+    colaLeads = (data.leads || []).filter((l) => !l.correo && l.telefono && l.mensajeWhatsapp);
+    colaIndice = 0;
+    document.getElementById("colaModal").hidden = false;
+    mostrarColaActual();
+  }
+
+  function mostrarColaActual() {
+    const total = colaLeads.length;
+    const contenido = document.getElementById("colaContenido");
+    const vacio = document.getElementById("colaVacio");
+    const abrirBtn = document.getElementById("colaAbrirBtn");
+    const saltarBtn = document.getElementById("colaSaltarBtn");
+
+    if (colaIndice >= total) {
+      document.getElementById("colaProgreso").textContent = total ? `${total} de ${total} — terminado` : "";
+      contenido.hidden = true;
+      vacio.hidden = false;
+      abrirBtn.hidden = true;
+      saltarBtn.hidden = true;
+      return;
+    }
+
+    const lead = colaLeads[colaIndice];
+    document.getElementById("colaProgreso").textContent = `Lead ${colaIndice + 1} de ${total} pendientes`;
+    contenido.hidden = false;
+    vacio.hidden = true;
+    abrirBtn.hidden = false;
+    saltarBtn.hidden = false;
+    document.getElementById("colaNombre").textContent = lead.nombre;
+    document.getElementById("colaCategoria").textContent = lead.categoria || "";
+    document.getElementById("colaMensaje").textContent = lead.mensajeWhatsapp || "";
+  }
+
+  async function colaAbrirYSiguiente() {
+    const lead = colaLeads[colaIndice];
+    if (!lead) return;
+    window.open(waLink(lead), "_blank");
+    marcarEstado(lead._id, "contactado"); // no se espera (await) para no trabar el avance de la cola
+    colaIndice++;
+    mostrarColaActual();
+  }
+
+  function colaSaltar() {
+    colaIndice++;
+    mostrarColaActual();
+  }
+
+  function cerrarCola() {
+    document.getElementById("colaModal").hidden = true;
+    cargarLeads();
+  }
+
+  document.getElementById("btnAbrirCola").addEventListener("click", iniciarCola);
+  document.getElementById("colaAbrirBtn").addEventListener("click", colaAbrirYSiguiente);
+  document.getElementById("colaSaltarBtn").addEventListener("click", colaSaltar);
+  document.getElementById("colaCerrarBtn").addEventListener("click", cerrarCola);
 
   window.marcarEstado = marcarEstado;
   window.enviarCorreo = enviarCorreo;
