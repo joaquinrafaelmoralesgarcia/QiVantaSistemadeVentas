@@ -178,7 +178,10 @@
 
     <div id="colaContenido">
       <div style="background:#0a1120; border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:14px;">
-        <strong id="colaNombre" style="display:block; margin-bottom:4px;"></strong>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+          <strong id="colaNombre"></strong>
+          <span id="colaCalificacion"></span>
+        </div>
         <span id="colaCategoria" style="color:var(--muted); font-size:12px; display:block; margin-bottom:10px;"></span>
         <div id="colaMensaje" class="msg-preview" style="max-width:none;"></div>
       </div>
@@ -474,10 +477,18 @@
   let colaLeads = [];
   let colaIndice = 0;
 
+  // Prioridad de calificación en la cola — pedido del usuario el 2026-09-05:
+  // con 369 pendientes no da tiempo de contactar a todos manualmente, mejor
+  // atacar primero los de mayor probabilidad de cerrar. No oculta a nadie,
+  // solo reordena (alta > media > baja > sin calificar).
+  const PRIORIDAD_CALIFICACION = { alta: 0, media: 1, baja: 2 };
+
   async function iniciarCola() {
     const res = await fetch("/api/leads?estado=nuevo", { headers: headers() });
     const data = await res.json();
-    colaLeads = (data.leads || []).filter((l) => !l.correo && l.telefono && l.mensajeWhatsapp);
+    colaLeads = (data.leads || [])
+      .filter((l) => !l.correo && l.telefono && l.mensajeWhatsapp)
+      .sort((a, b) => (PRIORIDAD_CALIFICACION[a.calificacion] ?? 3) - (PRIORIDAD_CALIFICACION[b.calificacion] ?? 3));
     colaIndice = 0;
     document.getElementById("colaModal").hidden = false;
     mostrarColaActual();
@@ -506,6 +517,7 @@
     abrirBtn.hidden = false;
     saltarBtn.hidden = false;
     document.getElementById("colaNombre").textContent = lead.nombre;
+    document.getElementById("colaCalificacion").innerHTML = badge(lead.calificacion || "", lead.calificacion || "-");
     document.getElementById("colaCategoria").textContent = lead.categoria || "";
     document.getElementById("colaMensaje").textContent = lead.mensajeWhatsapp || "";
   }
