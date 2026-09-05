@@ -476,6 +476,7 @@
   // la tabla larga. Pedido explícito del usuario el 2026-09-05.
   let colaLeads = [];
   let colaIndice = 0;
+  let colaEnviadosSesion = 0;
 
   // Prioridad de calificación en la cola — pedido del usuario el 2026-09-05:
   // con 369 pendientes no da tiempo de contactar a todos manualmente, mejor
@@ -490,6 +491,7 @@
       .filter((l) => !l.correo && l.telefono && l.mensajeWhatsapp)
       .sort((a, b) => (PRIORIDAD_CALIFICACION[a.calificacion] ?? 3) - (PRIORIDAD_CALIFICACION[b.calificacion] ?? 3));
     colaIndice = 0;
+    colaEnviadosSesion = 0;
     document.getElementById("colaModal").hidden = false;
     mostrarColaActual();
   }
@@ -511,7 +513,13 @@
     }
 
     const lead = colaLeads[colaIndice];
-    document.getElementById("colaProgreso").textContent = `Lead ${colaIndice + 1} de ${total} pendientes`;
+    const avisoRitmo =
+      colaEnviadosSesion > 0 && colaEnviadosSesion % 25 === 0
+        ? ` — llevas ${colaEnviadosSesion} enviados hoy, buen ritmo 👍 puedes seguir o cerrar y continuar después`
+        : colaEnviadosSesion > 0
+        ? ` (${colaEnviadosSesion} enviados en esta sesión)`
+        : "";
+    document.getElementById("colaProgreso").textContent = `Lead ${colaIndice + 1} de ${total} pendientes${avisoRitmo}`;
     contenido.hidden = false;
     vacio.hidden = true;
     abrirBtn.hidden = false;
@@ -528,6 +536,7 @@
     window.open(waLink(lead), "_blank");
     marcarEstado(lead._id, "contactado"); // no se espera (await) para no trabar el avance de la cola
     colaIndice++;
+    colaEnviadosSesion++;
     mostrarColaActual();
   }
 
