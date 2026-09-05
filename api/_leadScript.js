@@ -7,21 +7,31 @@ const { PROSPECTING_SYSTEM_PROMPT_EMPRESA } = require("./_prospectingPromptEnter
 const REGLA_ASUNTO_DINERO =
   "DEBE mencionar dinero explícitamente (la palabra 'dinero', 'cuesta', '$', 'gastan' o similar) — nunca preguntes solo por cantidad de clientes/citas/cotizaciones perdidas sin ponerle el enfoque de costo en pesos. Estilo obligatorio: '¿Cuánto dinero estás perdiendo por [problema específico observable]?' o '¿Cuánto dinero dejas de ganar por no tener [solución]?' o '¿Sabes cuánto te cuesta [problema] al mes?' — SIEMPRE atado al problema concreto de ESE negocio/empresa, nunca genérico ni igual entre leads distintos. IMPORTANTE: el enfoque de dinero es una PREGUNTA retórica, nunca una cifra inventada — jamás pongas un monto específico ($5,000, 30%, etc.) que no te dieron, eso es mentir con datos falsos.";
 
+// Seguimiento agregado el 2026-09-05: ninguna de las 2 campañas tenía más
+// que un solo correo (sequence_count:1) — con Google Maps en 0 respuestas
+// de 162 enviados, la mejora de más impacto disponible es dar seguimiento,
+// no seguir puliendo el correo inicial. Se generan junto con el correo
+// principal para que puedan referenciar el mismo gancho/oferta sin
+// repetirlo completo.
+const REGLA_SEGUIMIENTOS =
+  '"seguimiento1": "correo de seguimiento corto (2-3 frases), se manda si no responden al día 3. Referencia brevemente (sin repetirla completa) la oferta/gancho del correo original, tono ligero tipo \'sigo al pendiente de tu respuesta sobre...\' — nunca inventes cifras ni casos de éxito nuevos. Sin firma/despedida, se agrega después.", "seguimiento2": "correo de seguimiento final, aún más corto (1-2 frases), se manda si no responden al día 7. Tono de última oportunidad sin presionar, estilo \'no quiero ser insistente, este es mi último mensaje por ahora, quedo atento si más adelante te interesa platicar\'. Sin firma/despedida, se agrega después."';
+
 // DeepInfra (Qwen3.5-9B) no soporta el modo estricto output_config/json_schema
 // de Anthropic — en vez de eso, el formato exacto se exige por instrucción de
 // texto (verificado el 2026-09-03: sin "no agregues clave adicional" el
 // modelo a veces mete una clave "firma" suelta además de cuerpoEmail).
 const JSON_INSTRUCTIONS = `
 
-Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 5 claves:
+Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 7 claves:
 {
   "calificacion": "alta" | "media" | "baja" (qué tan buen prospecto es: alta si claramente necesita automatización/IA y parece tener presupuesto, baja si no aplica bien),
   "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
   "mensajeWhatsapp": "mensaje corto, máx 280 caracteres, tono cercano y directo en español de México, cierra con pregunta abierta. Nunca escribas placeholders entre corchetes como [Nombre] — no sabes el nombre de quien lee, dirígete directo al negocio o usa un saludo genérico ('Hola,'). NO incluyas firma ni datos de contacto, se agregan automáticamente después",
   "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_DINERO}",
-  "cuerpoEmail": "correo frío completo, 3-5 frases cortas, sin HTML. Igual que el asunto, el cuerpo también debe reforzar el enfoque de dinero perdido/dejado de ganar por el problema detectado — no basta con mencionarlo solo en el asunto, dedica al menos 1 frase del cuerpo a plantear el costo en dinero de NO resolver ese problema (ej. 'cada cliente que se va sin cotización es dinero que ya gastaste en atraerlo'), antes de presentar la oferta como la solución a esa pérdida. NUNCA inventes una cifra específica ($5,000, 30%, 'ahorra X pesos') ni afirmes resultados con otros clientes ('hemos ayudado a empresas a lograr...') que no puedas verificar — el enfoque de dinero se queda en pregunta retórica o concepto, jamás en un número o caso de éxito inventado. No te presentes por nombre en ningún punto del texto (ni al inicio ni al final) — nunca escribas 'me llamo...' ni placeholders entre corchetes como [Nombre]. No incluyas firma, despedida ('Saludos', 'Equipo Qi-Vanta') ni datos de contacto — todo eso se agrega automáticamente después, fuera de este texto. Empieza directo con el gancho sobre el negocio, sigue con el costo en dinero de no resolverlo, presenta la oferta, y termina en la pregunta/invitación a platicar"
+  "cuerpoEmail": "correo frío completo, 3-5 frases cortas, sin HTML. Igual que el asunto, el cuerpo también debe reforzar el enfoque de dinero perdido/dejado de ganar por el problema detectado — no basta con mencionarlo solo en el asunto, dedica al menos 1 frase del cuerpo a plantear el costo en dinero de NO resolver ese problema (ej. 'cada cliente que se va sin cotización es dinero que ya gastaste en atraerlo'), antes de presentar la oferta como la solución a esa pérdida. NUNCA inventes una cifra específica ($5,000, 30%, 'ahorra X pesos') ni afirmes resultados con otros clientes ('hemos ayudado a empresas a lograr...') que no puedas verificar — el enfoque de dinero se queda en pregunta retórica o concepto, jamás en un número o caso de éxito inventado. No te presentes por nombre en ningún punto del texto (ni al inicio ni al final) — nunca escribas 'me llamo...' ni placeholders entre corchetes como [Nombre]. No incluyas firma, despedida ('Saludos', 'Equipo Qi-Vanta') ni datos de contacto — todo eso se agrega automáticamente después, fuera de este texto. Empieza directo con el gancho sobre el negocio, sigue con el costo en dinero de no resolverlo, presenta la oferta, y termina en la pregunta/invitación a platicar",
+  ${REGLA_SEGUIMIENTOS}
 }
-No agregues ninguna clave adicional fuera de esas 5.`;
+No agregues ninguna clave adicional fuera de esas 7.`;
 
 // Se agrega en código, no se le pide al modelo que la escriba (riesgo de que
 // invente o altere el correo/nombre real) — pedido explícito del usuario el
@@ -59,15 +69,16 @@ TEMA ADICIONAL OBLIGATORIO PARA ESTE CORREO (empresa mediana/grande, campaña Pi
 // consultivo-empresarial (ver _prospectingPromptEnterprise.js).
 const JSON_INSTRUCTIONS_EMPRESA = `
 
-Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 5 claves:
+Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 7 claves:
 {
   "calificacion": "alta" | "media" | "baja" (qué tan buen prospecto es: alta si claramente necesita automatización/IA y parece tener presupuesto/tamaño para invertir, baja si no aplica bien),
   "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
   "oferta": "el id exacto de la oferta elegida del menú (ej. 'data_analytics', 'enterprise_automation')",
   "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_DINERO}",
-  "cuerpoEmail": "correo completo siguiendo la estructura de 5 pasos del prompt (saludo con nombre, gancho real sobre la empresa, reto plausible en tono hedgeado, oferta elegida, cierre invitando a 15-20 min esta semana), sin HTML. NUNCA inventes una cifra específica ($, %, ahorro en dinero) ni afirmes resultados con otros clientes ('hemos ayudado a bancos a lograr X%', 'nuestros clientes ahorran Y') que no puedas verificar — eso es mentir con datos y casos de éxito falsos a un tomador de decisión real. El enfoque de dinero/OPEX se queda en pregunta retórica o concepto, nunca en un número o cliente inventado. No te presentes por nombre en ningún punto del texto — nunca escribas 'me llamo...' ni placeholders entre corchetes. No incluyas firma ni despedida — se agrega automáticamente después, fuera de este texto"
+  "cuerpoEmail": "correo completo siguiendo la estructura de 5 pasos del prompt (saludo con nombre, gancho real sobre la empresa, reto plausible en tono hedgeado, oferta elegida, cierre invitando a 15-20 min esta semana), sin HTML. NUNCA inventes una cifra específica ($, %, ahorro en dinero) ni afirmes resultados con otros clientes ('hemos ayudado a bancos a lograr X%', 'nuestros clientes ahorran Y') que no puedas verificar — eso es mentir con datos y casos de éxito falsos a un tomador de decisión real. El enfoque de dinero/OPEX se queda en pregunta retórica o concepto, nunca en un número o cliente inventado. No te presentes por nombre en ningún punto del texto — nunca escribas 'me llamo...' ni placeholders entre corchetes. No incluyas firma ni despedida — se agrega automáticamente después, fuera de este texto",
+  ${REGLA_SEGUIMIENTOS}
 }
-No agregues ninguna clave adicional fuera de esas 5.`;
+No agregues ninguna clave adicional fuera de esas 7.`;
 
 async function generarScriptEmpresa(lead) {
   const detalles = [
@@ -82,10 +93,12 @@ async function generarScriptEmpresa(lead) {
   const script = await chatCompletionJSON({
     system: PROSPECTING_SYSTEM_PROMPT_EMPRESA + JSON_INSTRUCTIONS_EMPRESA + OPEX_SUFFIX,
     user: `Con estos datos públicos de una empresa y su contacto, genera el correo de primer contacto (nunca inventes datos que no te dieron):\n\n${detalles}`,
-    maxTokens: 900,
+    maxTokens: 1300,
   });
 
   if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}` + FIRMA_EMAIL;
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + FIRMA_EMAIL;
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + FIRMA_EMAIL;
   return script;
 }
 
@@ -105,11 +118,13 @@ async function generarScript(negocio) {
   const script = await chatCompletionJSON({
     system: PROSPECTING_SYSTEM_PROMPT + JSON_INSTRUCTIONS,
     user: `Con estos datos públicos de un negocio, genera el mensaje de primer contacto (nunca inventes datos que no te dieron):\n\n${detalles}`,
-    maxTokens: 800,
+    maxTokens: 1200,
   });
 
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
   if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}` + FIRMA_EMAIL;
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + FIRMA_EMAIL;
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + FIRMA_EMAIL;
   return script;
 }
 

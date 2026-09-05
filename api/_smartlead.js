@@ -1,10 +1,14 @@
-// Agrega un lead a la campaña "Qi-Vanta | Piloto LATAM | Decisores" (id
-// verificado: 3842244) para que el correo frío salga rotando entre las 6
-// cuentas de workspace ya configuradas en Smartlead.
+// Agrega un lead a la campaña configurada en SMARTLEAD_CAMPAIGN_ID (hoy:
+// "Qi-Vanta | Apify Google Maps", id 3890342) para que el correo frío
+// salga rotando entre las 6 cuentas de workspace ya configuradas en
+// Smartlead. Usado solo por el flujo de Google Maps (_leadsProcessor.js) —
+// Piloto LATAM no tiene pipeline automático todavía.
 // Verificado con la cuenta real el 2026-09-02: la secuencia de esa campaña
-// usa los merge tags {{qi_vanta_subject}} y {{qi_vanta_message}} en vez de
-// los campos estándar de Smartlead — hay que mandarlos como custom_fields
-// con esos nombres exactos (ver _leadScript.js) o el correo sale vacío.
+// usa los merge tags {{qi_vanta_subject}}/{{qi_vanta_message}} (y desde el
+// 2026-09-05, {{qi_vanta_followup1}}/{{qi_vanta_followup2}} en los pasos 2
+// y 3 de la secuencia) en vez de los campos estándar de Smartlead — hay
+// que mandarlos como custom_fields con esos nombres exactos o el correo
+// sale vacío.
 const SMARTLEAD_BASE_URL = "https://server.smartlead.ai/api/v1";
 
 async function agregarLeadACampania({ nombre, correo, empresa, telefono, customFields }) {

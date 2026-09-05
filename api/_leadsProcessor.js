@@ -76,6 +76,8 @@ async function procesarNegocios(coleccion, negocios, query) {
     const script = scripts[i];
     const asuntoEmail = script?.asuntoEmail || (negocio.correo ? `Automatización e IA para ${negocio.nombre}` : "");
     const cuerpoEmail = script?.cuerpoEmail || "";
+    const seguimiento1 = script?.seguimiento1 || "";
+    const seguimiento2 = script?.seguimiento2 || "";
 
     const lead = {
       ...negocio,
@@ -84,6 +86,8 @@ async function procesarNegocios(coleccion, negocios, query) {
       mensajeWhatsapp: script?.mensajeWhatsapp || "",
       asuntoEmail,
       cuerpoEmail,
+      seguimiento1,
+      seguimiento2,
       estado: "nuevo",
       emailEstado: null, // null | "enviado_a_campana" | "error"
       origenBusqueda: query,
@@ -101,7 +105,12 @@ async function procesarNegocios(coleccion, negocios, query) {
           correo: negocio.correo,
           empresa: negocio.nombre,
           telefono: negocio.telefono,
-          customFields: { qi_vanta_subject: asuntoEmail, qi_vanta_message: cuerpoEmail },
+          customFields: {
+            qi_vanta_subject: asuntoEmail,
+            qi_vanta_message: cuerpoEmail,
+            qi_vanta_followup1: seguimiento1,
+            qi_vanta_followup2: seguimiento2,
+          },
         });
         lead.emailEstado = "enviado_a_campana";
         correosEnviados++;
