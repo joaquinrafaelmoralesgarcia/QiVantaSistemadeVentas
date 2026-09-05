@@ -6,6 +6,7 @@
     "api/vapi-webhook.js": { "maxDuration": 20 },
     "api/leads-scrape.js": { "maxDuration": 60 },
     "api/cron-seguimiento.js": { "maxDuration": 30 },
+    "api/cron-monitor-campanas.js": { "maxDuration": 30 },
     "api/cron-scrape.js": { "maxDuration": 60 }
   }
 }

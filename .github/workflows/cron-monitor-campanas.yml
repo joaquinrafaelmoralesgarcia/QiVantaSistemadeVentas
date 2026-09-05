@@ -1,0 +1,20 @@
+name: Monitor diario de campañas Smartlead
+
+# Revisa cada mañana, antes de la ventana de envío (8:00-10:00am CDMX),
+# que ninguna campaña haya quedado en COMPLETED (se reactiva sola) o
+# PAUSED (solo avisa por correo, no la toca) — pedido del usuario el
+# 2026-09-05 tras encontrar Piloto LATAM bloqueada varios días sin darse
+# cuenta. 13:00 UTC = 7:00am CDMX (México no usa horario de verano).
+on:
+  schedule:
+    - cron: "0 13 * * 1-6"
+  workflow_dispatch: {}
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a /api/cron-monitor-campanas
+        run: |
+          curl -sf -X POST "https://chatbotwati.vercel.app/api/cron-monitor-campanas" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
