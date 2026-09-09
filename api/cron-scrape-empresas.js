@@ -24,12 +24,18 @@ const PER_PAGE = 100;
 
 // Las 6 cuentas de envío son compartidas entre Google Maps y Piloto
 // LATAM (6 × 40/día = 240 de cupo total, desde que se subió el límite
-// por cuenta el 2026-09-09). Pedido explícito del usuario: cuando Apollo
-// (y Hunter) se queden sin nada nuevo que mandar ese día, Google Maps
-// debe poder usar todo el cupo compartido en vez de dejarlo sin usar;
-// en cuanto Piloto LATAM vuelva a tener leads, Google Maps regresa a su
-// tope normal para no dejarlo sin espacio.
-const TOPE_GOOGLE_MAPS_NORMAL = 150;
+// por cuenta el 2026-09-09). Pedido explícito del usuario el 2026-09-09:
+// "la prioridad en volumen de correos a enviar era primero piloto latam
+// y luego google maps" — un 40/40 no bastaba (el primer día real con
+// ambos en 150 mandó MÁS Google Maps que Piloto LATAM, el orden de
+// arranque por sí solo no fuerza la prioridad). Por eso el tope normal
+// de Google Maps se bajó a 50 (Piloto LATAM se subió a 190, fuera de
+// este archivo, vía Smartlead directo — no cambia dinámicamente, así
+// que no hace falta mantenerlo aquí). Cuando Apollo/Hunter se quedan sin
+// nada nuevo que mandar ese día, Google Maps sube a 240 (todo el cupo)
+// para no dejarlo sin usar; en cuanto Apollo vuelve a tener leads,
+// regresa solo a 50.
+const TOPE_GOOGLE_MAPS_NORMAL = 50;
 const TOPE_GOOGLE_MAPS_AMPLIADO = 240;
 
 // Progresión automática de niveles (país + banda de tamaño de empresa) —
