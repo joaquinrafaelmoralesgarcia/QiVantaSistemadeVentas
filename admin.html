@@ -114,6 +114,22 @@
   </div>
 
   <div class="card">
+    <h2>Importar leads manuales (Piloto LATAM)</h2>
+    <p style="margin:0 0 10px; font-size:12px; color:var(--muted); max-width:640px;">
+      Pega aquí el CSV que exportes de Clay, Snov.io, Lusha o Kaspr. Detecta solo las columnas de correo/nombre/empresa/puesto sin importar el nombre exacto que traigan — el resto (validar el dominio, generar el correo, mandarlo a Smartlead) corre automático.
+    </p>
+    <select id="importOrigen" style="margin-bottom:8px; padding:6px;">
+      <option value="clay_latam">Clay</option>
+      <option value="snov_latam">Snov.io</option>
+      <option value="lusha_latam">Lusha</option>
+      <option value="kaspr_latam">Kaspr</option>
+    </select>
+    <textarea id="importCsv" rows="6" style="width:100%; font-family:monospace; font-size:12px; box-sizing:border-box;" placeholder="Pega aquí el CSV (con encabezados en la primera fila)..."></textarea>
+    <button id="btnImportarCsv" style="margin-top:8px;">Importar y procesar</button>
+    <div class="status-line" id="importStatus"></div>
+  </div>
+
+  <div class="card">
     <h2>Leads</h2>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px; flex-wrap:wrap;">
       <p style="margin:0; font-size:12px; color:var(--muted); max-width:520px;">El envío de WhatsApp sigue siendo 100% manual — tú das "enviar" en cada uno. La cola solo te ahorra tener que buscar cada lead en la tabla.</p>
@@ -248,6 +264,66 @@
       cargarLeads();
     } else {
       document.getElementById("loginStatus").textContent = "Contraseña incorrecta.";
+    }
+  });
+
+  function parsearCSV(texto) {
+    const filas = [];
+    let fila = [], campo = "", enComillas = false;
+    for (let i = 0; i < texto.length; i++) {
+      const c = texto[i];
+      if (enComillas) {
+        if (c === '"') {
+          if (texto[i + 1] === '"') { campo += '"'; i++; }
+          else enComillas = false;
+        } else campo += c;
+      } else if (c === '"') {
+        enComillas = true;
+      } else if (c === ",") {
+        fila.push(campo);
+        campo = "";
+      } else if (c === "\n" || c === "\r") {
+        if (c === "\r" && texto[i + 1] === "\n") i++;
+        fila.push(campo);
+        campo = "";
+        if (fila.some((v) => v !== "")) filas.push(fila);
+        fila = [];
+      } else {
+        campo += c;
+      }
+    }
+    if (campo || fila.length) {
+      fila.push(campo);
+      filas.push(fila);
+    }
+    if (!filas.length) return [];
+    const encabezados = filas[0];
+    return filas.slice(1).map((f) => {
+      const obj = {};
+      encabezados.forEach((h, idx) => { obj[h] = f[idx] || ""; });
+      return obj;
+    });
+  }
+
+  document.getElementById("btnImportarCsv").addEventListener("click", async () => {
+    const texto = document.getElementById("importCsv").value.trim();
+    const origen = document.getElementById("importOrigen").value;
+    const statusEl = document.getElementById("importStatus");
+    if (!texto) { statusEl.textContent = "Pega un CSV primero."; return; }
+
+    const filas = parsearCSV(texto);
+    if (!filas.length) { statusEl.textContent = "No se detectaron filas válidas."; return; }
+
+    statusEl.textContent = `Procesando ${filas.length} filas… puede tardar un poco.`;
+    try {
+      const res = await fetch("/api/leads", { method: "POST", headers: headers(), body: JSON.stringify({ filas, origen }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al importar.");
+      statusEl.textContent = `Listo: ${data.correosEnviados} enviados a Smartlead, ${data.yaExistian} ya existían, ${data.correosInvalidos} correo inválido, ${data.sinCorreo} sin correo detectado, ${data.erroresCorreo} error al enviar.`;
+      document.getElementById("importCsv").value = "";
+      cargarLeads();
+    } catch (err) {
+      statusEl.textContent = "Error: " + err.message;
     }
   });
 

@@ -4,7 +4,7 @@
 const { getDb } = require("./_mongo");
 const { iniciarBusqueda, consultarBusqueda } = require("./_apify");
 const { procesarNegocios } = require("./_leadsProcessor");
-const { CATEGORIAS, CIUDADES, elegirAlAzar } = require("./_prospectingSegments");
+const { elegirComboNuevo } = require("./_prospectingSegments");
 
 const MAX_RESULTADOS = 50;
 
@@ -16,11 +16,11 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "POST") {
-      const query = elegirAlAzar(CATEGORIAS);
-      const location = elegirAlAzar(CIUDADES);
+      const db = await getDb();
+      const { categoria: query, ciudad: location, combosRestantes, reinicio } = await elegirComboNuevo(db);
       const { runId } = await iniciarBusqueda({ query, location, maxResultados: MAX_RESULTADOS });
-      console.log(`Scrapeo diario iniciado: "${query}" en "${location}" (runId ${runId})`);
-      res.status(200).json({ runId, query, location });
+      console.log(`Scrapeo diario iniciado: "${query}" en "${location}" (runId ${runId}) — combos nuevos restantes: ${combosRestantes}${reinicio ? " (se reinició el conteo, ya se cubrió todo el universo)" : ""}`);
+      res.status(200).json({ runId, query, location, combosRestantes, reinicio });
       return;
     }
 

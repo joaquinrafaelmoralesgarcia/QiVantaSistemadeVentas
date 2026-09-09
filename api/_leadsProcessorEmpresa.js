@@ -1,7 +1,5 @@
-const { generarScriptEmpresa } = require("./_leadScript");
-const { agregarLeadACampania } = require("./_smartlead");
-const { correoTieneServidorValido } = require("./_emailVerify");
 const { revelarCorreo } = require("./_apollo");
+const { procesarPersonaEmpresa } = require("./_leadsProcessorComun");
 
 // Espejo de _leadsProcessor.js (Google Maps) pero para el pipeline de
 // Piloto LATAM vía Apollo — pedido explícito del usuario el 2026-09-07:
@@ -12,7 +10,9 @@ const { revelarCorreo } = require("./_apollo");
 // candidato que se "revela" (revelarCorreo), incluso si ya se había
 // revelado antes en un día anterior — por eso el dedup aquí es ANTES de
 // revelar (por apolloId, nunca por correo, porque el correo real no se
-// conoce hasta después de gastar el crédito).
+// conoce hasta después de gastar el crédito). El paso de después de
+// revelar (validar MX, generar el correo, mandar a Smartlead) vive en
+// _leadsProcessorComun.js, compartido con Hunter y la importación manual.
 //
 // Si Apollo devuelve BILLING.LIMIT.CREDITS_EXHAUSTED, se detiene de
 // inmediato (no tiene caso seguir intentando el resto de la página, todos
@@ -27,7 +27,7 @@ async function procesarPersonasApollo(coleccion, personas) {
   const idsExistentes = new Set(existentes.map((e) => e.apolloId));
   const nuevas = personas.filter((p) => !idsExistentes.has(p.id));
 
-  const leads = [];
+  let procesados = 0;
   let revelados = 0;
   let sinCorreoApollo = 0;
   let correosInvalidos = 0;
@@ -40,11 +40,10 @@ async function procesarPersonasApollo(coleccion, personas) {
       revelado = await revelarCorreo(persona.id);
     } catch (err) {
       if (err.apolloCode === "BILLING.LIMIT.CREDITS_EXHAUSTED") {
-        if (leads.length) await coleccion.insertMany(leads);
         return {
           totalCandidatos: personas.length,
           yaExistian: personas.length - nuevas.length,
-          intentados: leads.length,
+          intentados: procesados,
           revelados,
           sinCorreoApollo,
           correosInvalidos,
@@ -55,83 +54,25 @@ async function procesarPersonasApollo(coleccion, personas) {
         };
       }
       console.error("Error revelando candidato de Apollo", persona.id, err.message);
-      leads.push({ apolloId: persona.id, origen: "apollo_latam", estado: "error_apollo", errorApollo: err.message, createdAt: new Date() });
+      await coleccion.insertOne({ apolloId: persona.id, origen: "apollo_latam", estado: "error_apollo", errorApollo: err.message, createdAt: new Date() });
+      procesados++;
       continue;
     }
 
+    procesados++;
+
     if (!revelado || !revelado.correo) {
       sinCorreoApollo++;
-      leads.push({ apolloId: persona.id, origen: "apollo_latam", estado: "sin_correo_apollo", createdAt: new Date() });
+      await coleccion.insertOne({ apolloId: persona.id, origen: "apollo_latam", estado: "sin_correo_apollo", createdAt: new Date() });
       continue;
     }
     revelados++;
 
-    const valido = await correoTieneServidorValido(revelado.correo);
-    if (!valido) {
-      correosInvalidos++;
-      leads.push({
-        apolloId: persona.id,
-        origen: "apollo_latam",
-        nombre: revelado.nombre,
-        empresa: revelado.empresa,
-        correoInvalido: revelado.correo,
-        estado: "correo_invalido",
-        createdAt: new Date(),
-      });
-      continue;
-    }
-
-    const script = await generarScriptEmpresa(revelado).catch((err) => {
-      console.error("Error generando script para", revelado.nombre, err);
-      return null;
-    });
-
-    const lead = {
-      apolloId: persona.id,
-      origen: "apollo_latam",
-      nombre: revelado.nombre,
-      titulo: revelado.titulo,
-      empresa: revelado.empresa,
-      correo: revelado.correo,
-      calificacion: script?.calificacion || null,
-      razonamiento: script?.razonamiento || "",
-      oferta: script?.oferta || "",
-      asuntoEmail: script?.asuntoEmail || `Automatización e IA para ${revelado.empresa}`,
-      cuerpoEmail: script?.cuerpoEmail || "",
-      seguimiento1: script?.seguimiento1 || "",
-      seguimiento2: script?.seguimiento2 || "",
-      estado: "nuevo",
-      emailEstado: null,
-      createdAt: new Date(),
-    };
-
-    try {
-      await agregarLeadACampania({
-        nombre: revelado.nombre,
-        correo: revelado.correo,
-        empresa: revelado.empresa,
-        telefono: "",
-        campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM,
-        customFields: {
-          qi_vanta_subject: lead.asuntoEmail,
-          qi_vanta_message: lead.cuerpoEmail,
-          qi_vanta_followup1: lead.seguimiento1,
-          qi_vanta_followup2: lead.seguimiento2,
-        },
-      });
-      lead.emailEstado = "enviado_a_campana";
-      correosEnviados++;
-    } catch (err) {
-      console.error("Error mandando a Smartlead (LATAM):", revelado.nombre, err.message);
-      lead.emailEstado = "error";
-      lead.emailError = err.message;
-      erroresCorreo++;
-    }
-
-    leads.push(lead);
+    const { resultado } = await procesarPersonaEmpresa(coleccion, revelado, "apollo_latam", { apolloId: persona.id });
+    if (resultado === "correo_invalido") correosInvalidos++;
+    else if (resultado === "enviado") correosEnviados++;
+    else if (resultado === "error_smartlead") erroresCorreo++;
   }
-
-  if (leads.length) await coleccion.insertMany(leads);
 
   return {
     totalCandidatos: personas.length,

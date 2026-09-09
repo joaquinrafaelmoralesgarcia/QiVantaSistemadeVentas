@@ -47,10 +47,10 @@ const PAISES_LATAM = [
   "honduras", "el salvador", "dominican republic", "venezuela",
 ];
 
-async function buscarPersonas({ page = 1, perPage = 25 } = {}) {
+async function buscarPersonas({ page = 1, perPage = 25, paises = PAISES_LATAM } = {}) {
   const params = new URLSearchParams();
   for (const s of SENIORITIES_DECISORES) params.append("person_seniorities[]", s);
-  for (const p of PAISES_LATAM) params.append("organization_locations[]", p);
+  for (const p of paises) params.append("organization_locations[]", p);
   params.append("contact_email_status[]", "verified");
   params.append("page", String(page));
   params.append("per_page", String(perPage));
@@ -97,4 +97,21 @@ async function revelarCorreo(personId) {
   };
 }
 
-module.exports = { buscarPersonas, revelarCorreo };
+// Consulta el saldo real de lead_credit (GRATIS, 0 créditos — verificado
+// contra la doc oficial). Se usa antes y después de cada corrida del cron
+// para poder comparar "créditos gastados" contra "leads producidos" con
+// datos reales de Apollo, no solo con lo que este código dice que hizo —
+// pedido explícito del usuario el 2026-09-08 tras el episodio de los 2,541
+// créditos sin explicación clara: "como garantizas que no se gastarán en
+// balde".
+async function obtenerCreditosLead() {
+  const res = await fetch(`${APOLLO_BASE_URL}/usage_stats/credit_usage_stats`, {
+    method: "POST",
+    headers: headers(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`Apollo (créditos) respondió con error (${res.status}): ${JSON.stringify(data)}`);
+  return data.credit_usage_stats?.lead_credit || null; // {limit, consumed, left_over}
+}
+
+module.exports = { buscarPersonas, revelarCorreo, obtenerCreditosLead };

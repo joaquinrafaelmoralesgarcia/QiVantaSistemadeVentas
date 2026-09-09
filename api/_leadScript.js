@@ -41,6 +41,14 @@ const FIRMA_WHATSAPP = `
 — Joaquín Morales | Qi-Vanta
 https://www.qi-vanta.com`;
 
+// NUNCA se le pega a cuerpoEmail/seguimientos — a diferencia de WhatsApp
+// (que no tiene firma de plataforma), Smartlead SÍ agrega su propia firma
+// de cuenta automáticamente al final de cada correo enviado (verificado el
+// 2026-09-08: las 6 cuentas de envío ya la tienen configurada). Pegar esto
+// en el texto además de eso duplicaba la firma — confirmado con un correo
+// real ya enviado que mostraba "Joaquin Morales... Qi-Vanta" dos veces
+// seguidas. Se deja declarada solo por si algún día se necesita en un
+// canal sin firma de plataforma propia.
 const FIRMA_EMAIL = `
 
 Joaquín Morales
@@ -96,9 +104,9 @@ async function generarScriptEmpresa(lead) {
     maxTokens: 1300,
   });
 
-  if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}` + FIRMA_EMAIL;
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + FIRMA_EMAIL;
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + FIRMA_EMAIL;
+  if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}`;
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim();
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim();
   return script;
 }
 
@@ -122,9 +130,9 @@ async function generarScript(negocio) {
   });
 
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
-  if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}` + FIRMA_EMAIL;
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + FIRMA_EMAIL;
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + FIRMA_EMAIL;
+  if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}`;
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim();
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim();
   return script;
 }
 
@@ -148,8 +156,8 @@ async function generarSeguimientos(cuerpoEmailOriginal, { esEmpresa = false } = 
     user: `Correo inicial ya enviado:\n\n${cuerpoEmailOriginal}`,
     maxTokens: 500,
   });
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + FIRMA_EMAIL;
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + FIRMA_EMAIL;
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim();
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim();
   return script;
 }
 

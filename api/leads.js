@@ -4,6 +4,7 @@
 const { getDb } = require("./_mongo");
 const { requiereAdmin } = require("./_adminAuth");
 const { agregarLeadACampania } = require("./_smartlead");
+const { importarFilas } = require("./_leadsProcessorImport");
 const { ObjectId } = require("mongodb");
 
 const CAMPOS_MENSAJE = ["mensajeWhatsapp", "asuntoEmail", "cuerpoEmail"];
@@ -42,6 +43,20 @@ module.exports = async function handler(req, res) {
 
       await coleccion.updateOne({ _id: new ObjectId(id) }, { $set: set });
       res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (req.method === "POST" && Array.isArray(req.body?.filas)) {
+      // Importación manual de Clay/Snov.io/Lusha/Kaspr (Piloto LATAM) —
+      // pedido explícito del usuario el 2026-09-07. El origen viene del
+      // panel (qué herramienta se usó) para poder distinguirlos después.
+      const { filas, origen } = req.body;
+      if (!filas.length) {
+        res.status(400).json({ error: "El CSV no trajo filas." });
+        return;
+      }
+      const stats = await importarFilas(coleccion, filas, origen || "importacion_manual");
+      res.status(200).json({ ok: true, ...stats });
       return;
     }
 
