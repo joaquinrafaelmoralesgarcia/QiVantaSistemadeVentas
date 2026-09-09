@@ -15,45 +15,73 @@
 // Las 2 fuentes corren en la misma invocación y sus resultados se suman;
 // si una se queda sin crédito/dominios pendientes, la otra sigue.
 const { getDb } = require("./_mongo");
-const { buscarPersonas, obtenerCreditosLead } = require("./_apollo");
+const { buscarPersonas, obtenerCreditosLead, NIVELES_APOLLO } = require("./_apollo");
 const { procesarPersonasApollo } = require("./_leadsProcessorEmpresa");
 const { procesarDominiosHunter } = require("./_leadsProcessorHunter");
+const { actualizarTopeCampania } = require("./_smartlead");
 
 const PER_PAGE = 100;
 
-// Pedido explícito del usuario el 2026-09-08: "agotemos primero todos los
-// leads en méxico y ya más adelante brincaremos a otros países" — antes
-// buscaba en las 17 países de LatAm a la vez. Para volver a cubrir toda
-// LatAm más adelante, basta con cambiar esto a PAISES_LATAM (importado de
-// _apollo.js) o a la lista de países que se quiera agregar.
-const PAISES_APOLLO_ACTUAL = ["mexico"];
+// Las 6 cuentas de envío son compartidas entre Google Maps y Piloto
+// LATAM (6 × 40/día = 240 de cupo total, desde que se subió el límite
+// por cuenta el 2026-09-09). Pedido explícito del usuario: cuando Apollo
+// (y Hunter) se queden sin nada nuevo que mandar ese día, Google Maps
+// debe poder usar todo el cupo compartido en vez de dejarlo sin usar;
+// en cuanto Piloto LATAM vuelva a tener leads, Google Maps regresa a su
+// tope normal para no dejarlo sin espacio.
+const TOPE_GOOGLE_MAPS_NORMAL = 150;
+const TOPE_GOOGLE_MAPS_AMPLIADO = 240;
 
-// Registra el saldo real de créditos de Apollo antes y después de revelar,
-// y lo guarda en Mongo (colección "auditoriaCreditosApollo") — pedido
-// explícito del usuario el 2026-09-08: "como garantizas que no se
+// Progresión automática de niveles (país + banda de tamaño de empresa) —
+// pedido explícito del usuario el 2026-09-08: "cuando termines de
+// recorrer todo méxico menos de 1000 empleados brincaremos de 1000 a
+// 2000, luego de 2 mil a 3 mil, y luego iremos a otros países de latam".
+// NIVELES_APOLLO (en _apollo.js) ya trae el orden completo — México
+// primero, cada país en sus 3 bandas de tamaño. Cuando un nivel se agota
+// (la búsqueda ya no encuentra candidatos ahí), se avanza solo al
+// siguiente, sin que haga falta pedirlo de nuevo cada vez.
+//
+// Registra el saldo real de créditos de Apollo antes y después de
+// revelar, y lo guarda en Mongo (colección "auditoriaCreditosApollo") —
+// pedido explícito del usuario el 2026-09-08: "como garantizas que no se
 // gastarán en balde" tras el episodio de los 2,541 créditos sin
 // explicación clara. Esto convierte la garantía en algo verificable con
 // datos de Apollo mismos, no en una promesa del código.
 async function correrApollo(db) {
   const estadoCol = db.collection("estadoApollo");
-  const estado = (await estadoCol.findOne({ _id: "cursorLatam" })) || { pagina: 1 };
+  const estadoGuardado = await estadoCol.findOne({ _id: "cursorLatam" });
+  // nivelIndex no existía antes del 2026-09-08 (progresión país+tamaño) —
+  // si el documento es de antes, usa 0 (México, banda 1-1000) sin tronar.
+  const estado = { nivelIndex: estadoGuardado?.nivelIndex ?? 0, pagina: estadoGuardado?.pagina ?? 1 };
+  const nivel = NIVELES_APOLLO[estado.nivelIndex % NIVELES_APOLLO.length];
 
   const creditosAntes = await obtenerCreditosLead().catch((err) => {
     console.error("No se pudo consultar créditos de Apollo antes de la corrida:", err.message);
     return null;
   });
 
-  const { totalEncontrados, personas } = await buscarPersonas({ page: estado.pagina, perPage: PER_PAGE, paises: PAISES_APOLLO_ACTUAL });
+  const { totalEncontrados, personas } = await buscarPersonas({
+    page: estado.pagina,
+    perPage: PER_PAGE,
+    paises: [nivel.pais],
+    rangosEmpleados: [nivel.banda],
+  });
 
   if (!personas.length) {
-    await estadoCol.updateOne({ _id: "cursorLatam" }, { $set: { pagina: 1 } }, { upsert: true });
-    return { paginaUsada: estado.pagina, totalEncontrados, sinCandidatosEnPagina: true, reinicio: true, correosEnviados: 0, detenidoPorErrores: false };
+    // Se agotó este nivel (país+tamaño) — avanza al siguiente de la lista.
+    const siguienteIndex = (estado.nivelIndex + 1) % NIVELES_APOLLO.length;
+    await estadoCol.updateOne({ _id: "cursorLatam" }, { $set: { nivelIndex: siguienteIndex, pagina: 1 } }, { upsert: true });
+    const siguienteNivel = NIVELES_APOLLO[siguienteIndex];
+    return {
+      nivel, totalEncontrados, sinCandidatosEnNivel: true, avanzoDeNivel: true,
+      siguienteNivel, correosEnviados: 0, detenidoPorErrores: false,
+    };
   }
 
   const stats = await procesarPersonasApollo(db.collection("leads"), personas);
 
   if (!stats.detenidoPorErrores) {
-    await estadoCol.updateOne({ _id: "cursorLatam" }, { $set: { pagina: estado.pagina + 1 } }, { upsert: true });
+    await estadoCol.updateOne({ _id: "cursorLatam" }, { $set: { nivelIndex: estado.nivelIndex, pagina: estado.pagina + 1 } }, { upsert: true });
   }
 
   const creditosDespues = await obtenerCreditosLead().catch((err) => {
@@ -65,6 +93,7 @@ async function correrApollo(db) {
   const intentosQuePudieronCobrar = stats.revelados + (stats.sinCorreoApollo || 0); // revelar sin correo aún puede cobrar 1 crédito "demográfico" según Apollo, por eso se incluye
   await db.collection("auditoriaCreditosApollo").insertOne({
     fecha: new Date(),
+    nivel,
     paginaUsada: estado.pagina,
     creditosAntes,
     creditosDespues,
@@ -74,7 +103,7 @@ async function correrApollo(db) {
     cuadra: creditosGastados === null ? null : creditosGastados <= intentosQuePudieronCobrar,
   });
 
-  return { paginaUsada: estado.pagina, totalEncontrados, creditosGastados, ...stats };
+  return { nivel, paginaUsada: estado.pagina, totalEncontrados, creditosGastados, ...stats };
 }
 
 module.exports = async function handler(req, res) {
@@ -106,8 +135,14 @@ module.exports = async function handler(req, res) {
     const hunterAgotado = Boolean(hunter.detenidoPorCuota || hunter.sinDominiosPendientes || hunter.sinLlaveConfigurada);
     const detenidoPorErrores = Boolean(apollo.detenidoPorErrores) && hunterAgotado;
 
-    console.log("Piloto LATAM — Apollo:", JSON.stringify(apollo), "| Hunter:", JSON.stringify(hunter));
-    res.status(200).json({ apollo, hunter, correosEnviados, detenidoPorErrores });
+    const topeGoogleMapsDeseado = detenidoPorErrores ? TOPE_GOOGLE_MAPS_AMPLIADO : TOPE_GOOGLE_MAPS_NORMAL;
+    const ajusteGoogleMaps = await actualizarTopeCampania(process.env.SMARTLEAD_CAMPAIGN_ID, topeGoogleMapsDeseado).catch((err) => {
+      console.error("No se pudo ajustar el tope de Google Maps:", err.message);
+      return { error: err.message };
+    });
+
+    console.log("Piloto LATAM — Apollo:", JSON.stringify(apollo), "| Hunter:", JSON.stringify(hunter), "| Tope Google Maps:", JSON.stringify(ajusteGoogleMaps));
+    res.status(200).json({ apollo, hunter, correosEnviados, detenidoPorErrores, ajusteGoogleMaps });
   } catch (err) {
     console.error("Error en cron-scrape-empresas:", err);
     res.status(500).json({ error: err.message || "Error en el scrapeo diario de Piloto LATAM." });

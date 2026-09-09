@@ -37,8 +37,7 @@ function headers() {
 
 // Seniorities y locations calibrados contra los 407 contactos reales que ya
 // tenía Piloto LATAM (CEOs, CIOs, fundadores, directores de empresas
-// medianas/grandes) — sin filtro de tamaño de empresa, pedido explícito
-// del usuario: "todo tipo de empresa".
+// medianas/grandes).
 const SENIORITIES_DECISORES = ["owner", "founder", "c_suite", "partner", "vp", "director"];
 
 const PAISES_LATAM = [
@@ -47,10 +46,35 @@ const PAISES_LATAM = [
   "honduras", "el salvador", "dominican republic", "venezuela",
 ];
 
-async function buscarPersonas({ page = 1, perPage = 25, paises = PAISES_LATAM } = {}) {
+// Pedido explícito del usuario el 2026-09-08, después de ver el primer
+// lote de 197 (traía conglomerados como Grupo Bimbo, Grupo Salinas,
+// Aeroméxico): "no quiero empresas tan grandes... deberan ser empresas
+// chicas o medianas menos de 1000 empleados". Antes no había filtro de
+// tamaño ("todo tipo de empresa" era el pedido original del 2026-09-04,
+// esto lo reemplaza). Rangos en el formato exacto que pide Apollo
+// (organization_num_employees_ranges[]): "min,max" por bucket.
+const RANGOS_EMPLEADOS_PYME = ["1,10", "11,20", "21,50", "51,100", "101,200", "201,500", "501,1000"];
+
+// Progresión automática de "niveles" para el cron diario — pedido
+// explícito del usuario el 2026-09-08: "cuando termines de recorrer todo
+// méxico menos de 1000 empleados brincaremos de 1000 a 2000, luego de 2
+// mil a 3 mil, y luego iremos a otros países de latam y haremos lo
+// mismo". Cada nivel es un país + una banda de tamaño de empresa; cuando
+// un nivel se agota (buscarPersonas ya no encuentra candidatos ahí),
+// cron-scrape-empresas.js avanza solo al siguiente nivel de esta lista —
+// no hace falta pedirlo de nuevo cada vez. México va primero porque es
+// donde se empezó.
+const BANDAS_EMPLEADOS_PROGRESION = ["1,1000", "1001,2000", "2001,3000"];
+
+const NIVELES_APOLLO = PAISES_LATAM.flatMap((pais) =>
+  BANDAS_EMPLEADOS_PROGRESION.map((banda) => ({ pais, banda }))
+);
+
+async function buscarPersonas({ page = 1, perPage = 25, paises = PAISES_LATAM, rangosEmpleados = RANGOS_EMPLEADOS_PYME } = {}) {
   const params = new URLSearchParams();
   for (const s of SENIORITIES_DECISORES) params.append("person_seniorities[]", s);
   for (const p of paises) params.append("organization_locations[]", p);
+  for (const r of rangosEmpleados) params.append("organization_num_employees_ranges[]", r);
   params.append("contact_email_status[]", "verified");
   params.append("page", String(page));
   params.append("per_page", String(perPage));
@@ -114,4 +138,4 @@ async function obtenerCreditosLead() {
   return data.credit_usage_stats?.lead_credit || null; // {limit, consumed, left_over}
 }
 
-module.exports = { buscarPersonas, revelarCorreo, obtenerCreditosLead };
+module.exports = { buscarPersonas, revelarCorreo, obtenerCreditosLead, NIVELES_APOLLO };
