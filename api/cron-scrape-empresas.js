@@ -20,7 +20,15 @@ const { procesarPersonasApollo } = require("./_leadsProcessorEmpresa");
 const { procesarDominiosHunter } = require("./_leadsProcessorHunter");
 const { actualizarTopeCampania } = require("./_smartlead");
 
-const PER_PAGE = 100;
+// 25, no 100: cada candidato NUEVO hace 2 llamadas de red en serie
+// (revelar correo + Smartlead) y cuando la mayoría de la página son
+// nuevos (territorio recién alcanzado por la progresión de niveles) 100
+// candidatos se pasan de los 60s que da Vercel — causó un
+// FUNCTION_INVOCATION_TIMEOUT real el 2026-09-09. El workflow de GitHub
+// Actions ya reintenta hasta 10 veces por día (hasta 250 candidatos de
+// margen con este tamaño), así que bajar esto no reduce el volumen diario
+// alcanzable, solo evita que una sola corrida se pase del límite.
+const PER_PAGE = 25;
 
 // Las 6 cuentas de envío son compartidas entre Google Maps y Piloto
 // LATAM (6 × 40/día = 240 de cupo total, desde que se subió el límite
