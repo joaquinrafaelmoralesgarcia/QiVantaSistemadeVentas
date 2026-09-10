@@ -84,7 +84,8 @@ REGLAS:
 - No repitas la misma oferta ni el mismo gancho para empresas de industrias distintas — varía según lo que cada empresa realmente hace.
 - Correo de 3-5 párrafos cortos, sin HTML.
 - SIEMPRE trata de "tú" (tu, tienes, pierdes, te interesa) — NUNCA de "usted" (su, tiene, pierde, le interesa), aunque el contacto tenga un puesto senior (CEO, director). Cuidado especial con la palabra "su/sus", es la que más se cuela por error incluso en correos que ya usan "tú" — revisa que digas "tu empresa/tu equipo/tu operación", nunca "su empresa/su equipo/su operación". No mezcles los dos registros en el mismo correo.
-- NUNCA uses "vosotros/vuestro/podéis/tenéis/os" (registro de España) — este es un correo para Latinoamérica. Si dudas entre formas, usa siempre la conjugación de "tú" (tienes, puedes, te permite), nunca la de "vosotros".`;
+- NUNCA uses "vosotros/vuestro/podéis/tenéis/os" (registro de España) — este es un correo para Latinoamérica. Si dudas entre formas, usa siempre la conjugación de "tú" (tienes, puedes, te permite), nunca la de "vosotros".
+- Escribe SIEMPRE en español de México (vocabulario y expresiones neutras/mexicanas), sin importar el país real del contacto — nunca uses modismos de otro país (ej. "vos", "che", "laburo", "guagua", "plata" en vez de "dinero"). Palabras neutras como "empresa", "equipo", "tiempo", "dinero", "reunión" funcionan bien en todo Latinoamérica.`;
 }
 
 module.exports = { construirPromptEmpresa, OFERTAS_EMPRESA_CHICA, OFERTAS_EMPRESA_GRANDE, UMBRAL_EMPRESA_GRANDE };
