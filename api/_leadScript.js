@@ -1,6 +1,6 @@
 const { chatCompletionJSON } = require("./_deepinfraClient");
 const { PROSPECTING_SYSTEM_PROMPT } = require("./_prospectingPrompt");
-const { PROSPECTING_SYSTEM_PROMPT_EMPRESA } = require("./_prospectingPromptEnterprise");
+const { construirPromptEmpresa } = require("./_prospectingPromptEnterprise");
 
 // Compartida entre PYME (Google Maps) y empresa (Piloto LATAM) — pedido
 // explícito del usuario el 2026-09-04.
@@ -93,18 +93,22 @@ async function generarScriptEmpresa(lead) {
     `Nombre del contacto: ${lead.nombre}`,
     `Puesto: ${lead.titulo || "desconocido"}`,
     `Empresa: ${lead.empresa}`,
+    typeof lead.numEmpleados === "number" ? `Número de empleados: ${lead.numEmpleados}` : null,
     lead.descripcionEmpresa ? `Qué hace la empresa (descripción disponible): ${lead.descripcionEmpresa}` : null,
   ]
     .filter(Boolean)
     .join("\n");
 
   const script = await chatCompletionJSON({
-    system: PROSPECTING_SYSTEM_PROMPT_EMPRESA + JSON_INSTRUCTIONS_EMPRESA + OPEX_SUFFIX,
+    system: construirPromptEmpresa(lead.numEmpleados) + JSON_INSTRUCTIONS_EMPRESA + OPEX_SUFFIX,
     user: `Con estos datos públicos de una empresa y su contacto, genera el correo de primer contacto (nunca inventes datos que no te dieron):\n\n${detalles}`,
     maxTokens: 1300,
   });
 
-  if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}`;
+  // LINEA_VOZ_IA ("Adicionamos Chatbots...") es exclusiva de Google Maps/
+  // Apify (ver su comentario arriba) — NO va aquí. Se agregaba por error en
+  // todo correo de Piloto LATAM hasta el 2026-09-10, incluyendo a empresas
+  // de miles de empleados, contradiciendo la oferta consultiva ya elegida.
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim();
   if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim();
   return script;
@@ -150,7 +154,7 @@ Ya se mandó un correo inicial (te lo doy abajo, ya con firma incluida — ignor
 No agregues ninguna clave adicional fuera de esas 2.`;
 
 async function generarSeguimientos(cuerpoEmailOriginal, { esEmpresa = false } = {}) {
-  const promptBase = esEmpresa ? PROSPECTING_SYSTEM_PROMPT_EMPRESA : PROSPECTING_SYSTEM_PROMPT;
+  const promptBase = esEmpresa ? construirPromptEmpresa(null) : PROSPECTING_SYSTEM_PROMPT;
   const script = await chatCompletionJSON({
     system: promptBase + JSON_INSTRUCTIONS_SOLO_SEGUIMIENTOS,
     user: `Correo inicial ya enviado:\n\n${cuerpoEmailOriginal}`,

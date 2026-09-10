@@ -117,6 +117,12 @@ async function revelarCorreo(personId) {
     correo: persona.email,
     empresa: persona.organization?.name || "",
     descripcionEmpresa: persona.organization?.short_description || null,
+    // Número real de empleados (no la banda de búsqueda) — pedido explícito
+    // del usuario el 2026-09-10: el catálogo de ofertas para empresas de
+    // más de 100 empleados debe ser distinto (SDLC/DevSecOps/modernización
+    // enterprise) al de empresas más chicas dentro de la misma campaña. Ver
+    // _prospectingPromptEnterprise.js.
+    numEmpleados: persona.organization?.estimated_num_employees ?? null,
     apolloId: persona.id,
   };
 }
