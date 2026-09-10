@@ -97,6 +97,25 @@
   <p class="sub">Busca negocios, califícalos con IA, revisa o edita el mensaje, y dispara tú mismo el contacto (WhatsApp con un clic, correo vía Smartlead) — nada se manda sin que tú lo confirmes.</p>
 
   <div class="card">
+    <h2>Status de campañas (hoy)</h2>
+    <div class="status-line" id="statusCampanasInfo"></div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Piloto LATAM</th>
+            <th>Google Maps</th>
+          </tr>
+        </thead>
+        <tbody id="statusCampanasBody">
+          <tr><td colspan="3" class="empty">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Buscar negocios nuevos</h2>
     <form class="scrape-form" id="scrapeForm">
       <label>Giro / búsqueda
@@ -245,6 +264,7 @@
       app.hidden = false;
       topnav.hidden = false;
       cargarLeads();
+      cargarStatusCampanas();
     } else {
       loginBox.hidden = false;
       app.hidden = true;
@@ -262,6 +282,7 @@
       app.hidden = false;
       topnav.hidden = false;
       cargarLeads();
+      cargarStatusCampanas();
     } else {
       document.getElementById("loginStatus").textContent = "Contraseña incorrecta.";
     }
@@ -476,6 +497,46 @@
     const res = await fetch(url, { headers: headers() });
     const data = await res.json();
     renderLeads(data.leads || []);
+  }
+
+  function filaStatus(etiqueta, campoLatam, campoGM) {
+    return `<tr><td>${etiqueta}</td><td>${campoLatam ?? "—"}</td><td>${campoGM ?? "—"}</td></tr>`;
+  }
+
+  async function cargarStatusCampanas() {
+    const info = document.getElementById("statusCampanasInfo");
+    const body = document.getElementById("statusCampanasBody");
+    try {
+      const res = await fetch("/api/leads?tipo=status-campanas", { headers: headers() });
+      const data = await res.json();
+      const [latam, gm] = data.campanas || [];
+      if (!latam || !gm) throw new Error("Respuesta incompleta");
+
+      body.innerHTML = [
+        filaStatus("Enviados hoy", latam.enviadosHoy, gm.enviadosHoy),
+        filaStatus("Únicos hoy", latam.unicosHoy, gm.unicosHoy),
+        filaStatus("Abiertos hoy", latam.abiertosHoy, gm.abiertosHoy),
+        filaStatus("Respuestas hoy", latam.respuestasHoy, gm.respuestasHoy),
+        filaStatus("Rebotes hoy", latam.rebotesHoy, gm.rebotesHoy),
+        filaStatus("Total leads", latam.totalLeads, gm.totalLeads),
+        filaStatus("Sin empezar (cola)", latam.sinEmpezar, gm.sinEmpezar),
+        filaStatus("En proceso", latam.enProceso, gm.enProceso),
+        filaStatus("Completados", latam.completados, gm.completados),
+        filaStatus("Interesados", latam.interesados, gm.interesados),
+        filaStatus("Bloqueados", latam.bloqueados, gm.bloqueados),
+        filaStatus("Enviados histórico", latam.enviadosHistorico, gm.enviadosHistorico),
+        filaStatus("Respuestas histórico", latam.respuestasHistorico, gm.respuestasHistorico),
+        filaStatus("Rebotes histórico", latam.rebotesHistorico, gm.rebotesHistorico),
+      ].join("");
+
+      const credito = data.apolloCreditos;
+      const apolloTxt = credito && !credito.error
+        ? `Apollo: ${credito.left_over} créditos restantes de ${credito.limit}.`
+        : "Apollo: no se pudo consultar el saldo.";
+      info.textContent = `Actualizado: ${new Date(data.generadoEn).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })} — ${apolloTxt}`;
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="3" class="empty">Error cargando el status: ${err.message}</td></tr>`;
+    }
   }
 
   document.getElementById("filters").addEventListener("click", (e) => {

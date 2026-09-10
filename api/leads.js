@@ -16,6 +16,13 @@ module.exports = async function handler(req, res) {
     const db = await getDb();
     const coleccion = db.collection("leads");
 
+    if (req.method === "GET" && req.query?.tipo === "status-campanas") {
+      const { obtenerStatusCampanas } = require("./_statusCampanas");
+      const status = await obtenerStatusCampanas();
+      res.status(200).json(status);
+      return;
+    }
+
     if (req.method === "GET") {
       const { estado } = req.query || {};
       const filtro = estado ? { estado } : {};
