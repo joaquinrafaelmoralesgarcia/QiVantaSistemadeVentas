@@ -4,6 +4,8 @@
 // categoryName, url y (con scrapeContacts:true) emails[] — coinciden con el
 // mapeo de normalizarResultado(). scrapeContacts es un add-on de pago: sin él
 // el actor nunca devuelve correo, así que va activado por default aquí.
+const { detectarEmpresaGrande } = require("./_empresaGrande");
+
 const APIFY_ACTOR_ID = process.env.APIFY_ACTOR_ID || "compass~crawler-google-places";
 
 // El scraping con scrapeContacts:true (necesario para sacar correos) es
@@ -74,7 +76,7 @@ async function consultarBusqueda(runId) {
 }
 
 function normalizarResultado(item) {
-  return {
+  const negocio = {
     nombre: item.title || item.name || "",
     direccion: item.address || item.street || "",
     telefono: (item.phone || item.phoneUnformatted || "").toString().trim(),
@@ -86,6 +88,15 @@ function normalizarResultado(item) {
     correo: item.email || (Array.isArray(item.emails) ? item.emails[0] : "") || "",
     googleMapsUrl: item.url || item.googleMapsUrl || "",
   };
+
+  // Google Maps no tiene número de empleados (a diferencia de Apollo) —
+  // se estima con señales observables. Ver _empresaGrande.js. Pedido
+  // explícito del usuario el 2026-09-10.
+  const { probablementeGrande, senales } = detectarEmpresaGrande(negocio);
+  negocio.probablementeGrande = probablementeGrande;
+  negocio.senalesEmpresaGrande = senales;
+
+  return negocio;
 }
 
 module.exports = { iniciarBusqueda, consultarBusqueda };

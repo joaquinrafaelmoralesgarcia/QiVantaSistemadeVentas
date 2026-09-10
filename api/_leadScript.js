@@ -1,6 +1,7 @@
 const { chatCompletionJSON } = require("./_deepinfraClient");
 const { PROSPECTING_SYSTEM_PROMPT } = require("./_prospectingPrompt");
 const { construirPromptEmpresa } = require("./_prospectingPromptEnterprise");
+const { PROSPECTING_SYSTEM_PROMPT_GRANDE_GM } = require("./_prospectingPromptGrandeGoogleMaps");
 
 // Compartida entre PYME (Google Maps) y empresa (Piloto LATAM) — pedido
 // explícito del usuario el 2026-09-04.
@@ -32,6 +33,24 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin t
   ${REGLA_SEGUIMIENTOS}
 }
 No agregues ninguna clave adicional fuera de esas 7.`;
+
+// Variante para Google Maps cuando _empresaGrande.js marca el negocio como
+// probable cadena/empresa grande — igual que JSON_INSTRUCTIONS pero
+// agrega "oferta" (id del catálogo enterprise elegido, para auditar cuál
+// se usó) — pedido explícito del usuario el 2026-09-10.
+const JSON_INSTRUCTIONS_GRANDE_GM = `
+
+Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 8 claves:
+{
+  "calificacion": "alta" | "media" | "baja" (qué tan buen prospecto es: alta si claramente necesita automatización/IA y parece tener presupuesto, baja si no aplica bien),
+  "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
+  "oferta": "el id exacto de la oferta elegida del menú (ej. 'ai_native_sdlc', 'legacy_modernization')",
+  "mensajeWhatsapp": "mensaje corto, máx 280 caracteres, tono cercano y directo en español de México, cierra con pregunta abierta. Nunca escribas placeholders entre corchetes como [Nombre] — no sabes el nombre de quien lee, dirígete directo al negocio o usa un saludo genérico ('Hola,'). NO incluyas firma ni datos de contacto, se agregan automáticamente después",
+  "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_DINERO}",
+  "cuerpoEmail": "correo frío completo, 3-5 párrafos cortos, sin HTML. Igual que el asunto, el cuerpo también debe reforzar el enfoque de dinero perdido/dejado de ganar por el problema detectado. NUNCA inventes una cifra específica ni afirmes resultados con otros clientes que no puedas verificar. No te presentes por nombre en ningún punto del texto. No incluyas firma, despedida ni datos de contacto — se agrega automáticamente después. Empieza directo con el gancho sobre el negocio, sigue con el costo en dinero de no resolverlo, presenta la oferta, y termina en la pregunta/invitación a platicar",
+  ${REGLA_SEGUIMIENTOS}
+}
+No agregues ninguna clave adicional fuera de esas 8.`;
 
 // Se agrega en código, no se le pide al modelo que la escriba (riesgo de que
 // invente o altere el correo/nombre real) — pedido explícito del usuario el
@@ -116,6 +135,13 @@ async function generarScriptEmpresa(lead) {
 
 // Google Maps (PYME) nunca incluye el tema de OPEX — pedido explícito del
 // usuario el 2026-09-04, ese tema es exclusivo de generarScriptEmpresa().
+//
+// Excepción: si _empresaGrande.js marcó el negocio como probable cadena/
+// empresa grande (negocio.probablementeGrande), usa el catálogo enterprise
+// en vez del catálogo PYME de 15 ofertas — pedido explícito del usuario el
+// 2026-09-10, mismo criterio que ya aplica en Piloto LATAM. LINEA_VOZ_IA
+// (línea fija de "chatbots con voz natural") tampoco se agrega en ese
+// caso, es específica del catálogo PYME.
 async function generarScript(negocio) {
   const detalles = [
     `Nombre: ${negocio.nombre}`,
@@ -127,14 +153,18 @@ async function generarScript(negocio) {
     .filter(Boolean)
     .join("\n");
 
+  const esGrande = Boolean(negocio.probablementeGrande);
+
   const script = await chatCompletionJSON({
-    system: PROSPECTING_SYSTEM_PROMPT + JSON_INSTRUCTIONS,
+    system: esGrande ? PROSPECTING_SYSTEM_PROMPT_GRANDE_GM + JSON_INSTRUCTIONS_GRANDE_GM : PROSPECTING_SYSTEM_PROMPT + JSON_INSTRUCTIONS,
     user: `Con estos datos públicos de un negocio, genera el mensaje de primer contacto (nunca inventes datos que no te dieron):\n\n${detalles}`,
     maxTokens: 1200,
   });
 
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
-  if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}`;
+  if (script.cuerpoEmail) {
+    script.cuerpoEmail = esGrande ? script.cuerpoEmail.trim() : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}`;
+  }
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim();
   if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim();
   return script;
