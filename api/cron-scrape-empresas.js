@@ -94,7 +94,12 @@ async function correrApollo(db) {
 
   const stats = await procesarPersonasApollo(db.collection("leads"), personas);
 
-  if (!stats.detenidoPorErrores) {
+  // Si quedaron candidatos nuevos sin procesar en esta página (tope de
+  // MAX_NUEVOS_POR_CORRIDA en _leadsProcessorEmpresa.js), NO avanza de
+  // página — la próxima corrida vuelve a pedir la misma página, el dedup
+  // por apolloId salta a los que ya se procesaron y sigue con los que
+  // faltaron, sin perder ninguno.
+  if (!stats.detenidoPorErrores && !stats.quedaronPendientes) {
     await estadoCol.updateOne({ _id: "cursorLatam" }, { $set: { nivelIndex: estado.nivelIndex, pagina: estado.pagina + 1 } }, { upsert: true });
   }
 

@@ -18,6 +18,21 @@ const { procesarPersonaEmpresa } = require("./_leadsProcessorComun");
 // inmediato (no tiene caso seguir intentando el resto de la página, todos
 // fallarían igual) y lo reporta en detenidoPorErrores para que el cron no
 // avance el cursor de página — mañana se reintenta la misma página.
+// Tope de candidatos NUEVOS a procesar por corrida — no de cuántos se piden
+// a Apollo. El costo real por candidato nuevo no son las 2 llamadas de red
+// (revelar + Smartlead), es generarScriptEmpresa() generando el correo
+// completo con IA (hasta 1300 tokens), varios segundos cada uno. Con 25
+// candidatos por página no hay forma de saber de antemano cuántos serán
+// nuevos — si le toca una página con muchos nuevos de golpe (pasó el
+// 2026-09-10, intento 7 se colgó los 60s completos de Vercel sin
+// terminar), igual se pasa del límite. Por eso se topa aquí el
+// PROCESAMIENTO, no la página: si sobran nuevos sin procesar, se
+// devuelven sin marcarlos como vistos (no se insertan en Mongo), así que
+// la siguiente corrida los vuelve a encontrar como "nuevos" en la misma
+// página (que no avanza, ver cron-scrape-empresas.js) y sigue donde se
+// quedó, sin perder ninguno.
+const MAX_NUEVOS_POR_CORRIDA = 6;
+
 async function procesarPersonasApollo(coleccion, personas) {
   const ids = personas.map((p) => p.id);
   const existentes = await coleccion
@@ -25,7 +40,9 @@ async function procesarPersonasApollo(coleccion, personas) {
     .project({ apolloId: 1 })
     .toArray();
   const idsExistentes = new Set(existentes.map((e) => e.apolloId));
-  const nuevas = personas.filter((p) => !idsExistentes.has(p.id));
+  const todasLasNuevas = personas.filter((p) => !idsExistentes.has(p.id));
+  const nuevas = todasLasNuevas.slice(0, MAX_NUEVOS_POR_CORRIDA);
+  const quedaronPendientes = todasLasNuevas.length > nuevas.length;
 
   let procesados = 0;
   let revelados = 0;
@@ -42,7 +59,8 @@ async function procesarPersonasApollo(coleccion, personas) {
       if (err.apolloCode === "BILLING.LIMIT.CREDITS_EXHAUSTED") {
         return {
           totalCandidatos: personas.length,
-          yaExistian: personas.length - nuevas.length,
+          yaExistian: personas.length - todasLasNuevas.length,
+          quedaronPendientes,
           intentados: procesados,
           revelados,
           sinCorreoApollo,
@@ -76,7 +94,8 @@ async function procesarPersonasApollo(coleccion, personas) {
 
   return {
     totalCandidatos: personas.length,
-    yaExistian: personas.length - nuevas.length,
+    yaExistian: personas.length - todasLasNuevas.length,
+    quedaronPendientes,
     intentados: nuevas.length,
     revelados,
     sinCorreoApollo,
