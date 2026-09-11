@@ -127,6 +127,17 @@ const LINEA_APPS_WEB_PYME = "También desarrollamos apps móviles y sitios web a
 // (chico y grande), a diferencia de LINEA_VOZ_IA que no existe en LATAM.
 const LINEA_APPS_LATAM = "También desarrollamos aplicaciones móviles a la medida para tu operación.";
 
+// Línea fija final para TODO correo de AMBAS campañas (correo 1,
+// seguimiento1 y seguimiento2) — pedido explícito del usuario el
+// 2026-09-11: "a todo tipo de correo enviado... al final agregues 'te
+// creamos un Demo prototipo sin costo'... que se vea esto al final
+// sobresaliente". Va en negrita (HTML) para que resalte — Smartlead
+// renderiza HTML real dentro del merge tag (confirmado: la firma de
+// cuenta ya usa <div>/<img>/<a href> reales), así que <strong> debe
+// mostrarse en negrita en el correo entregado, no como texto plano con
+// los símbolos < > visibles.
+const LINEA_DEMO_GRATIS = "<strong>Te creamos un demo/prototipo sin costo.</strong>";
+
 // Solo para la campaña "Piloto LATAM | Decisores" (empresas medianas/
 // grandes, no los negocios chicos de Google Maps) — pedido explícito del
 // usuario el 2026-09-04: "en la de piloto latam mencionar todo lo que te
@@ -249,11 +260,11 @@ async function generarScriptEmpresa(lead) {
   // de miles de empleados, contradiciendo la oferta consultiva ya elegida.
   // LINEA_APPS_LATAM sí va aquí (pedido explícito del usuario el
   // 2026-09-10), en los 2 catálogos (chico y grande).
-  if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}`;
+  if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}\n\n${LINEA_DEMO_GRATIS}`;
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim();
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
   if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim();
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
   return script;
 }
 
@@ -289,12 +300,14 @@ async function generarScript(negocio) {
 
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
   if (script.cuerpoEmail) {
-    script.cuerpoEmail = esGrande ? script.cuerpoEmail.trim() : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}`;
+    script.cuerpoEmail = esGrande
+      ? script.cuerpoEmail.trim() + `\n\n${LINEA_DEMO_GRATIS}`
+      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}\n\n${LINEA_DEMO_GRATIS}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim();
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
   if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim();
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
   return script;
 }
 
@@ -321,9 +334,9 @@ async function generarSeguimientos(cuerpoEmailOriginal, { esEmpresa = false } = 
   await corregirAsuntosDelScript(script, `Correo inicial ya enviado: ${cuerpoEmailOriginal.slice(0, 200)}`);
   await corregirCifrasDelScript(script, `Correo inicial ya enviado: ${cuerpoEmailOriginal.slice(0, 200)}`);
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim();
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
   if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim();
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
   return script;
 }
 
