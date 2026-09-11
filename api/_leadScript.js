@@ -112,6 +112,21 @@ joaquin.morales@qi-vantatech.com`;
 // que la redacte) para que el texto salga siempre idéntico.
 const LINEA_VOZ_IA = "Adicionamos Chatbots impulsados con voz natural con IA, inteligencia para las respuestas de tu negocio.";
 
+// Complemento fijo adicional para Google Maps — pedido explícito del
+// usuario el 2026-09-10: "ofrece APPs aplicaciones moviles y Sitios Web,
+// adicional a los demas servicios... es un complemento del contenido de
+// mensaje que ya mandas". Igual que LINEA_VOZ_IA, se agrega en código, no
+// se le pide al modelo — y solo en el catálogo PYME (no en el catálogo
+// "empresa grande" de Google Maps, que ya tiene su propio enfoque
+// enterprise, igual que LINEA_VOZ_IA tampoco aplica ahí).
+const LINEA_APPS_WEB_PYME = "También desarrollamos apps móviles y sitios web a la medida para tu negocio.";
+
+// Mismo complemento para Piloto LATAM, solo apps (el usuario no pidió
+// sitios web ahí) — pedido explícito del usuario el 2026-09-10: "ofrece
+// APPs tambien en la campaña de piloto latam". Aplica a los 2 catálogos
+// (chico y grande), a diferencia de LINEA_VOZ_IA que no existe en LATAM.
+const LINEA_APPS_LATAM = "También desarrollamos aplicaciones móviles a la medida para tu operación.";
+
 // Solo para la campaña "Piloto LATAM | Decisores" (empresas medianas/
 // grandes, no los negocios chicos de Google Maps) — pedido explícito del
 // usuario el 2026-09-04: "en la de piloto latam mencionar todo lo que te
@@ -199,6 +214,9 @@ async function generarScriptEmpresa(lead) {
   // Apify (ver su comentario arriba) — NO va aquí. Se agregaba por error en
   // todo correo de Piloto LATAM hasta el 2026-09-10, incluyendo a empresas
   // de miles de empleados, contradiciendo la oferta consultiva ya elegida.
+  // LINEA_APPS_LATAM sí va aquí (pedido explícito del usuario el
+  // 2026-09-10), en los 2 catálogos (chico y grande).
+  if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}`;
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim();
   if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
@@ -237,7 +255,7 @@ async function generarScript(negocio) {
 
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
   if (script.cuerpoEmail) {
-    script.cuerpoEmail = esGrande ? script.cuerpoEmail.trim() : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}`;
+    script.cuerpoEmail = esGrande ? script.cuerpoEmail.trim() : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim();
