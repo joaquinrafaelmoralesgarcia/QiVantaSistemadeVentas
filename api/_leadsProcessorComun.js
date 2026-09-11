@@ -45,7 +45,9 @@ async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {
     oferta: script?.oferta || "",
     asuntoEmail: script?.asuntoEmail || `Automatización e IA para ${persona.empresa || persona.nombre}`,
     cuerpoEmail: script?.cuerpoEmail || "",
+    seguimiento1Asunto: script?.seguimiento1Asunto || "",
     seguimiento1: script?.seguimiento1 || "",
+    seguimiento2Asunto: script?.seguimiento2Asunto || "",
     seguimiento2: script?.seguimiento2 || "",
     estado: "nuevo",
     emailEstado: null,
@@ -62,7 +64,9 @@ async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {
       customFields: {
         qi_vanta_subject: lead.asuntoEmail,
         qi_vanta_message: lead.cuerpoEmail,
+        qi_vanta_followup1_subject: lead.seguimiento1Asunto,
         qi_vanta_followup1: lead.seguimiento1,
+        qi_vanta_followup2_subject: lead.seguimiento2Asunto,
         qi_vanta_followup2: lead.seguimiento2,
       },
     });

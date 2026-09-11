@@ -76,7 +76,9 @@ async function procesarNegocios(coleccion, negocios, query) {
     const script = scripts[i];
     const asuntoEmail = script?.asuntoEmail || (negocio.correo ? `Automatización e IA para ${negocio.nombre}` : "");
     const cuerpoEmail = script?.cuerpoEmail || "";
+    const seguimiento1Asunto = script?.seguimiento1Asunto || "";
     const seguimiento1 = script?.seguimiento1 || "";
+    const seguimiento2Asunto = script?.seguimiento2Asunto || "";
     const seguimiento2 = script?.seguimiento2 || "";
 
     const lead = {
@@ -86,7 +88,9 @@ async function procesarNegocios(coleccion, negocios, query) {
       mensajeWhatsapp: script?.mensajeWhatsapp || "",
       asuntoEmail,
       cuerpoEmail,
+      seguimiento1Asunto,
       seguimiento1,
+      seguimiento2Asunto,
       seguimiento2,
       estado: "nuevo",
       emailEstado: null, // null | "enviado_a_campana" | "error"
@@ -108,7 +112,9 @@ async function procesarNegocios(coleccion, negocios, query) {
           customFields: {
             qi_vanta_subject: asuntoEmail,
             qi_vanta_message: cuerpoEmail,
+            qi_vanta_followup1_subject: seguimiento1Asunto,
             qi_vanta_followup1: seguimiento1,
+            qi_vanta_followup2_subject: seguimiento2Asunto,
             qi_vanta_followup2: seguimiento2,
           },
         });
