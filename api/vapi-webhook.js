@@ -45,6 +45,33 @@ module.exports = async function handler(req, res) {
         .updateOne({ callId }, { $set: { resultado: { datos, resumen, endedReason: message.endedReason || null, terminadaEn: new Date() } } });
     }
 
+    // Guarda leads interesados en cita/llamada/sesión de las llamadas en
+    // frío (Google Maps) — pedido explícito del usuario el 2026-09-11.
+    // nombreNegocio/ubicacionGoogleMaps NO se preguntan en la llamada (ya
+    // los sabemos, son el lead al que llamamos) — viajan en message.call.
+    // metadata, puesto ahí al iniciar la llamada (ver script de marcado
+    // por lotes). El resto (nombrePersona, correo) sí sale de la
+    // conversación real (analysis.structuredData).
+    const metadataLlamada = message.call?.metadata || {};
+    const interesado = Boolean(
+      datos.citaAcordada || /^alto$|^medio$/i.test(datos.interes || "")
+    );
+    if (interesado && (metadataLlamada.nombreNegocio || datos.correo || datos.nombre)) {
+      await db.collection("vapi_interesados").insertOne({
+        nombreNegocio: metadataLlamada.nombreNegocio || null,
+        ubicacionGoogleMaps: metadataLlamada.ubicacionGoogleMaps || null,
+        nombrePersona: datos.nombre || null,
+        telefono: numero,
+        correo: datos.correo || null,
+        interes: datos.interes || null,
+        citaAcordada: datos.citaAcordada || null,
+        retoOOportunidad: datos.retoOOportunidad || null,
+        resumen,
+        callId,
+        createdAt: new Date(),
+      });
+    }
+
     if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
       await enviarCorreoInterno({
         asunto: `Nueva llamada del botón "Llámame": ${datos.nombre || numero}${datos.empresa ? " (" + datos.empresa + ")" : ""}`,
