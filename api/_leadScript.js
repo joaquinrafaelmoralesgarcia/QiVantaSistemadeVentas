@@ -192,6 +192,38 @@ async function corregirAsuntosDelScript(script, contexto) {
   return script;
 }
 
+// Validación real para cifras inventadas — encontrada probando en vivo el
+// 2026-09-10: pese a la regla explícita de "NUNCA inventes una cifra
+// específica" (presente desde el 2026-09-04), el modelo metió "reduciendo
+// hasta un 40% el tiempo de entrega" en un correo real de prueba,
+// repetido igual en 2 corridas distintas — un patrón, no un accidente
+// aislado. Solo detecta % y $ seguidos de dígito (no "15-20 minutos" ni
+// "día 14", que son horarios/fechas legítimos, no cifras de resultado).
+const CIFRA_INVENTADA = /\d+\s*%|\$\s?\d/;
+
+async function corregirCifraInventada(texto, contexto) {
+  if (!texto || !CIFRA_INVENTADA.test(texto)) return texto;
+  try {
+    const fix = await chatCompletionJSON({
+      system: `Reescribes un correo en español de México, eliminando SOLO las cifras/porcentajes/montos específicos inventados (ej. "40%", "$5,000") que no se pueden verificar — cámbialos por lenguaje de concepto sin número (ej. "reduce significativamente" en vez de "reduce un 40%"). No cambies nada más del texto. Responde ÚNICAMENTE con JSON: {"texto": "..."}`,
+      user: `Texto original:\n\n${texto}\n\nContexto: ${contexto}`,
+      maxTokens: 900,
+    });
+    return fix?.texto && !CIFRA_INVENTADA.test(fix.texto) ? fix.texto.trim() : texto.replace(CIFRA_INVENTADA, "").trim();
+  } catch (err) {
+    console.error("Error corrigiendo cifra inventada:", err.message);
+    return texto;
+  }
+}
+
+async function corregirCifrasDelScript(script, contexto) {
+  if (!script) return script;
+  if (script.cuerpoEmail) script.cuerpoEmail = await corregirCifraInventada(script.cuerpoEmail, contexto);
+  if (script.seguimiento1) script.seguimiento1 = await corregirCifraInventada(script.seguimiento1, contexto);
+  if (script.seguimiento2) script.seguimiento2 = await corregirCifraInventada(script.seguimiento2, contexto);
+  return script;
+}
+
 async function generarScriptEmpresa(lead) {
   const detalles = [
     `Nombre del contacto: ${lead.nombre}`,
@@ -209,6 +241,7 @@ async function generarScriptEmpresa(lead) {
     maxTokens: 1900,
   });
   await corregirAsuntosDelScript(script, `Empresa: ${lead.empresa}, contacto: ${lead.nombre}`);
+  await corregirCifrasDelScript(script, `Empresa: ${lead.empresa}, contacto: ${lead.nombre}`);
 
   // LINEA_VOZ_IA ("Adicionamos Chatbots...") es exclusiva de Google Maps/
   // Apify (ver su comentario arriba) — NO va aquí. Se agregaba por error en
@@ -252,6 +285,7 @@ async function generarScript(negocio) {
     maxTokens: 1800,
   });
   await corregirAsuntosDelScript(script, `Negocio: ${negocio.nombre}, categoría: ${negocio.categoria || "desconocida"}`);
+  await corregirCifrasDelScript(script, `Negocio: ${negocio.nombre}, categoría: ${negocio.categoria || "desconocida"}`);
 
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
   if (script.cuerpoEmail) {
@@ -285,6 +319,7 @@ async function generarSeguimientos(cuerpoEmailOriginal, { esEmpresa = false } = 
     maxTokens: 700,
   });
   await corregirAsuntosDelScript(script, `Correo inicial ya enviado: ${cuerpoEmailOriginal.slice(0, 200)}`);
+  await corregirCifrasDelScript(script, `Correo inicial ya enviado: ${cuerpoEmailOriginal.slice(0, 200)}`);
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim();
   if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
