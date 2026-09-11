@@ -4,9 +4,24 @@ const { construirPromptEmpresa } = require("./_prospectingPromptEnterprise");
 const { PROSPECTING_SYSTEM_PROMPT_GRANDE_GM } = require("./_prospectingPromptGrandeGoogleMaps");
 
 // Compartida entre PYME (Google Maps) y empresa (Piloto LATAM) — pedido
-// explícito del usuario el 2026-09-04.
-const REGLA_ASUNTO_DINERO =
-  "DEBE mencionar dinero explícitamente (la palabra 'dinero', 'cuesta', '$', 'gastan' o similar) — nunca preguntes solo por cantidad de clientes/citas/cotizaciones perdidas sin ponerle el enfoque de costo en pesos. Estilo obligatorio: '¿Cuánto dinero estás perdiendo por [problema específico observable]?' o '¿Cuánto dinero dejas de ganar por no tener [solución]?' o '¿Sabes cuánto te cuesta [problema] al mes?' — SIEMPRE atado al problema concreto de ESE negocio/empresa, nunca genérico ni igual entre leads distintos. IMPORTANTE: el enfoque de dinero es una PREGUNTA retórica, nunca una cifra inventada — jamás pongas un monto específico ($5,000, 30%, etc.) que no te dieron, eso es mentir con datos falsos.";
+// explícito del usuario el 2026-09-04, ampliado el 2026-09-10 con un banco
+// real de frases de venta que el usuario pidió aplicar a los asuntos:
+// "analiza cual aplica en cada empresa negocio o cliente de acuerdo a lo
+// que mejor le ajusta de acuerdo al analisis que hace el sistema" — no es
+// elegir una frase al azar, es que el propio análisis del Paso 1 (tamaño,
+// sector, reto plausible) decida qué FAMILIA de tono encaja mejor con
+// cada lead, y de ahí adapte una frase concreta, nunca la misma para
+// todos. Reemplaza la regla anterior de "siempre debe ser pregunta" —
+// varias de estas frases son afirmaciones directas, igual de válidas.
+const REGLA_ASUNTO_DINERO = `DEBE mencionar dinero/costo explícitamente (la palabra "dinero", "cuesta", "gastas", "pagas", "ahorro", "margen" o similar) — nunca un asunto genérico sin ese enfoque. Elige la FAMILIA de tono que mejor encaje con el negocio/empresa según tu propio análisis del Paso 1 (no siempre la misma familia, varía entre leads distintos):
+
+1. AHORRO DIRECTO — cuando el argumento más fuerte es reducir costo operativo (operación con procesos manuales pesados, backoffice, tareas repetitivas): "Te ayudamos a gastar menos haciendo lo mismo, pero más rápido" / "Donde hoy pagas horas hombre, nosotros ponemos automatización" / "Si un proceso te cuesta todos los meses, ahí hay oportunidad de ahorro" / "Menos operación manual, menos errores, menos gasto".
+2. COMPARACIÓN CON COMPETENCIA — cuando el sector es competitivo/comoditizado y quedarse atrás es un riesgo real (retail, manufactura, servicios comerciales): "Tu competencia ya está automatizando; la pregunta es cuánto te está costando no hacerlo" / "Mientras otros reducen costos con IA, tú sigues pagando procesos manuales" / "Cada día que no automatizas, tu competencia gana margen".
+3. CIERRE DE INTERÉS CONSULTIVO — buen default seguro cuando ninguna otra familia encaja con claridad: "Déjanos mostrarte dónde estás perdiendo dinero" / "Primero encontramos el ahorro, después vemos la solución" / "La propuesta empieza con números, no con promesas".
+4. DIRECTA/COMERCIAL — para negocios con urgencia visible o cuando conviene un golpe de impacto corto (calificación alta): "El dinero se está yendo en tareas que una máquina ya puede hacer" / "Lo manual sale más caro de lo que parece" / "Cada Excel manual tiene un costo escondido".
+5. VENTA CONSULTIVA — tono suave, funciona casi siempre, otro buen default: "Primero detectamos fugas de dinero; después automatizamos" / "Donde hay repetición, hay ahorro posible" / "La automatización no es gasto: es recuperación de dinero".
+
+No copies una frase literal igual entre leads distintos — adáptala o combínala con el gancho/observación real de ESE negocio cuando sea posible. No tiene que ser pregunta, puede ser una afirmación directa como los ejemplos de arriba, siempre que mencione dinero/costo con una de las palabras de la lista (dinero, cuesta, gastas, pagas, ahorro, margen) — NO basta con "pierdes/perder" sola sin la palabra dinero, ej. MAL: "¿Cuánto pierdes al no tener X?" (no dice dinero) — BIEN: "¿Cuánto dinero pierdes al no tener X?". IMPORTANTE: jamás pongas un monto específico ($5,000, 30%, etc.) ni un resultado de otro cliente que no te dieron — el enfoque de dinero se queda en concepto/pregunta retórica, nunca en una cifra o caso de éxito inventado.`;
 
 // Seguimiento agregado el 2026-09-05: ninguna de las 2 campañas tenía más
 // que un solo correo (sequence_count:1) — con Google Maps en 0 respuestas
