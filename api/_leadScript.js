@@ -20,6 +20,7 @@ const REGLA_ASUNTO_DINERO = `DEBE mencionar dinero/costo explícitamente (la pal
 3. CIERRE DE INTERÉS CONSULTIVO — buen default seguro cuando ninguna otra familia encaja con claridad: "Déjanos mostrarte dónde estás perdiendo dinero" / "Primero encontramos el ahorro, después vemos la solución" / "La propuesta empieza con números, no con promesas".
 4. DIRECTA/COMERCIAL — para negocios con urgencia visible o cuando conviene un golpe de impacto corto (calificación alta): "El dinero se está yendo en tareas que una máquina ya puede hacer" / "Lo manual sale más caro de lo que parece" / "Cada Excel manual tiene un costo escondido".
 5. VENTA CONSULTIVA — tono suave, funciona casi siempre, otro buen default: "Primero detectamos fugas de dinero; después automatizamos" / "Donde hay repetición, hay ahorro posible" / "La automatización no es gasto: es recuperación de dinero".
+6. DUPLICAR CLIENTES (usa esta AL AZAR de vez en cuando, sin importar si encaja perfecto con el análisis del Paso 1 — no es por ajuste de contexto como las otras 5, es solo para variar): "¿Qué haces cuando tienes clientes pero no sabes cómo duplicarlos?" — ÚNICA excepción a la regla de mencionar dinero explícito (ver abajo), puedes usarla o adaptarla tal cual.
 
 IMPORTANTE — las frases de arriba son solo EJEMPLOS de tono, NUNCA las copies textuales palabra por palabra: verificado el 2026-09-10 con una prueba real de 20 correos que, sin esta advertencia, el modelo repite "Donde hoy pagas horas hombre, nosotros ponemos automatización" IDÉNTICA en 9 de 20 empresas distintas — eso se ve como spam masivo, no personalización. Escribe SIEMPRE tu propia versión, inspirada en el tono de la familia elegida pero con palabras distintas y, cuando sea posible, referenciando algo concreto de ESE negocio específico (su sector, su tamaño, el reto plausible del Paso 1).
 
@@ -175,10 +176,14 @@ No agregues ninguna clave adicional fuera de esas 9.`;
 // confiable que pedirle 3 cosas distintas en la misma respuesta larga.
 const PALABRAS_DINERO = /(dinero|cuesta|cuestan|gastas|gastan|pagas|pagan|pagar|ahorro|ahorras|margen|costo|costos)/i;
 const PALABRAS_USTED = /\b(su|sus|suyo|suya|usted|ustedes)\b/i;
+// Única excepción a la regla de dinero — pedido explícito del usuario el
+// 2026-09-11: familia #6 "DUPLICAR CLIENTES" en REGLA_ASUNTO_DINERO, no
+// necesita palabra de dinero.
+const EXCEPCION_DUPLICAR = /duplicar/i;
 
 async function corregirAsunto(asuntoOriginal, contexto) {
   const problemas = [];
-  if (!PALABRAS_DINERO.test(asuntoOriginal)) problemas.push("no menciona dinero/costo explícitamente (agrega una palabra como 'dinero', 'cuesta', 'gastas', 'ahorro', 'costo')");
+  if (!PALABRAS_DINERO.test(asuntoOriginal) && !EXCEPCION_DUPLICAR.test(asuntoOriginal)) problemas.push("no menciona dinero/costo explícitamente (agrega una palabra como 'dinero', 'cuesta', 'gastas', 'ahorro', 'costo')");
   if (PALABRAS_USTED.test(asuntoOriginal)) problemas.push("usa 'su/usted' — debe ser 'tú/tu'");
   if (!problemas.length) return asuntoOriginal;
 
