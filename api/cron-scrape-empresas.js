@@ -19,6 +19,7 @@ const { buscarPersonas, obtenerCreditosLead, NIVELES_APOLLO } = require("./_apol
 const { procesarPersonasApollo } = require("./_leadsProcessorEmpresa");
 const { procesarDominiosHunter } = require("./_leadsProcessorHunter");
 const { actualizarTopeCampania } = require("./_smartlead");
+const { reciclarLeadsAntiguos } = require("./_leadsReciclaje");
 
 // 25, no 100: cada candidato NUEVO hace 2 llamadas de red en serie
 // (revelar correo + Smartlead) y cuando la mayoría de la página son
@@ -160,8 +161,22 @@ module.exports = async function handler(req, res) {
       return { error: err.message };
     });
 
-    console.log("Piloto LATAM — Apollo:", JSON.stringify(apollo), "| Hunter:", JSON.stringify(hunter), "| Tope Google Maps:", JSON.stringify(ajusteGoogleMaps));
-    res.status(200).json({ apollo, hunter, correosEnviados, detenidoPorErrores, ajusteGoogleMaps });
+    // Reciclaje de leads viejos — pedido explícito del usuario el
+    // 2026-09-10: cuando Apollo (créditos agotados, no solo "sin
+    // candidatos en este nivel") Y Hunter se quedan sin nada nuevo,
+    // reescribe a los leads más antiguos ya contactados ofreciéndoles un
+    // servicio de Qi-Vanta distinto al que ya recibieron. Solo Piloto
+    // LATAM (confirmado explícitamente con el usuario) — Google Maps
+    // sigue teniendo ciudades/giros nuevos que explorar vía Apify.
+    const reciclaje = detenidoPorErrores
+      ? await reciclarLeadsAntiguos(db).catch((err) => {
+          console.error("Error en fase de reciclaje:", err);
+          return { error: err.message };
+        })
+      : { omitido: true, motivo: "Apollo/Hunter todavía tienen candidatos nuevos, no hace falta reciclar." };
+
+    console.log("Piloto LATAM — Apollo:", JSON.stringify(apollo), "| Hunter:", JSON.stringify(hunter), "| Tope Google Maps:", JSON.stringify(ajusteGoogleMaps), "| Reciclaje:", JSON.stringify(reciclaje));
+    res.status(200).json({ apollo, hunter, correosEnviados, detenidoPorErrores, ajusteGoogleMaps, reciclaje });
   } catch (err) {
     console.error("Error en cron-scrape-empresas:", err);
     res.status(500).json({ error: err.message || "Error en el scrapeo diario de Piloto LATAM." });

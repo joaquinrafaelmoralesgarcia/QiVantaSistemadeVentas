@@ -189,8 +189,8 @@ async function generarScriptEmpresa(lead) {
     .join("\n");
 
   const script = await chatCompletionJSON({
-    system: construirPromptEmpresa(lead.numEmpleados) + JSON_INSTRUCTIONS_EMPRESA + OPEX_SUFFIX,
-    user: `Con estos datos públicos de una empresa y su contacto, genera el correo de primer contacto (nunca inventes datos que no te dieron):\n\n${detalles}`,
+    system: construirPromptEmpresa(lead.numEmpleados, { ofertasExcluidas: lead.ofertasExcluidas || [], esReciclaje: Boolean(lead.esReciclaje) }) + JSON_INSTRUCTIONS_EMPRESA + OPEX_SUFFIX,
+    user: `Con estos datos públicos de una empresa y su contacto, genera el correo de ${lead.esReciclaje ? "reciclaje (otro servicio distinto, ver instrucciones)" : "primer contacto"} (nunca inventes datos que no te dieron):\n\n${detalles}`,
     maxTokens: 1900,
   });
   await corregirAsuntosDelScript(script, `Empresa: ${lead.empresa}, contacto: ${lead.nombre}`);

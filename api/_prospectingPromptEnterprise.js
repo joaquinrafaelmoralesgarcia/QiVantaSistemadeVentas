@@ -53,11 +53,13 @@ function catalogoPara(numEmpleados) {
   return numEmpleados != null && numEmpleados >= UMBRAL_EMPRESA_GRANDE ? OFERTAS_EMPRESA_GRANDE : OFERTAS_EMPRESA_CHICA;
 }
 
-function construirPromptEmpresa(numEmpleados) {
-  const catalogo = catalogoPara(numEmpleados);
+function construirPromptEmpresa(numEmpleados, { ofertasExcluidas = [], esReciclaje = false } = {}) {
+  const catalogoCompleto = catalogoPara(numEmpleados);
+  const catalogo = ofertasExcluidas.length ? catalogoCompleto.filter((o) => !ofertasExcluidas.includes(o.id)) : catalogoCompleto;
   const esGrande = numEmpleados != null && numEmpleados >= UMBRAL_EMPRESA_GRANDE;
 
-  return `Eres un consultor de prospección para Qi-Vanta, escribiendo el primer correo de contacto a tomadores de decisión (CEOs, CIOs, fundadores, directores) de empresas medianas/grandes en Latinoamérica — campaña "Piloto LATAM". Es un público muy distinto al de negocios locales chicos: aquí sí puedes usar vocabulario técnico-consultivo (IA, automatización, analítica predictiva, DevSecOps, gobierno de IA, ROI) porque es el día a día de este público.
+  return `Eres un consultor de prospección para Qi-Vanta, escribiendo ${esReciclaje ? "un NUEVO correo a alguien que ya recibió un correo de Qi-Vanta antes, pero sobre OTRO servicio distinto — quieres despertarle interés en un servicio diferente de Qi-Vanta" : "el primer correo de contacto"} a tomadores de decisión (CEOs, CIOs, fundadores, directores) de empresas medianas/grandes en Latinoamérica — campaña "Piloto LATAM". Es un público muy distinto al de negocios locales chicos: aquí sí puedes usar vocabulario técnico-consultivo (IA, automatización, analítica predictiva, DevSecOps, gobierno de IA, ROI) porque es el día a día de este público.
+${esReciclaje ? `\nIMPORTANTE — ESTO ES UN RECICLAJE, no un primer contacto: ya se le mandó antes un correo sobre otro servicio de Qi-Vanta (que no funcionó/no respondió) y ahora se le escribe de nuevo con un ángulo y servicio DIFERENTE, no relacionado con lo que ya se le ofreció. Reconoce brevemente (1 frase corta, sin sonar insistente) que ya se platicó antes, tipo "Hace unas semanas te escribí sobre X — esta vez quiero platicarte de algo distinto" o "Sé que ya te contacté antes, pero esto es otro tema que podría interesarte más", y de ahí pasa directo a la nueva oferta. Nunca sueltes disculpas exageradas ni sones desesperado.` : ""}
 
 ═══════════════════════════════════════════════
 PASO 1 — ANALIZA LA EMPRESA ANTES DE ESCRIBIR
@@ -69,11 +71,12 @@ ${esGrande ? `\nEsta empresa tiene ${numEmpleados}+ empleados — a este tamaño
 PASO 2 — MENÚ DE OFERTAS EMPRESARIALES DE QI-VANTA (elige la más relevante para el reto identificado)
 ═══════════════════════════════════════════════
 ${catalogo.map((o) => `${o.id}: ${o.nombre} — ${o.descripcion}`).join("\n")}
+${ofertasExcluidas.length ? `\n(Ya se le ofrecieron antes: ${ofertasExcluidas.join(", ")} — NO las repitas, elige solo de la lista de arriba, que ya las excluye)` : ""}
 
 ═══════════════════════════════════════════════
 ESTRUCTURA Y TONO DEL CORREO (consultivo, nunca vendedor agresivo)
 ═══════════════════════════════════════════════
-1. "Hola [Nombre]," — usa el primer nombre del contacto.
+1. "Hola [Nombre]," — usa el primer nombre del contacto.${esReciclaje ? " Puede ir seguido de la frase corta de reconocimiento del contacto anterior (ver arriba)." : ""}
 2. "Vi que [Empresa] [algo real, específico y verificable sobre lo que hace la empresa, basado SOLO en los datos que te dieron]" — nunca inventes datos de la empresa que no te dieron.
 3. Un párrafo que conecta ese contexto real con un reto operativo plausible, en tono hedgeado — nunca afirmando con certeza que a ELLOS específicamente les pasa.
 4. Un párrafo que presenta la oferta elegida del Paso 2: qué hace Qi-Vanta concretamente y el resultado esperado (eficiencia operativa, ROI medible, reducción de costos).
@@ -88,4 +91,4 @@ REGLAS:
 - Escribe SIEMPRE en español de México (vocabulario y expresiones neutras/mexicanas), sin importar el país real del contacto — nunca uses modismos de otro país (ej. "vos", "che", "laburo", "guagua", "plata" en vez de "dinero"). Palabras neutras como "empresa", "equipo", "tiempo", "dinero", "reunión" funcionan bien en todo Latinoamérica.`;
 }
 
-module.exports = { construirPromptEmpresa, OFERTAS_EMPRESA_CHICA, OFERTAS_EMPRESA_GRANDE, UMBRAL_EMPRESA_GRANDE };
+module.exports = { construirPromptEmpresa, catalogoPara, OFERTAS_EMPRESA_CHICA, OFERTAS_EMPRESA_GRANDE, UMBRAL_EMPRESA_GRANDE };

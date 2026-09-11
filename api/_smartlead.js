@@ -89,4 +89,58 @@ async function actualizarTopeCampania(campaignId, maxNuevosLeadsPorDia) {
   return { sinCambio: false, topeAnterior: actual.max_leads_per_day, topeNuevo: maxNuevosLeadsPorDia };
 }
 
-module.exports = { agregarLeadACampania, actualizarTopeCampania };
+// Descarga TODOS los leads de una campaña con su status real (COMPLETED,
+// INPROGRESS, STARTED, BLOCKED), lead_category_id (no-null = se marcó
+// como interesado/no interesado/otro) e is_unsubscribed — usado por el
+// reciclaje para confirmar, antes de volver a escribirle a alguien, que
+// de verdad no respondió y no se dio de baja. Nunca reciclar solo con el
+// estado guardado en Mongo, que no refleja respuestas/bajas reales de
+// Smartlead — pedido explícito del usuario el 2026-09-10 (aunque no lo
+// pidió con esas palabras, es la única forma segura de no volver a
+// contactar a alguien que ya dijo que no le interesa).
+async function obtenerEstadosDeCampania(campaignId) {
+  const apiKey = process.env.SMARTLEAD_API_KEY;
+  const porCorreo = new Map();
+  let offset = 0;
+  const limit = 100;
+  while (true) {
+    const res = await fetch(`${SMARTLEAD_BASE_URL}/campaigns/${campaignId}/leads?api_key=${encodeURIComponent(apiKey)}&offset=${offset}&limit=${limit}`);
+    const data = await res.json();
+    const pagina = data.data || [];
+    for (const item of pagina) {
+      const correo = item.lead?.email?.toLowerCase();
+      if (!correo) continue;
+      porCorreo.set(correo, {
+        leadId: item.lead.id,
+        status: item.status,
+        leadCategoryId: item.lead_category_id,
+        isUnsubscribed: Boolean(item.lead.is_unsubscribed),
+      });
+    }
+    if (pagina.length < limit) break;
+    offset += limit;
+  }
+  return porCorreo;
+}
+
+// Quita un lead de una campaña — pedido explícito del usuario el
+// 2026-09-10: cuando se acaben los créditos de Apollo, reciclar leads
+// viejos ofreciéndoles un servicio distinto. Smartlead no tiene forma de
+// "reiniciar" la secuencia de un lead ya COMPLETED — borrarlo y volver a
+// agregarlo (con agregarLeadACampania) sí genera un mapeo nuevo, que
+// arranca la secuencia desde el paso 1 con el contenido nuevo. Confirmado
+// que el endpoint existe probando con un lead_id inválido (200, {"ok":
+// false}, sin tocar datos reales) antes de usarlo en un lead real.
+async function eliminarLeadDeCampania(campaignId, leadId) {
+  const apiKey = process.env.SMARTLEAD_API_KEY;
+  const res = await fetch(`${SMARTLEAD_BASE_URL}/campaigns/${campaignId}/leads/${leadId}?api_key=${encodeURIComponent(apiKey)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    throw new Error(`No se pudo borrar el lead ${leadId} de la campaña ${campaignId} (${res.status}): ${errBody}`);
+  }
+  return res.json();
+}
+
+module.exports = { agregarLeadACampania, actualizarTopeCampania, obtenerEstadosDeCampania, eliminarLeadDeCampania };
