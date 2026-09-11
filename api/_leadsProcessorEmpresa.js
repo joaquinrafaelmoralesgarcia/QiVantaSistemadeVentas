@@ -21,17 +21,23 @@ const { procesarPersonaEmpresa } = require("./_leadsProcessorComun");
 // Tope de candidatos NUEVOS a procesar por corrida — no de cuántos se piden
 // a Apollo. El costo real por candidato nuevo no son las 2 llamadas de red
 // (revelar + Smartlead), es generarScriptEmpresa() generando el correo
-// completo con IA (hasta 1300 tokens), varios segundos cada uno. Con 25
+// completo con IA (hasta 1900 tokens), varios segundos cada uno. Con 25
 // candidatos por página no hay forma de saber de antemano cuántos serán
-// nuevos — si le toca una página con muchos nuevos de golpe (pasó el
-// 2026-09-10, intento 7 se colgó los 60s completos de Vercel sin
-// terminar), igual se pasa del límite. Por eso se topa aquí el
-// PROCESAMIENTO, no la página: si sobran nuevos sin procesar, se
-// devuelven sin marcarlos como vistos (no se insertan en Mongo), así que
-// la siguiente corrida los vuelve a encontrar como "nuevos" en la misma
-// página (que no avanza, ver cron-scrape-empresas.js) y sigue donde se
-// quedó, sin perder ninguno.
-const MAX_NUEVOS_POR_CORRIDA = 6;
+// nuevos — si le toca una página con muchos nuevos de golpe, igual se pasa
+// del límite. Por eso se topa aquí el PROCESAMIENTO, no la página: si
+// sobran nuevos sin procesar, se devuelven sin marcarlos como vistos (no
+// se insertan en Mongo), así que la siguiente corrida los vuelve a
+// encontrar como "nuevos" en la misma página (que no avanza, ver
+// cron-scrape-empresas.js) y sigue donde se quedó, sin perder ninguno.
+//
+// Bajado de 6 a 3 el 2026-09-11: las validaciones agregadas ese mismo día
+// (corregirAsuntosDelScript, corregirCifrasDelScript) pueden sumar hasta
+// 6 llamadas extra a la IA POR candidato si algo falla la validación —
+// con 6 candidatos, un intento real tardó 57s (contra ~15-37s antes de
+// esas validaciones) y el siguiente intento sí se pasó del límite de
+// Vercel (504). 3 candidatos deja margen real incluso en el peor caso de
+// que las 3 fallen todas las validaciones.
+const MAX_NUEVOS_POR_CORRIDA = 3;
 
 async function procesarPersonasApollo(coleccion, personas) {
   const ids = personas.map((p) => p.id);
