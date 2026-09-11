@@ -12,6 +12,24 @@
 const { enviarCorreoInterno } = require("./_mailer");
 const { getDb } = require("./_mongo");
 
+// Motivos de Vapi que significan "nunca contestó" (no una conversación
+// real) — confirmado contra la documentación de Vapi el 2026-09-11.
+// Cualquier otro motivo (customer-ended-call, etc.) significa que sí hubo
+// conversación real, aunque haya sido corta o negativa.
+const SIN_CONTESTAR = new Set(["customer-did-not-answer", "customer-busy", "voicemail"]);
+
+// Siguiente intento en un día de semana distinto al de hoy (nunca fin de
+// semana) — pedido explícito del usuario el 2026-09-11: "una ronda mas en
+// otro dia de la semana". +3 días garantiza día de semana distinto
+// (3 no es múltiplo de 7).
+function calcularProximoIntento(desde) {
+  let candidato = new Date(desde.getTime() + 3 * 24 * 60 * 60 * 1000);
+  while (candidato.getDay() === 0 || candidato.getDay() === 6) {
+    candidato = new Date(candidato.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return candidato;
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
@@ -45,6 +63,54 @@ module.exports = async function handler(req, res) {
         .updateOne({ callId }, { $set: { resultado: { datos, resumen, endedReason: message.endedReason || null, terminadaEn: new Date() } } });
     }
 
+    // Control de reintentos de llamadas en frío — pedido explícito del
+    // usuario el 2026-09-11: "a los clientes que ya marcaste y que
+    // contestaron, no volveras a marcarles, solo a los que no
+    // contestaron, pero solo una ronda mas en otro dia de la semana y si
+    // no contestan una ultima ronda en 3 semanas". Se guarda por
+    // teléfono (no por lead individual) porque es lo único estable entre
+    // intentos. El script de marcado por lotes (aún no construido) debe
+    // filtrar por estado="pendiente" o (estado en espera Y
+    // proximoIntentoDesde <= ahora) antes de marcar.
+    if (numero && numero !== "desconocido") {
+      const ahora = new Date();
+      const contestada = Boolean(callId) && !SIN_CONTESTAR.has(message.endedReason);
+      const intento = { fecha: ahora, diaSemana: ahora.getDay(), endedReason: message.endedReason || null, contestada, callId };
+
+      const existente = await db.collection("llamadasFrio").findOne({ telefono: numero });
+      const numIntentosPrevios = existente?.intentos?.length || 0;
+
+      let estado, proximoIntentoDesde;
+      if (contestada) {
+        estado = "contestada"; // nunca se le vuelve a marcar, sin importar si mostró interés o no
+        proximoIntentoDesde = null;
+      } else if (numIntentosPrevios === 0) {
+        estado = "esperando_reintento_1";
+        proximoIntentoDesde = calcularProximoIntento(ahora);
+      } else if (numIntentosPrevios === 1) {
+        estado = "esperando_reintento_final";
+        proximoIntentoDesde = new Date(ahora.getTime() + 21 * 24 * 60 * 60 * 1000); // 3 semanas
+      } else {
+        estado = "agotado"; // 3 intentos sin contestar, no se vuelve a marcar
+        proximoIntentoDesde = null;
+      }
+
+      await db.collection("llamadasFrio").updateOne(
+        { telefono: numero },
+        {
+          $push: { intentos: intento },
+          $set: {
+            estado,
+            proximoIntentoDesde,
+            actualizadoEn: ahora,
+            nombreNegocio: message.call?.metadata?.nombreNegocio || existente?.nombreNegocio || null,
+            ubicacionGoogleMaps: message.call?.metadata?.ubicacionGoogleMaps || existente?.ubicacionGoogleMaps || null,
+          },
+        },
+        { upsert: true }
+      );
+    }
+
     // Guarda leads interesados en cita/llamada/sesión de las llamadas en
     // frío (Google Maps) — pedido explícito del usuario el 2026-09-11.
     // nombreNegocio/ubicacionGoogleMaps NO se preguntan en la llamada (ya
@@ -72,7 +138,12 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    // Correo interno solo si hay interés real — pedido explícito del
+    // usuario el 2026-09-11: "esta bien que me llegue al correo info...
+    // pero solo de clientes interesados o que requieran sesion o cita".
+    // Antes se mandaba por cada llamada sin excepción; con el volumen de
+    // llamadas en frío eso saturaría la bandeja con puros "no, gracias".
+    if (interesado && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
       await enviarCorreoInterno({
         asunto: `Nueva llamada del botón "Llámame": ${datos.nombre || numero}${datos.empresa ? " (" + datos.empresa + ")" : ""}`,
         texto: [
@@ -91,8 +162,8 @@ module.exports = async function handler(req, res) {
           transcripcion,
         ].join("\n"),
       });
-    } else {
-      console.error("Falta configurar GMAIL_USER/GMAIL_APP_PASSWORD — no se envió correo de la llamada.");
+    } else if (interesado) {
+      console.error("Falta configurar GMAIL_USER/GMAIL_APP_PASSWORD — no se envió correo de la llamada interesada.");
     }
 
     res.status(200).json({ ok: true });
