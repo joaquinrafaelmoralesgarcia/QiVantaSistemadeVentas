@@ -1,0 +1,28 @@
+name: Llamadas en frío Google Maps (Vapi)
+
+# Marcador por lotes a leads de Google Maps con teléfono — pedido
+# explícito del usuario el 2026-09-11. Un solo intento por número (sin
+# reintentos, decisión tomada el mismo día por costo). Horario real:
+# 10am-2pm y 4pm-5pm hora CDMX, Lunes a Viernes, nunca fin de semana.
+#
+# El cron de abajo dispara cada 30 min de 10:00 a 17:30 CDMX (16:00-23:30
+# UTC) Lun-Vie — más amplio que el horario real a propósito, incluyendo
+# el hueco de comida (2-4pm). La ventana exacta la aplica el propio
+# endpoint (dentroDeHorarioLlamadas() en api/vapi.js), que responde
+# {omitido:true} sin marcar nada si se dispara fuera de horario — así el
+# cron puede ser simple y la garantía real vive en el código, no en el
+# cron.
+on:
+  schedule:
+    - cron: "*/30 16-23 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  marcar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Marcar siguiente lote de leads con teléfono
+        run: |
+          respuesta=$(curl -sf -X POST "https://chatbotwati.vercel.app/api/vapi" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          echo "Resultado: $respuesta"

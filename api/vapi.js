@@ -9,6 +9,139 @@ const { getDb } = require("./_mongo");
 const VAPI_API_URL = "https://api.vapi.ai/call";
 const COOLDOWN_MS = 10 * 60 * 1000; // 10 min entre solicitudes al mismo número
 
+// Ganchos de apertura para las llamadas en frío (Google Maps) — banco de
+// frases igual que el de los asuntos de correo, elegido al azar por
+// llamada — pedido explícito del usuario el 2026-09-11 ("sabes como
+// puedes tener el doble de clientes?", "sabes que podemos mejorar lo que
+// ofreces frente a tu competencia", etc.).
+const GANCHOS_APERTURA = [
+  "¿Sabe cómo podría tener el doble de clientes en su negocio?",
+  "¿Sabe que podemos ayudarle a mejorar lo que ofrece frente a su competencia?",
+  "¿Sabía que muchos negocios como el suyo están perdiendo clientes sin darse cuenta?",
+  "¿Le gustaría saber cómo atender a más clientes sin contratar más personal?",
+];
+
+function calcularSaludo(ahora) {
+  const hora = parseInt(ahora.toLocaleString("es-MX", { timeZone: "America/Mexico_City", hour: "numeric", hour12: false }), 10);
+  return hora < 12 ? "buenos días" : hora < 19 ? "buenas tardes" : "buenas noches";
+}
+
+// Ventana de marcado en frío — pedido explícito del usuario el
+// 2026-09-11: "el horario debe ser de 10 a 5pm y no a la hora de la
+// comida que es 2 a 4pm" + "sabados y domingo nada". Se valida aquí (no
+// solo en el cron de GitHub Actions) porque es la garantía real — el
+// cron puede disparar de más, esta función nunca marca fuera de horario.
+function dentroDeHorarioLlamadas(ahora) {
+  const cdmx = new Date(ahora.toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
+  const dia = cdmx.getDay(); // 0=domingo, 6=sabado
+  if (dia === 0 || dia === 6) return false;
+  const horaDecimal = cdmx.getHours() + cdmx.getMinutes() / 60;
+  const enManana = horaDecimal >= 10 && horaDecimal < 14; // 10am-2pm
+  const enTarde = horaDecimal >= 16 && horaDecimal < 17; // 4pm-5pm
+  return enManana || enTarde;
+}
+
+function formatearContextoNegocio(negocio) {
+  const partes = [
+    `Nombre: ${negocio.nombre}`,
+    negocio.categoria ? `Categoría: ${negocio.categoria}` : null,
+    negocio.calificacionGoogle ? `Calificación en Google: ${negocio.calificacionGoogle} con ${negocio.numResenas || 0} reseñas` : null,
+    `Ciudad/dirección: ${negocio.direccion || "desconocida"}`,
+    `¿Tiene sitio web?: ${negocio.tieneSitioWeb ? "Sí" : "No"}`,
+  ];
+  return partes.filter(Boolean).join(". ");
+}
+
+// Marcador por lotes de llamadas en frío a leads de Google Maps con
+// teléfono — pedido explícito del usuario el 2026-09-11. Protegido con
+// CRON_SECRET (igual que los demás crons), a diferencia de
+// iniciarLlamada() que es público para el botón "Llámame" del sitio.
+const LOTE_LLAMADAS_FRIAS = 8; // Vapi limita a 10 llamadas simultáneas en este plan
+
+async function marcarLlamadasFrias(req, res) {
+  const vapiKey = process.env.VAPI_API_KEY;
+  const phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID;
+  const assistantId = process.env.VAPI_ASSISTANT_ID_FRIO;
+
+  if (!vapiKey || !phoneNumberId || !assistantId) {
+    res.status(500).json({ error: "Falta configurar VAPI_API_KEY, VAPI_PHONE_NUMBER_ID y/o VAPI_ASSISTANT_ID_FRIO." });
+    return;
+  }
+
+  const ahora = new Date();
+  if (!dentroDeHorarioLlamadas(ahora)) {
+    res.status(200).json({ omitido: true, motivo: "Fuera del horario permitido (10am-2pm y 4pm-5pm, Lun-Vie, hora CDMX)." });
+    return;
+  }
+
+  try {
+    const db = await getDb();
+    const leadsCol = db.collection("leads");
+    const llamadasCol = db.collection("llamadasFrio");
+
+    const yaMarcados = await llamadasCol.find({}, { projection: { telefono: 1 } }).toArray();
+    const telefonosExcluidos = new Set(yaMarcados.map((d) => d.telefono));
+
+    const candidatos = await leadsCol
+      .find({ origenBusqueda: { $exists: true }, telefono: { $type: "string", $ne: "" } })
+      .sort({ createdAt: 1 })
+      .limit(LOTE_LLAMADAS_FRIAS * 5) // margen porque muchos ya estarán excluidos
+      .toArray();
+
+    const elegibles = candidatos.filter((n) => !telefonosExcluidos.has(n.telefono)).slice(0, LOTE_LLAMADAS_FRIAS);
+
+    let marcadas = 0;
+    const errores = [];
+    const saludo = calcularSaludo(ahora);
+
+    for (const negocio of elegibles) {
+      // Marca "marcando" ANTES de llamar a Vapi — evita que una corrida
+      // paralela (o la siguiente, si esta se pasa del tiempo) vuelva a
+      // seleccionar el mismo número antes de que el webhook confirme el
+      // resultado real.
+      await llamadasCol.updateOne(
+        { telefono: negocio.telefono },
+        { $set: { estado: "marcando", nombreNegocio: negocio.nombre, ubicacionGoogleMaps: negocio.googleMapsUrl || null, iniciadoEn: ahora } },
+        { upsert: true }
+      );
+
+      try {
+        const vapiRes = await fetch(VAPI_API_URL, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${vapiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phoneNumberId,
+            customer: { number: negocio.telefono },
+            assistantId,
+            metadata: { nombreNegocio: negocio.nombre, ubicacionGoogleMaps: negocio.googleMapsUrl || null },
+            assistantOverrides: {
+              variableValues: {
+                contextoNegocio: formatearContextoNegocio(negocio),
+                ganchoApertura: GANCHOS_APERTURA[Math.floor(Math.random() * GANCHOS_APERTURA.length)],
+                saludo,
+              },
+            },
+          }),
+        });
+        const data = await vapiRes.json();
+        if (!vapiRes.ok) throw new Error(data.message || JSON.stringify(data));
+        await llamadasCol.updateOne({ telefono: negocio.telefono }, { $set: { callId: data.id } });
+        marcadas++;
+      } catch (err) {
+        errores.push({ telefono: negocio.telefono, error: err.message });
+        // Si Vapi rechazó la llamada, no la dejamos en "marcando" para
+        // siempre — se libera para reintentar en la siguiente corrida.
+        await llamadasCol.deleteOne({ telefono: negocio.telefono, estado: "marcando" });
+      }
+    }
+
+    res.status(200).json({ revisados: candidatos.length, elegibles: elegibles.length, marcadas, errores });
+  } catch (err) {
+    console.error("Error en marcarLlamadasFrias:", err);
+    res.status(500).json({ error: err.message || "Error marcando llamadas en frío." });
+  }
+}
+
 // Este endpoint queda expuesto sin login (lo llama call-widget.js desde
 // visitantes anónimos del portal) — sin este freno, cualquiera podría
 // spamear llamadas al mismo número una y otra vez, con costo real de
@@ -169,6 +302,14 @@ async function consultarLlamada(req, res) {
 }
 
 module.exports = async function handler(req, res) {
+  // Ruta del marcador por lotes (cron) — se distingue de iniciarLlamada()
+  // por traer el CRON_SECRET, igual que los demás crons del proyecto. Va
+  // ANTES de aplicarCors/iniciarLlamada porque es una ruta interna, no la
+  // pública del botón "Llámame".
+  if (req.method === "POST" && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`) {
+    return marcarLlamadasFrias(req, res);
+  }
+
   if (aplicarCors(req, res)) return;
   if (req.method === "POST") return iniciarLlamada(req, res);
   if (req.method === "GET") return consultarLlamada(req, res);
