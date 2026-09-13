@@ -23,6 +23,13 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    if (req.method === "GET" && req.query?.tipo === "metricas-aperturas") {
+      const { obtenerMetricasAperturas } = require("./_metricasAperturas");
+      const metricas = await obtenerMetricasAperturas();
+      res.status(200).json(metricas);
+      return;
+    }
+
     if (req.method === "GET") {
       const { estado } = req.query || {};
       const filtro = estado ? { estado } : {};

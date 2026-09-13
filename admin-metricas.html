@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Qi-Vanta — Métricas de aperturas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #070b16; --panel: #0c1424; --line: rgba(255,255,255,0.08);
+    --ink: #eef2f9; --muted: #8f9bb8; --cyan: #22d3ee; --blue: #2563eb;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: Archivo, system-ui, sans-serif; min-height: 100vh; }
+  .topnav { display: flex; gap: 4px; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .topnav a { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 8px; }
+  .topnav a.active { color: #04121f; background: linear-gradient(135deg, var(--cyan), var(--blue)); }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 20px 60px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .card h2 { font-size: 14px; margin: 0 0 4px; color: var(--ink); }
+  .card .campana-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-bottom: 10px; }
+  .campana-tag.latam { background: rgba(37,99,235,.18); color: #a9c4ff; }
+  .campana-tag.gm { background: rgba(34,211,238,.18); color: #67e8f9; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .asunto-cell { max-width: 320px; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .badge-familia { font-size: 10px; padding: 2px 7px; border-radius: 20px; background: rgba(255,255,255,.06); color: var(--muted); white-space: nowrap; }
+
+  .empty { color: var(--muted); text-align: center; padding: 30px; font-size: 13px; }
+  .meta-info { font-size: 11.5px; color: var(--muted); margin-bottom: 14px; }
+
+  .login-box { max-width: 320px; margin: 80px auto; text-align: center; }
+  .login-box input { width: 100%; margin: 12px 0; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: #0a1120; color: var(--ink); }
+  .login-box button { border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, var(--cyan), var(--blue)); color: #04121f; font-family: inherit; }
+  .status-line { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+</style>
+</head>
+<body>
+<div id="topnav" class="topnav" hidden>
+  <a href="/admin.html">Leads (prospección)</a>
+  <a href="/admin-mensajes.html">Mensajes</a>
+  <a href="/admin-metricas.html" class="active">Métricas de aperturas</a>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <h1>Métricas de aperturas — qué título y contenido funciona mejor</h1>
+  <p class="sub">Datos reales de Smartlead (aperturas por correo). Se actualiza semanalmente vía <code>scripts/sincronizar-aperturas.js</code>. No incluye correos que todavía están en cola sin enviarse.</p>
+  <div class="meta-info" id="metaInfo"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <span class="campana-tag latam">Piloto LATAM</span>
+      <h2>Top 10 títulos más abiertos</h2>
+      <div id="tablaAsuntosLatam"><div class="empty">Cargando…</div></div>
+    </div>
+    <div class="card">
+      <span class="campana-tag gm">Google Maps</span>
+      <h2>Top 10 títulos más abiertos</h2>
+      <div id="tablaAsuntosGM"><div class="empty">Cargando…</div></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <span class="campana-tag latam">Piloto LATAM</span>
+      <h2>Top familias de tono (contenido) más abiertas</h2>
+      <div id="tablaFamiliasLatam"><div class="empty">Cargando…</div></div>
+    </div>
+    <div class="card">
+      <span class="campana-tag gm">Google Maps</span>
+      <h2>Top familias de tono (contenido) más abiertas</h2>
+      <div id="tablaFamiliasGM"><div class="empty">Cargando…</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="campana-tag latam">Piloto LATAM</span>
+    <h2>Oferta/servicio ofrecido — cuál abre más</h2>
+    <div id="tablaOfertasLatam"><div class="empty">Cargando…</div></div>
+  </div>
+
+  <div class="card">
+    <span class="campana-tag gm">Google Maps</span>
+    <h2>Tipo de negocio que más abre (por categoría)</h2>
+    <div id="tablaNegocioGM"><div class="empty">Cargando…</div></div>
+  </div>
+
+  <div class="card">
+    <span class="campana-tag latam">Piloto LATAM</span>
+    <h2>Tamaño de empresa que más abre</h2>
+    <div id="tablaTamanoLatam"><div class="empty">Cargando…</div></div>
+  </div>
+</div>
+
+<div class="login-box" id="loginBox">
+  <h1>Métricas — Qi-Vanta</h1>
+  <p class="sub">Ingresa la contraseña de administrador.</p>
+  <input type="password" id="pwInput" placeholder="Contraseña" />
+  <button id="pwSubmit">Entrar</button>
+  <div class="status-line" id="loginStatus"></div>
+</div>
+
+<script>
+  const STORAGE_KEY = "qv_admin_pw";
+  let ADMIN_PW = localStorage.getItem(STORAGE_KEY) || "";
+
+  const app = document.getElementById("app");
+  const loginBox = document.getElementById("loginBox");
+  const topnav = document.getElementById("topnav");
+
+  function headers() {
+    return { "Content-Type": "application/json", "X-Admin-Password": ADMIN_PW };
+  }
+
+  async function probarAcceso() {
+    const res = await fetch("/api/leads", { headers: headers() });
+    return res.status !== 401;
+  }
+
+  function esc(str) {
+    const d = document.createElement("div");
+    d.textContent = str ?? "";
+    return d.innerHTML;
+  }
+
+  function tablaAsuntos(filas) {
+    if (!filas.length) return '<div class="empty">Todavía no hay datos sincronizados.</div>';
+    return `<table><thead><tr><th>#</th><th>Asunto</th><th>Familia</th><th class="num">Aperturas</th><th class="num">Envíos</th></tr></thead><tbody>
+      ${filas.map((f, i) => `<tr>
+        <td>${i + 1}</td>
+        <td class="asunto-cell">${esc(f.asunto)}</td>
+        <td><span class="badge-familia">${esc(f.familia || "—")}</span></td>
+        <td class="num">${f.aperturas}</td>
+        <td class="num">${f.envios}</td>
+      </tr>`).join("")}
+    </tbody></table>`;
+  }
+
+  function tablaFamilias(filas) {
+    if (!filas.length) return '<div class="empty">Todavía no hay datos sincronizados.</div>';
+    return `<table><thead><tr><th>Familia</th><th class="num">Aperturas totales</th><th class="num">Envíos</th><th class="num">Aperturas/envío</th></tr></thead><tbody>
+      ${filas.map((f) => `<tr>
+        <td>${esc(f.familia)}</td>
+        <td class="num">${f.aperturas}</td>
+        <td class="num">${f.envios}</td>
+        <td class="num">${f.tasaAperturaPorEnvio}</td>
+      </tr>`).join("")}
+    </tbody></table>`;
+  }
+
+  function tablaOfertas(filas) {
+    if (!filas.length) return '<div class="empty">Todavía no hay datos sincronizados.</div>';
+    return `<table><thead><tr><th>Oferta</th><th class="num">Aperturas totales</th><th class="num">Envíos</th><th class="num">Aperturas/envío</th></tr></thead><tbody>
+      ${filas.map((f) => `<tr>
+        <td>${esc(f.oferta)}</td>
+        <td class="num">${f.aperturas}</td>
+        <td class="num">${f.envios}</td>
+        <td class="num">${f.tasaAperturaPorEnvio}</td>
+      </tr>`).join("")}
+    </tbody></table>`;
+  }
+
+  function tablaNegocio(filas) {
+    if (!filas.length) return '<div class="empty">Todavía no hay datos sincronizados.</div>';
+    return `<table><thead><tr><th>Tipo de negocio</th><th class="num">Aperturas totales</th><th class="num">Envíos</th><th class="num">Aperturas/envío</th></tr></thead><tbody>
+      ${filas.map((f) => `<tr>
+        <td>${esc(f.tipoNegocio)}</td>
+        <td class="num">${f.aperturas}</td>
+        <td class="num">${f.envios}</td>
+        <td class="num">${f.tasaAperturaPorEnvio}</td>
+      </tr>`).join("")}
+    </tbody></table>`;
+  }
+
+  function tablaTamano(filas) {
+    if (!filas.length) return '<div class="empty">Todavía no hay datos sincronizados.</div>';
+    return `<table><thead><tr><th>Tamaño de empresa</th><th class="num">Aperturas totales</th><th class="num">Envíos</th><th class="num">Aperturas/envío</th></tr></thead><tbody>
+      ${filas.map((f) => `<tr>
+        <td>${esc(f.tamanoEmpresa)}</td>
+        <td class="num">${f.aperturas}</td>
+        <td class="num">${f.envios}</td>
+        <td class="num">${f.tasaAperturaPorEnvio}</td>
+      </tr>`).join("")}
+    </tbody></table>`;
+  }
+
+  async function cargarMetricas() {
+    const res = await fetch("/api/leads?tipo=metricas-aperturas", { headers: headers() });
+    const data = await res.json();
+
+    document.getElementById("metaInfo").textContent =
+      `Actualizado: ${new Date(data.generadoEn).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })} — ${data.totalSincronizados.latam} correos sincronizados en Piloto LATAM, ${data.totalSincronizados.googleMaps} en Google Maps.`;
+
+    document.getElementById("tablaAsuntosLatam").innerHTML = tablaAsuntos(data.topAsuntos.latam);
+    document.getElementById("tablaAsuntosGM").innerHTML = tablaAsuntos(data.topAsuntos.googleMaps);
+    document.getElementById("tablaFamiliasLatam").innerHTML = tablaFamilias(data.topFamiliasDeAsunto.latam);
+    document.getElementById("tablaFamiliasGM").innerHTML = tablaFamilias(data.topFamiliasDeAsunto.googleMaps);
+    document.getElementById("tablaOfertasLatam").innerHTML = tablaOfertas(data.topOfertasLatam);
+    document.getElementById("tablaNegocioGM").innerHTML = tablaNegocio(data.topTipoNegocioGoogleMaps);
+    document.getElementById("tablaTamanoLatam").innerHTML = tablaTamano(data.topTamanoEmpresaLatam);
+  }
+
+  async function iniciar() {
+    if (ADMIN_PW && (await probarAcceso())) {
+      loginBox.hidden = true;
+      app.hidden = false;
+      topnav.hidden = false;
+      cargarMetricas();
+    } else {
+      loginBox.hidden = false;
+      app.hidden = true;
+      topnav.hidden = true;
+    }
+  }
+
+  document.getElementById("pwSubmit").addEventListener("click", async () => {
+    ADMIN_PW = document.getElementById("pwInput").value;
+    if (await probarAcceso()) {
+      localStorage.setItem(STORAGE_KEY, ADMIN_PW);
+      loginBox.hidden = true;
+      app.hidden = false;
+      topnav.hidden = false;
+      cargarMetricas();
+    } else {
+      document.getElementById("loginStatus").textContent = "Contraseña incorrecta.";
+    }
+  });
+
+  iniciar();
+</script>
+</body>
+</html>
