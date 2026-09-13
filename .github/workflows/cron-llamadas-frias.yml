@@ -26,3 +26,4 @@ jobs:
           respuesta=$(curl -sf -X POST "https://chatbotwati.vercel.app/api/vapi" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
           echo "Resultado: $respuesta"
+

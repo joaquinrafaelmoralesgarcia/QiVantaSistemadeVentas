@@ -57,3 +57,4 @@ jobs:
           if [ "$totalConCorreo" -lt "$MIN_CON_CORREO" ] && [ "$detenido" != "true" ]; then
             echo "::warning::No se alcanzó el mínimo de $MIN_CON_CORREO contactos tras $MAX_INTENTOS intentos (se lograron $totalConCorreo)."
           fi
+

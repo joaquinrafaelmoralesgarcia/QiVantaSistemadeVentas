@@ -34,3 +34,4 @@ jobs:
           EOF
       - name: Sincronizar aperturas y clasificar
         run: node scripts/sincronizar-aperturas.js
+
