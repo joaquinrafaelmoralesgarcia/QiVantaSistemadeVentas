@@ -139,6 +139,36 @@ const LINEA_APPS_LATAM = "También desarrollamos aplicaciones móviles a la medi
 // los símbolos < > visibles.
 const LINEA_DEMO_GRATIS = "<strong>Te creamos un demo/prototipo sin costo.</strong>";
 
+// Banco de "ofertas gratis" (lead magnets) — solo Piloto LATAM, pedido
+// explícito del usuario el 2026-09-12: agregar al final del cuerpo, según
+// el análisis ya hecho (misma oferta del Paso 2), uno de estos 23 temas.
+const OFERTAS_GRATIS_LATAM = [
+  "🎁 Assessment de IA y Automatización sin costo",
+  "🔍 Diagnóstico gratuito de uno de tus procesos actuales",
+  "💰 Identificación de oportunidades concretas de ahorro",
+  "📊 Estimación inicial de ROI de las oportunidades detectadas",
+  "⚙️ Identificación de procesos que pueden automatizarse con IA",
+  "⏱️ Estimación de horas operativas que podrías recuperar mensualmente",
+  "📉 Detección de tareas manuales y repetitivas que pueden reducirse",
+  "🚀 3 casos de uso de IA personalizados para tu empresa",
+  "🗺️ Roadmap inicial de automatización sin costo",
+  "🧪 Evaluación de viabilidad para implementar un piloto",
+  "💻 Demo personalizada de una solución aplicable a tu operación",
+  "📋 Reporte ejecutivo con oportunidades detectadas",
+  "🏗️ Assessment de modernización tecnológica para sistemas legacy",
+  "🤖 Assessment de productividad de desarrollo y AI-SDLC",
+  "🛡️ Revisión inicial de oportunidades de DevSecOps y automatización de seguridad",
+  "📈 Assessment para automatizar ventas, seguimiento de prospectos y cotizaciones",
+  "💳 Assessment de automatización de cobranza y procesos financieros",
+  "📄 Assessment para automatización de facturas, PDFs, correos y documentos",
+  "💬 Evaluación para automatizar atención mediante WhatsApp, chatbots o asistentes de voz",
+  "🧠 Evaluación de un copiloto privado conectado a la información de tu empresa",
+  "🧪 Acceso a un piloto de bajo riesgo antes de realizar una implementación mayor",
+  "🎓 Workshop ejecutivo introductorio de IA y automatización",
+  "🎁 Primer mes de soporte sin costo en proyectos seleccionados",
+  "💵 Precio preferencial en el primer piloto de automatización",
+];
+
 // Solo para la campaña "Piloto LATAM | Decisores" (empresas medianas/
 // grandes, no los negocios chicos de Google Maps) — pedido explícito del
 // usuario el 2026-09-04: "en la de piloto latam mencionar todo lo que te
@@ -153,16 +183,17 @@ TEMA ADICIONAL OBLIGATORIO PARA ESTE CORREO (empresa mediana/grande, campaña Pi
 // consultivo-empresarial (ver _prospectingPromptEnterprise.js).
 const JSON_INSTRUCTIONS_EMPRESA = `
 
-Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 9 claves:
+Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 10 claves:
 {
   "calificacion": "alta" | "media" | "baja" (qué tan buen prospecto es: alta si claramente necesita automatización/IA y parece tener presupuesto/tamaño para invertir, baja si no aplica bien),
   "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
   "oferta": "el id exacto de la oferta elegida del menú (ej. 'data_analytics', 'enterprise_automation')",
+  "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, con emoji incluido), el que mejor encaje con la 'oferta' que ya elegiste arriba (ej. si elegiste 'legacy_modernization', usa el de modernización de sistemas legacy; si elegiste 'devsecops_cybersecurity', usa el de DevSecOps):\n${OFERTAS_GRATIS_LATAM.map((o) => `  - ${o}`).join("\n")}",
   "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_DINERO}",
-  "cuerpoEmail": "correo completo siguiendo la estructura de 5 pasos del prompt (saludo con nombre, gancho real sobre la empresa, reto plausible en tono hedgeado, oferta elegida, cierre invitando a 15-20 min esta semana), sin HTML. NUNCA inventes una cifra específica ($, %, ahorro en dinero) ni afirmes resultados con otros clientes ('hemos ayudado a bancos a lograr X%', 'nuestros clientes ahorran Y') que no puedas verificar — eso es mentir con datos y casos de éxito falsos a un tomador de decisión real. El enfoque de dinero/OPEX se queda en pregunta retórica o concepto, nunca en un número o cliente inventado. No te presentes por nombre en ningún punto del texto — nunca escribas 'me llamo...' ni placeholders entre corchetes. No incluyas firma ni despedida — se agrega automáticamente después, fuera de este texto",
+  "cuerpoEmail": "correo completo siguiendo la estructura de 5 pasos del prompt (saludo con nombre, gancho real sobre la empresa, reto plausible en tono hedgeado, oferta elegida, cierre invitando a 15-20 min esta semana), sin HTML. NUNCA inventes una cifra específica ($, %, ahorro en dinero) ni afirmes resultados con otros clientes ('hemos ayudado a bancos a lograr X%', 'nuestros clientes ahorran Y') que no puedas verificar — eso es mentir con datos y casos de éxito falsos a un tomador de decisión real. El enfoque de dinero/OPEX se queda en pregunta retórica o concepto, nunca en un número o cliente inventado. No te presentes por nombre en ningún punto del texto — nunca escribas 'me llamo...' ni placeholders entre corchetes. No incluyas firma ni despedida — se agrega automáticamente después, fuera de este texto. NO incluyas tú mismo el texto de 'ofertaGratis' dentro del cuerpo, se agrega aparte, en código, al final",
   ${REGLA_SEGUIMIENTOS}
 }
-No agregues ninguna clave adicional fuera de esas 9.`;
+No agregues ninguna clave adicional fuera de esas 10.`;
 
 // Validación real, no solo instrucción de prompt — verificado el
 // 2026-09-10 con pruebas reales que el modelo (Qwen3.5-9B vía DeepInfra)
@@ -265,7 +296,12 @@ async function generarScriptEmpresa(lead) {
   // de miles de empleados, contradiciendo la oferta consultiva ya elegida.
   // LINEA_APPS_LATAM sí va aquí (pedido explícito del usuario el
   // 2026-09-10), en los 2 catálogos (chico y grande).
-  if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}\n\n${LINEA_DEMO_GRATIS}`;
+  // ofertaGratis: si el modelo no copió el texto exacto del banco, se
+  // ignora en vez de mandar un texto inventado/parafraseado al lead.
+  const ofertaGratisValida = OFERTAS_GRATIS_LATAM.includes(script.ofertaGratis) ? script.ofertaGratis : null;
+  if (script.cuerpoEmail) {
+    script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${LINEA_DEMO_GRATIS}`;
+  }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
   if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
