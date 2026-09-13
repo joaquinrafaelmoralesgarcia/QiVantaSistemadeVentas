@@ -198,6 +198,21 @@ const LINEA_APPS_LATAM = "También desarrollamos aplicaciones móviles a la medi
 // los símbolos < > visibles.
 const LINEA_DEMO_GRATIS = "<strong>Te creamos un demo/prototipo sin costo.</strong>";
 
+// Link de landing por campaña — pedido explícito del usuario el
+// 2026-09-13: va a construir una landing DISTINTA para Google Maps (PYME),
+// separada de qi-vanta.com (que queda para Piloto LATAM/enterprise). Antes
+// este link vivía fijo en la firma de cuenta de Smartlead, pero esas 6
+// cuentas mandan para LAS 2 campañas — cambiarlo ahí habría afectado a
+// ambas a la vez. Se quitó de la firma (ver commit del mismo día) y se
+// movió aquí, en código, exactamente igual que ya se hace con toda otra
+// diferencia de contenido entre campañas. Mientras la landing de Google
+// Maps no exista, apunta a qi-vanta.com también (sin romper nada) — es
+// cambiar esta única constante cuando esté lista.
+const URL_LANDING_LATAM = "https://www.qi-vanta.com";
+const URL_LANDING_GM = "https://www.qi-vanta.com"; // TODO: actualizar cuando la landing de Google Maps esté lista
+const LINEA_LANDING_LATAM = `Conoce más en <a href="${URL_LANDING_LATAM}">${URL_LANDING_LATAM.replace("https://", "")}</a>`;
+const LINEA_LANDING_GM = `Conoce más en <a href="${URL_LANDING_GM}">${URL_LANDING_GM.replace("https://", "")}</a>`;
+
 // Solo para la campaña "Piloto LATAM | Decisores" (empresas medianas/
 // grandes, no los negocios chicos de Google Maps) — pedido explícito del
 // usuario el 2026-09-04: "en la de piloto latam mencionar todo lo que te
@@ -341,12 +356,12 @@ async function generarScriptEmpresa(lead) {
   // ignora en vez de mandar un texto inventado/parafraseado al lead.
   const ofertaGratisValida = OFERTAS_GRATIS.includes(script.ofertaGratis) ? script.ofertaGratis : null;
   if (script.cuerpoEmail) {
-    script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${LINEA_DEMO_GRATIS}`;
+    script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
   if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
   return script;
 }
 
@@ -389,13 +404,13 @@ async function generarScript(negocio) {
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
   if (script.cuerpoEmail) {
     script.cuerpoEmail = esGrande
-      ? script.cuerpoEmail.trim() + sufijoOfertaGratis + `\n\n${LINEA_DEMO_GRATIS}`
-      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}` + sufijoOfertaGratis + `\n\n${LINEA_DEMO_GRATIS}`;
+      ? script.cuerpoEmail.trim() + sufijoOfertaGratis + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`
+      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}` + sufijoOfertaGratis + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`;
   if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`;
   return script;
 }
 
@@ -421,10 +436,11 @@ async function generarSeguimientos(cuerpoEmailOriginal, { esEmpresa = false } = 
   });
   await corregirAsuntosDelScript(script, `Correo inicial ya enviado: ${cuerpoEmailOriginal.slice(0, 200)}`);
   await corregirCifrasDelScript(script, `Correo inicial ya enviado: ${cuerpoEmailOriginal.slice(0, 200)}`);
+  const lineaLanding = esEmpresa ? LINEA_LANDING_LATAM : LINEA_LANDING_GM;
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${lineaLanding}`;
   if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${lineaLanding}`;
   return script;
 }
 
