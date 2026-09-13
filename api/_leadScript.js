@@ -277,15 +277,27 @@ async function corregirAsuntosDelScript(script, contexto) {
 // "día 14", que son horarios/fechas legítimos, no cifras de resultado).
 const CIFRA_INVENTADA = /\d+\s*%|\$\s?\d/;
 
+// Misma familia de problema, sin números — encontrado probando en vivo el
+// 2026-09-13 con el ejemplo de Piloto LATAM para Logivance: "Te mostraré
+// cómo hemos ayudado a otros operadores logísticos a optimizar sus
+// procesos" — un caso de éxito con clientes reales inventado, exactamente
+// lo que la regla ya prohíbe explícitamente ("hemos ayudado a bancos a
+// lograr X%", "nuestros clientes ahorran Y"), pero sin cifra que
+// CIFRA_INVENTADA pudiera detectar. Cubre las frases típicas de este
+// patrón sin atrapar afirmaciones legítimas de CAPACIDAD genérica (ej.
+// "ayudamos a empresas como la tuya a migrar estos sistemas" no dispara,
+// porque no referencia "otros/otras" clientes ni un resultado ya logrado).
+const CLIENTE_INVENTADO = /hemos ayudado a (otr|banc|client|empres)|nuestros clientes (han |ya )?(logra|consegu|ahorra|reduje|mejora)|ya (hemos )?ayudado a/i;
+
 async function corregirCifraInventada(texto, contexto) {
-  if (!texto || !CIFRA_INVENTADA.test(texto)) return texto;
+  if (!texto || (!CIFRA_INVENTADA.test(texto) && !CLIENTE_INVENTADO.test(texto))) return texto;
   try {
     const fix = await chatCompletionJSON({
-      system: `Reescribes un correo en español de México, eliminando SOLO las cifras/porcentajes/montos específicos inventados (ej. "40%", "$5,000") que no se pueden verificar — cámbialos por lenguaje de concepto sin número (ej. "reduce significativamente" en vez de "reduce un 40%"). No cambies nada más del texto. Responde ÚNICAMENTE con JSON: {"texto": "..."}`,
+      system: `Reescribes un correo en español de México, eliminando SOLO: (1) cifras/porcentajes/montos específicos inventados (ej. "40%", "$5,000") y (2) menciones de resultados o casos de éxito con OTROS clientes que no se pueden verificar (ej. "hemos ayudado a otros bancos a lograr...", "nuestros clientes ahorran..."). Cámbialos por lenguaje de capacidad genérica sin número ni referencia a otros clientes (ej. "reduce significativamente" en vez de "reduce un 40%"; "podemos ayudarte a optimizar tus procesos" en vez de "hemos ayudado a otros operadores a optimizar sus procesos"). No cambies nada más del texto. Responde ÚNICAMENTE con JSON: {"texto": "..."}`,
       user: `Texto original:\n\n${texto}\n\nContexto: ${contexto}`,
       maxTokens: 900,
     });
-    return fix?.texto && !CIFRA_INVENTADA.test(fix.texto) ? fix.texto.trim() : texto.replace(CIFRA_INVENTADA, "").trim();
+    return fix?.texto && !CIFRA_INVENTADA.test(fix.texto) && !CLIENTE_INVENTADO.test(fix.texto) ? fix.texto.trim() : texto.replace(CIFRA_INVENTADA, "").replace(CLIENTE_INVENTADO, "").trim();
   } catch (err) {
     console.error("Error corrigiendo cifra inventada:", err.message);
     return texto;
