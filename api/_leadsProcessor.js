@@ -1,7 +1,7 @@
 const { generarScript } = require("./_leadScript");
 const { agregarLeadACampania } = require("./_smartlead");
 const { correoTieneServidorValido } = require("./_emailVerify");
-const { esCadenaConocida } = require("./_empresaGrande");
+const { esCadenaConocida, esCorreoDePlataformaExcluida } = require("./_empresaGrande");
 
 function normalizarTelefono(tel) {
   const digits = String(tel || "").replace(/[^\d+]/g, "");
@@ -88,6 +88,18 @@ async function procesarNegocios(coleccion, negocios, query) {
   await Promise.all(
     nuevosNegocios.map(async (negocio) => {
       if (!negocio.correo) return;
+      // Correo de plataforma/agregador (ej. Doctoralia) — mismo trato que
+      // un dominio con MX inválido: no se manda correo, pero el negocio
+      // sigue siendo contactable por teléfono. Se revisa antes de la
+      // verificación MX porque el dominio en sí (doctoralia.com) sí tiene
+      // MX válido — no lo detectaría esa validación.
+      const plataforma = esCorreoDePlataformaExcluida(negocio.correo);
+      if (plataforma) {
+        negocio.correoInvalido = negocio.correo;
+        negocio.correo = null;
+        correosInvalidos++;
+        return;
+      }
       const valido = await correoTieneServidorValido(negocio.correo);
       if (!valido) {
         negocio.correoInvalido = negocio.correo;

@@ -42,6 +42,10 @@ const CADENAS_CONOCIDAS = [
   "mcdonald's", "mcdonalds", "burger king", "kfc", "starbucks", "domino's", "dominos", "little caesars", "subway", "pizza hut", "carl's jr",
   // Gasolineras
   "pemex", "shell", "bp gas", "g500", "oxxo gas",
+  // Renta de autos — agregado el 2026-09-13 tras encontrarlas con
+  // duplicados reales (Enterprise/Avis aparecían con sucursales
+  // distintas compartiendo teléfono/correo corporativo)
+  "enterprise rent-a-car", "avis", "hertz", "budget rent a car", "national car rental", "alamo rent a car",
   // Hoteles de cadena
   "city express", "fiesta inn", "holiday inn", "hampton inn", "marriott", "hilton", "nh hotel", "fiesta americana", "camino real",
   // Otros corporativos comunes en búsquedas locales
@@ -64,6 +68,24 @@ function esCadenaConocida(nombre) {
   return CADENAS_CONOCIDAS.find((c) => nombreLower.includes(c)) || null;
 }
 
+// Dominios de correo de plataformas/agregadores (no negocios en sí) que
+// Google Business Profile a veces expone como "el correo del negocio" en
+// vez del correo real del doctor/clínica — pedido explícito del usuario
+// el 2026-09-13 tras encontrar, con la validación diaria de integridad,
+// que "contacto-mx@doctoralia.com" (correo genérico de la plataforma de
+// citas médicas Doctoralia) aparecía como correo de 11 clínicas/doctores
+// totalmente distintos, generando 11 correos casi idénticos a la MISMA
+// bandeja de entrada. A diferencia de esCadenaConocida() (que excluye el
+// negocio por completo), esto solo invalida el CORREO — el teléfono de
+// cada doctor/clínica sí es real y distinto, sigue siendo contactable por
+// llamada o WhatsApp, igual que un dominio con MX inválido.
+const DOMINIOS_CORREO_EXCLUIDOS = ["doctoralia.com"];
+
+function esCorreoDePlataformaExcluida(correo) {
+  const correoLower = (correo || "").toLowerCase();
+  return DOMINIOS_CORREO_EXCLUIDOS.find((d) => correoLower.endsWith("@" + d)) || null;
+}
+
 function detectarEmpresaGrande(negocio) {
   const senales = [];
   const nombreLower = (negocio.nombre || "").toLowerCase();
@@ -82,4 +104,4 @@ function detectarEmpresaGrande(negocio) {
   return { probablementeGrande: senales.length > 0, senales };
 }
 
-module.exports = { detectarEmpresaGrande, esCadenaConocida, UMBRAL_RESENAS, CATEGORIAS_GRANDES, CADENAS_CONOCIDAS };
+module.exports = { detectarEmpresaGrande, esCadenaConocida, esCorreoDePlataformaExcluida, UMBRAL_RESENAS, CATEGORIAS_GRANDES, CADENAS_CONOCIDAS };
