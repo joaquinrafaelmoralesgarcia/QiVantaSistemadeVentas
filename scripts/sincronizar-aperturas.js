@@ -48,6 +48,29 @@ const FAMILIAS = {
   6: "duplicar_clientes",
 };
 
+// Categorías reales de Smartlead (GET /leads/fetch-categories, verificado
+// el 2026-09-13) — se usan para marcar "contestada" de verdad, no solo
+// "abierta". El id 9 ("Sender Originated Bounce") NO es una respuesta del
+// lead, es un rebote — se excluye explícitamente para no inflar la tasa
+// de respuesta con correos que ni siquiera llegaron. Pedido explícito del
+// usuario el 2026-09-13: agregar respuestas reales al reporte semanal,
+// además de aperturas (que se pueden inflar por Apple Mail Privacy
+// Protection / escaneo de seguridad, como se le explicó el mismo día).
+const CATEGORIAS_SMARTLEAD = {
+  1: "Interested",
+  2: "Meeting Request",
+  3: "Not Interested",
+  4: "Do Not Contact",
+  5: "Information Request",
+  6: "Out Of Office",
+  7: "Wrong Person",
+  8: "Uncategorizable by Ai",
+  9: "Sender Originated Bounce",
+};
+function esRespuestaReal(leadCategoryId) {
+  return leadCategoryId != null && leadCategoryId !== 9;
+}
+
 async function obtenerAperturasReales(campaignId, leadId) {
   const histRes = await fetch(`${SMARTLEAD_BASE}/campaigns/${campaignId}/leads/${leadId}/message-history?api_key=${SMARTLEAD_API_KEY}`);
   if (!histRes.ok) return null;
@@ -120,7 +143,15 @@ async function procesarCampania(db, nombre, filtro, campaignId) {
       const resultado = await obtenerAperturasReales(campaignId, real.leadId);
       await leadsCol.updateOne(
         { _id: lead._id },
-        { $set: { aperturas: resultado?.aperturas ?? 0, familiaAsunto: familiasPorId.get(String(lead._id)) || "sin_clasificar", aperturasSincronizadoEn: new Date() } }
+        {
+          $set: {
+            aperturas: resultado?.aperturas ?? 0,
+            familiaAsunto: familiasPorId.get(String(lead._id)) || "sin_clasificar",
+            contestada: esRespuestaReal(real.leadCategoryId),
+            categoriaRespuesta: real.leadCategoryId != null ? CATEGORIAS_SMARTLEAD[real.leadCategoryId] || null : null,
+            aperturasSincronizadoEn: new Date(),
+          },
+        }
       );
       sincronizados++;
     } catch (err) {
@@ -187,9 +218,39 @@ async function procesarSmartleadExistente(db, campaignId) {
   console.log(`Histórico real listo: ${rellenados} rellenados, ${sinAsunto} sin asunto en Smartlead, ${errores} errores.`);
 }
 
+// Backfill de "contestada" para los leads históricos (smartlead_existente)
+// que ya se sincronizaron ANTES de que existiera este campo — pedido
+// explícito del usuario el 2026-09-13. procesarSmartleadExistente() de
+// arriba solo toca leads sin asuntoEmail (ya rellenado una vez, no se
+// vuelve a tocar), así que sin esto los 406 históricos ya sincronizados
+// se quedarían sin dato de respuesta para siempre.
+async function backfillRespuestasHistoricas(db, campaignId) {
+  const leadsCol = db.collection("leads");
+  const pendientes = await leadsCol
+    .find({ origen: "smartlead_existente", correo: { $exists: true }, contestada: { $exists: false } })
+    .project({ _id: 1, correo: 1 })
+    .toArray();
+  if (!pendientes.length) return;
+
+  console.log(`\n=== Piloto LATAM (histórico): backfill de respuestas para ${pendientes.length} leads ===`);
+  const estadosReales = await obtenerEstadosDeCampania(campaignId);
+  let actualizados = 0;
+  for (const lead of pendientes) {
+    const real = estadosReales.get(lead.correo?.toLowerCase());
+    if (!real) continue;
+    await leadsCol.updateOne(
+      { _id: lead._id },
+      { $set: { contestada: esRespuestaReal(real.leadCategoryId), categoriaRespuesta: real.leadCategoryId != null ? CATEGORIAS_SMARTLEAD[real.leadCategoryId] || null : null } }
+    );
+    actualizados++;
+  }
+  console.log(`Backfill de respuestas históricas listo: ${actualizados}/${pendientes.length} actualizados.`);
+}
+
 (async () => {
   const db = await getDb();
   await procesarSmartleadExistente(db, process.env.SMARTLEAD_CAMPAIGN_ID_LATAM);
+  await backfillRespuestasHistoricas(db, process.env.SMARTLEAD_CAMPAIGN_ID_LATAM);
   await procesarCampania(db, "Piloto LATAM", { origen: { $in: ORIGENES_LATAM } }, process.env.SMARTLEAD_CAMPAIGN_ID_LATAM);
   await procesarCampania(db, "Google Maps", { origenBusqueda: { $exists: true } }, process.env.SMARTLEAD_CAMPAIGN_ID);
   console.log("\nSincronización completa.");

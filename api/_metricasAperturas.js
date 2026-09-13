@@ -36,11 +36,27 @@ async function topFamilias(coleccion, filtroOrigen) {
   return coleccion
     .aggregate([
       { $match: { ...filtroOrigen, aperturas: { $exists: true }, familiaAsunto: { $exists: true, $ne: "sin_clasificar" } } },
-      { $group: { _id: "$familiaAsunto", aperturas: { $sum: "$aperturas" }, envios: { $sum: 1 } } },
-      { $addFields: { tasaAperturaPorEnvio: { $round: [{ $divide: ["$aperturas", "$envios"] }, 2] } } },
+      {
+        $group: {
+          _id: "$familiaAsunto",
+          aperturas: { $sum: "$aperturas" },
+          envios: { $sum: 1 },
+          // Respuestas reales (pedido explícito del usuario el
+          // 2026-09-13, complemento a aperturas — que se pueden inflar
+          // por Apple Mail Privacy Protection / escaneo de seguridad).
+          // "contestada" ya excluye rebotes (categoría 9 de Smartlead).
+          respuestas: { $sum: { $cond: ["$contestada", 1, 0] } },
+        },
+      },
+      {
+        $addFields: {
+          tasaAperturaPorEnvio: { $round: [{ $divide: ["$aperturas", "$envios"] }, 2] },
+          tasaRespuestaPorEnvio: { $round: [{ $divide: ["$respuestas", "$envios"] }, 3] },
+        },
+      },
       { $sort: { aperturas: -1 } },
       { $limit: 10 },
-      { $project: { _id: 0, familia: "$_id", aperturas: 1, envios: 1, tasaAperturaPorEnvio: 1 } },
+      { $project: { _id: 0, familia: "$_id", aperturas: 1, envios: 1, respuestas: 1, tasaAperturaPorEnvio: 1, tasaRespuestaPorEnvio: 1 } },
     ])
     .toArray();
 }
