@@ -25,14 +25,30 @@ async function procesarNegocios(coleccion, negocios, query) {
   const telefonosExistentes = new Set(existentes.map((e) => e.telefono));
   const urlsExistentes = new Set(existentes.map((e) => e.googleMapsUrl));
 
+  // Depura tanto contra lo que YA existe en la base (arriba) como DENTRO
+  // del propio lote que llegó de Apify en esta misma corrida — encontrado
+  // el 2026-09-13 con la validación diaria de integridad: cuando Apify
+  // trae 2 sucursales distintas (google_place_id distinto) con el mismo
+  // teléfono en la MISMA corrida ("Paquetexpress" x2, 663ms de
+  // diferencia), ninguna de las 2 existía todavía en Mongo, así que el
+  // chequeo de arriba no las detectaba y ambas se insertaban — un
+  // teléfono duplicado real en la base, con el riesgo directo de que el
+  // marcador de llamadas le marque al mismo número 2 veces en una sola
+  // pasada.
+  const telefonosVistosEnEsteLote = new Set();
+  const urlsVistasEnEsteLote = new Set();
   const nuevosNegocios = [];
   let duplicados = 0;
   for (const negocio of negocios) {
     const telefono = normalizarTelefono(negocio.telefono);
-    if (telefonosExistentes.has(telefono) || urlsExistentes.has(negocio.googleMapsUrl)) {
+    const yaExiste = telefonosExistentes.has(telefono) || urlsExistentes.has(negocio.googleMapsUrl);
+    const yaEnEsteLote = (telefono && telefonosVistosEnEsteLote.has(telefono)) || (negocio.googleMapsUrl && urlsVistasEnEsteLote.has(negocio.googleMapsUrl));
+    if (yaExiste || yaEnEsteLote) {
       duplicados++;
       continue;
     }
+    if (telefono) telefonosVistosEnEsteLote.add(telefono);
+    if (negocio.googleMapsUrl) urlsVistasEnEsteLote.add(negocio.googleMapsUrl);
     nuevosNegocios.push({ ...negocio, telefono });
   }
 

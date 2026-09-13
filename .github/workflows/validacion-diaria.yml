@@ -1,0 +1,34 @@
+name: Validación diaria de integridad
+
+# Pedido explícito del usuario el 2026-09-13: "siempre que te pido algo
+# encuentras errores y riesgos, eso nunca debe pasar... debes siempre
+# diario validar que todo esté correctamente, sobre todo temas de
+# duplicados en todas partes". Corre sola cada día — si encuentra algo,
+# este workflow queda en rojo en la pestaña Actions sin que nadie tenga
+# que pedir nada.
+on:
+  schedule:
+    - cron: "0 13 * * *" # 7am hora CDMX
+  workflow_dispatch: {}
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Instalar dependencias
+        run: npm install --production
+      - name: Generar .env.local desde secrets
+        run: |
+          cat > .env.local << EOF
+          MONGODB_URI=${{ secrets.MONGODB_URI }}
+          MONGODB_DB=${{ secrets.MONGODB_DB }}
+          SMARTLEAD_API_KEY=${{ secrets.SMARTLEAD_API_KEY }}
+          SMARTLEAD_CAMPAIGN_ID=${{ secrets.SMARTLEAD_CAMPAIGN_ID }}
+          SMARTLEAD_CAMPAIGN_ID_LATAM=${{ secrets.SMARTLEAD_CAMPAIGN_ID_LATAM }}
+          EOF
+      - name: Validar duplicados e integridad
+        run: node scripts/validar-integridad.js

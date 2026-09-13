@@ -92,8 +92,25 @@ async function marcarLlamadasFrias(req, res) {
     // Salvaguarda extra por si quedó guardada alguna cadena/franquicia de
     // scrapeos anteriores a este filtro (2026-09-12) — la exclusión real
     // ya vive en _leadsProcessor.js, esto es solo por si acaso.
+    //
+    // También depura por teléfono DENTRO de este mismo lote (no solo
+    // contra llamadasFrio, que solo tiene los YA marcados de corridas
+    // anteriores) — encontrado el 2026-09-13 con la validación diaria de
+    // integridad: existen documentos duplicados en "leads" (mismo
+    // teléfono, 2 sucursales de Apify insertadas en la misma corrida, ej.
+    // "Paquetexpress"). Sin esto, si 2 duplicados caen en el mismo
+    // "candidatos", ninguno está todavía en telefonosExcluidos y se
+    // llamaría al mismo número 2 veces en una sola pasada — rompiendo la
+    // regla explícita de "solo un intento" (pedido del usuario el
+    // 2026-09-11).
+    const telefonosVistosEnEsteLote = new Set();
     const elegibles = candidatos
-      .filter((n) => !telefonosExcluidos.has(n.telefono) && !esCadenaConocida(n.nombre))
+      .filter((n) => {
+        if (telefonosExcluidos.has(n.telefono) || esCadenaConocida(n.nombre)) return false;
+        if (telefonosVistosEnEsteLote.has(n.telefono)) return false;
+        telefonosVistosEnEsteLote.add(n.telefono);
+        return true;
+      })
       .slice(0, LOTE_LLAMADAS_FRIAS);
 
     let marcadas = 0;
