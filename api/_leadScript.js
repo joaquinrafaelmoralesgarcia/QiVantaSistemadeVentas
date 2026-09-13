@@ -48,22 +48,59 @@ const REGLA_SEGUIMIENTOS = `"seguimiento1Asunto": "asunto del correo de seguimie
   "seguimiento2Asunto": "asunto del correo de seguimiento del día 14 — DEBE ser distinto a asuntoEmail Y a seguimiento1Asunto. ${REGLA_ASUNTO_DINERO}",
   "seguimiento2": "correo de seguimiento final completo (3-4 frases), se manda 14 días después si no responden. Último intento antes de dejar de insistir — ángulo distinto a los 2 correos anteriores (ej. cierre de baja presión tipo 'este es mi último mensaje por ahora' pero seguido de una razón concreta y nueva para platicar, no solo la despedida sola). Nunca inventes cifras ni casos de éxito nuevos. Sin firma/despedida."`;
 
+// Banco de "ofertas gratis" (lead magnets) — pedido explícito del usuario
+// el 2026-09-12 (Piloto LATAM) y ampliado el mismo día a Google Maps
+// también ("esto ultimo que agregamos tambien que sea para la campaña de
+// google maps"): agregar al final del cuerpo, según el análisis ya hecho
+// (misma oferta/oportunidad elegida en el Paso 2), uno de estos 23 temas.
+// Compartido entre las 2 campañas — el modelo elige el que mejor encaje
+// con SU catálogo (7 ofertas empresariales en LATAM/GM-grande, 15
+// oportunidades PYME en GM normal), igual que ya pasa con el banco de
+// frases de asunto.
+const OFERTAS_GRATIS = [
+  "🎁 Assessment de IA y Automatización sin costo",
+  "🔍 Diagnóstico gratuito de uno de tus procesos actuales",
+  "💰 Identificación de oportunidades concretas de ahorro",
+  "📊 Estimación inicial de ROI de las oportunidades detectadas",
+  "⚙️ Identificación de procesos que pueden automatizarse con IA",
+  "⏱️ Estimación de horas operativas que podrías recuperar mensualmente",
+  "📉 Detección de tareas manuales y repetitivas que pueden reducirse",
+  "🚀 3 casos de uso de IA personalizados para tu empresa",
+  "🗺️ Roadmap inicial de automatización sin costo",
+  "🧪 Evaluación de viabilidad para implementar un piloto",
+  "💻 Demo personalizada de una solución aplicable a tu operación",
+  "📋 Reporte ejecutivo con oportunidades detectadas",
+  "🏗️ Assessment de modernización tecnológica para sistemas legacy",
+  "🤖 Assessment de productividad de desarrollo y AI-SDLC",
+  "🛡️ Revisión inicial de oportunidades de DevSecOps y automatización de seguridad",
+  "📈 Assessment para automatizar ventas, seguimiento de prospectos y cotizaciones",
+  "💳 Assessment de automatización de cobranza y procesos financieros",
+  "📄 Assessment para automatización de facturas, PDFs, correos y documentos",
+  "💬 Evaluación para automatizar atención mediante WhatsApp, chatbots o asistentes de voz",
+  "🧠 Evaluación de un copiloto privado conectado a la información de tu empresa",
+  "🧪 Acceso a un piloto de bajo riesgo antes de realizar una implementación mayor",
+  "🎓 Workshop ejecutivo introductorio de IA y automatización",
+  "🎁 Primer mes de soporte sin costo en proyectos seleccionados",
+  "💵 Precio preferencial en el primer piloto de automatización",
+];
+
 // DeepInfra (Qwen3.5-9B) no soporta el modo estricto output_config/json_schema
 // de Anthropic — en vez de eso, el formato exacto se exige por instrucción de
 // texto (verificado el 2026-09-03: sin "no agregues clave adicional" el
 // modelo a veces mete una clave "firma" suelta además de cuerpoEmail).
 const JSON_INSTRUCTIONS = `
 
-Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 9 claves:
+Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 10 claves:
 {
   "calificacion": "alta" | "media" | "baja" (qué tan buen prospecto es: alta si claramente necesita automatización/IA y parece tener presupuesto, baja si no aplica bien),
   "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
   "mensajeWhatsapp": "mensaje corto, máx 280 caracteres, tono cercano y directo en español de México, cierra con pregunta abierta. Nunca escribas placeholders entre corchetes como [Nombre] — no sabes el nombre de quien lee, dirígete directo al negocio o usa un saludo genérico ('Hola,'). NO incluyas firma ni datos de contacto, se agregan automáticamente después",
   "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_DINERO}",
   "cuerpoEmail": "correo frío completo, 3-5 frases cortas, sin HTML. Igual que el asunto, el cuerpo también debe reforzar el enfoque de dinero perdido/dejado de ganar por el problema detectado — no basta con mencionarlo solo en el asunto, dedica al menos 1 frase del cuerpo a plantear el costo en dinero de NO resolver ese problema (ej. 'cada cliente que se va sin cotización es dinero que ya gastaste en atraerlo'), antes de presentar la oferta como la solución a esa pérdida. NUNCA inventes una cifra específica ($5,000, 30%, 'ahorra X pesos') ni afirmes resultados con otros clientes ('hemos ayudado a empresas a lograr...') que no puedas verificar — el enfoque de dinero se queda en pregunta retórica o concepto, jamás en un número o caso de éxito inventado. No te presentes por nombre en ningún punto del texto (ni al inicio ni al final) — nunca escribas 'me llamo...' ni placeholders entre corchetes como [Nombre]. No incluyas firma, despedida ('Saludos', 'Equipo Qi-Vanta') ni datos de contacto — todo eso se agrega automáticamente después, fuera de este texto. Empieza directo con el gancho sobre el negocio, sigue con el costo en dinero de no resolverlo, presenta la oferta, y termina en la pregunta/invitación a platicar",
+  "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, con emoji incluido), el que mejor encaje con la oportunidad que ya elegiste en el Paso 2:\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
   ${REGLA_SEGUIMIENTOS}
 }
-No agregues ninguna clave adicional fuera de esas 9.`;
+No agregues ninguna clave adicional fuera de esas 10.`;
 
 // Variante para Google Maps cuando _empresaGrande.js marca el negocio como
 // probable cadena/empresa grande — igual que JSON_INSTRUCTIONS pero
@@ -71,7 +108,7 @@ No agregues ninguna clave adicional fuera de esas 9.`;
 // se usó) — pedido explícito del usuario el 2026-09-10.
 const JSON_INSTRUCTIONS_GRANDE_GM = `
 
-Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 10 claves:
+Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin texto fuera del JSON), con exactamente estas 11 claves:
 {
   "calificacion": "alta" | "media" | "baja" (qué tan buen prospecto es: alta si claramente necesita automatización/IA y parece tener presupuesto, baja si no aplica bien),
   "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
@@ -79,9 +116,10 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin t
   "mensajeWhatsapp": "mensaje corto, máx 280 caracteres, tono cercano y directo en español de México, cierra con pregunta abierta. Nunca escribas placeholders entre corchetes como [Nombre] — no sabes el nombre de quien lee, dirígete directo al negocio o usa un saludo genérico ('Hola,'). NO incluyas firma ni datos de contacto, se agregan automáticamente después",
   "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_DINERO}",
   "cuerpoEmail": "correo frío completo, 3-5 párrafos cortos, sin HTML. Igual que el asunto, el cuerpo también debe reforzar el enfoque de dinero perdido/dejado de ganar por el problema detectado. NUNCA inventes una cifra específica ni afirmes resultados con otros clientes que no puedas verificar. No te presentes por nombre en ningún punto del texto. No incluyas firma, despedida ni datos de contacto — se agrega automáticamente después. Empieza directo con el gancho sobre el negocio, sigue con el costo en dinero de no resolverlo, presenta la oferta, y termina en la pregunta/invitación a platicar",
+  "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, con emoji incluido), el que mejor encaje con la 'oferta' que ya elegiste arriba:\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
   ${REGLA_SEGUIMIENTOS}
 }
-No agregues ninguna clave adicional fuera de esas 10.`;
+No agregues ninguna clave adicional fuera de esas 11.`;
 
 // Se agrega en código, no se le pide al modelo que la escriba (riesgo de que
 // invente o altere el correo/nombre real) — pedido explícito del usuario el
@@ -139,36 +177,6 @@ const LINEA_APPS_LATAM = "También desarrollamos aplicaciones móviles a la medi
 // los símbolos < > visibles.
 const LINEA_DEMO_GRATIS = "<strong>Te creamos un demo/prototipo sin costo.</strong>";
 
-// Banco de "ofertas gratis" (lead magnets) — solo Piloto LATAM, pedido
-// explícito del usuario el 2026-09-12: agregar al final del cuerpo, según
-// el análisis ya hecho (misma oferta del Paso 2), uno de estos 23 temas.
-const OFERTAS_GRATIS_LATAM = [
-  "🎁 Assessment de IA y Automatización sin costo",
-  "🔍 Diagnóstico gratuito de uno de tus procesos actuales",
-  "💰 Identificación de oportunidades concretas de ahorro",
-  "📊 Estimación inicial de ROI de las oportunidades detectadas",
-  "⚙️ Identificación de procesos que pueden automatizarse con IA",
-  "⏱️ Estimación de horas operativas que podrías recuperar mensualmente",
-  "📉 Detección de tareas manuales y repetitivas que pueden reducirse",
-  "🚀 3 casos de uso de IA personalizados para tu empresa",
-  "🗺️ Roadmap inicial de automatización sin costo",
-  "🧪 Evaluación de viabilidad para implementar un piloto",
-  "💻 Demo personalizada de una solución aplicable a tu operación",
-  "📋 Reporte ejecutivo con oportunidades detectadas",
-  "🏗️ Assessment de modernización tecnológica para sistemas legacy",
-  "🤖 Assessment de productividad de desarrollo y AI-SDLC",
-  "🛡️ Revisión inicial de oportunidades de DevSecOps y automatización de seguridad",
-  "📈 Assessment para automatizar ventas, seguimiento de prospectos y cotizaciones",
-  "💳 Assessment de automatización de cobranza y procesos financieros",
-  "📄 Assessment para automatización de facturas, PDFs, correos y documentos",
-  "💬 Evaluación para automatizar atención mediante WhatsApp, chatbots o asistentes de voz",
-  "🧠 Evaluación de un copiloto privado conectado a la información de tu empresa",
-  "🧪 Acceso a un piloto de bajo riesgo antes de realizar una implementación mayor",
-  "🎓 Workshop ejecutivo introductorio de IA y automatización",
-  "🎁 Primer mes de soporte sin costo en proyectos seleccionados",
-  "💵 Precio preferencial en el primer piloto de automatización",
-];
-
 // Solo para la campaña "Piloto LATAM | Decisores" (empresas medianas/
 // grandes, no los negocios chicos de Google Maps) — pedido explícito del
 // usuario el 2026-09-04: "en la de piloto latam mencionar todo lo que te
@@ -188,7 +196,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin t
   "calificacion": "alta" | "media" | "baja" (qué tan buen prospecto es: alta si claramente necesita automatización/IA y parece tener presupuesto/tamaño para invertir, baja si no aplica bien),
   "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
   "oferta": "el id exacto de la oferta elegida del menú (ej. 'data_analytics', 'enterprise_automation')",
-  "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, con emoji incluido), el que mejor encaje con la 'oferta' que ya elegiste arriba (ej. si elegiste 'legacy_modernization', usa el de modernización de sistemas legacy; si elegiste 'devsecops_cybersecurity', usa el de DevSecOps):\n${OFERTAS_GRATIS_LATAM.map((o) => `  - ${o}`).join("\n")}",
+  "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, con emoji incluido), el que mejor encaje con la 'oferta' que ya elegiste arriba (ej. si elegiste 'legacy_modernization', usa el de modernización de sistemas legacy; si elegiste 'devsecops_cybersecurity', usa el de DevSecOps):\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
   "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_DINERO}",
   "cuerpoEmail": "correo completo siguiendo la estructura de 5 pasos del prompt (saludo con nombre, gancho real sobre la empresa, reto plausible en tono hedgeado, oferta elegida, cierre invitando a 15-20 min esta semana), sin HTML. NUNCA inventes una cifra específica ($, %, ahorro en dinero) ni afirmes resultados con otros clientes ('hemos ayudado a bancos a lograr X%', 'nuestros clientes ahorran Y') que no puedas verificar — eso es mentir con datos y casos de éxito falsos a un tomador de decisión real. El enfoque de dinero/OPEX se queda en pregunta retórica o concepto, nunca en un número o cliente inventado. No te presentes por nombre en ningún punto del texto — nunca escribas 'me llamo...' ni placeholders entre corchetes. No incluyas firma ni despedida — se agrega automáticamente después, fuera de este texto. NO incluyas tú mismo el texto de 'ofertaGratis' dentro del cuerpo, se agrega aparte, en código, al final",
   ${REGLA_SEGUIMIENTOS}
@@ -298,7 +306,7 @@ async function generarScriptEmpresa(lead) {
   // 2026-09-10), en los 2 catálogos (chico y grande).
   // ofertaGratis: si el modelo no copió el texto exacto del banco, se
   // ignora en vez de mandar un texto inventado/parafraseado al lead.
-  const ofertaGratisValida = OFERTAS_GRATIS_LATAM.includes(script.ofertaGratis) ? script.ofertaGratis : null;
+  const ofertaGratisValida = OFERTAS_GRATIS.includes(script.ofertaGratis) ? script.ofertaGratis : null;
   if (script.cuerpoEmail) {
     script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${LINEA_DEMO_GRATIS}`;
   }
@@ -339,11 +347,17 @@ async function generarScript(negocio) {
   await corregirAsuntosDelScript(script, `Negocio: ${negocio.nombre}, categoría: ${negocio.categoria || "desconocida"}`);
   await corregirCifrasDelScript(script, `Negocio: ${negocio.nombre}, categoría: ${negocio.categoria || "desconocida"}`);
 
+  // ofertaGratis: si el modelo no copió el texto exacto del banco, se
+  // ignora en vez de mandar un texto inventado/parafraseado al lead —
+  // pedido explícito del usuario el 2026-09-12, extendido a Google Maps.
+  const ofertaGratisValida = OFERTAS_GRATIS.includes(script.ofertaGratis) ? script.ofertaGratis : null;
+  const sufijoOfertaGratis = ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "";
+
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
   if (script.cuerpoEmail) {
     script.cuerpoEmail = esGrande
-      ? script.cuerpoEmail.trim() + `\n\n${LINEA_DEMO_GRATIS}`
-      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}\n\n${LINEA_DEMO_GRATIS}`;
+      ? script.cuerpoEmail.trim() + sufijoOfertaGratis + `\n\n${LINEA_DEMO_GRATIS}`
+      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}` + sufijoOfertaGratis + `\n\n${LINEA_DEMO_GRATIS}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}`;
