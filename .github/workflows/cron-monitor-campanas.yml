@@ -18,3 +18,4 @@ jobs:
         run: |
           curl -sf -X POST "https://chatbotwati.vercel.app/api/cron-monitor-campanas" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
