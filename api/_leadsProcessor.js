@@ -1,6 +1,7 @@
 const { generarScript } = require("./_leadScript");
 const { agregarLeadACampania } = require("./_smartlead");
 const { correoTieneServidorValido } = require("./_emailVerify");
+const { esCadenaConocida } = require("./_empresaGrande");
 
 function normalizarTelefono(tel) {
   const digits = String(tel || "").replace(/[^\d+]/g, "");
@@ -34,6 +35,30 @@ async function procesarNegocios(coleccion, negocios, query) {
     }
     nuevosNegocios.push({ ...negocio, telefono });
   }
+
+  // Excluye cadenas/franquicias conocidas (OXXO, 7-Eleven, Super K,
+  // McDonald's, etc.) — pedido explícito del usuario el 2026-09-12:
+  // "quita de la campaña google maps, cadenas de este tipo... debes
+  // omitirlas en los scrapeos de apify igual para no mandarles ni correo
+  // ni llamadas a estos negocios que sean cadenas". Se descartan ANTES de
+  // validar correo/generar contenido/guardar — nunca llegan a "leads",
+  // así que tampoco pueden entrar al marcador de llamadas (que solo toma
+  // de esa colección). No usa reseñas/categoría (eso sigue yendo al
+  // catálogo "empresa grande" normal) — solo coincidencia de nombre con
+  // una cadena conocida, la señal inequívoca de que es una sucursal sin
+  // autoridad de compra propia.
+  let excluidosCadena = 0;
+  const negociosSinCadenas = [];
+  for (const negocio of nuevosNegocios) {
+    const cadena = esCadenaConocida(negocio.nombre);
+    if (cadena) {
+      excluidosCadena++;
+      continue;
+    }
+    negociosSinCadenas.push(negocio);
+  }
+  nuevosNegocios.length = 0;
+  nuevosNegocios.push(...negociosSinCadenas);
 
   // Verifica que el dominio del correo scrapeado exista y acepte correo
   // (registros MX) ANTES de mandarlo a Smartlead — pedido del usuario el
@@ -135,7 +160,7 @@ async function procesarNegocios(coleccion, negocios, query) {
 
   if (leads.length) await coleccion.insertMany(leads);
 
-  return { totalEncontrados: negocios.length, nuevos: leads.length, duplicados, conCorreo, soloTelefono, correosEnviados, erroresCorreo, correosInvalidos };
+  return { totalEncontrados: negocios.length, nuevos: leads.length, duplicados, excluidosCadena, conCorreo, soloTelefono, correosEnviados, erroresCorreo, correosInvalidos };
 }
 
 module.exports = { procesarNegocios, normalizarTelefono };

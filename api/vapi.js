@@ -5,6 +5,7 @@
 // 2026-09-04 para el botón "Llámame" del portal.
 const { aplicarCors } = require("./_cors");
 const { getDb } = require("./_mongo");
+const { esCadenaConocida } = require("./_empresaGrande");
 
 const VAPI_API_URL = "https://api.vapi.ai/call";
 const COOLDOWN_MS = 10 * 60 * 1000; // 10 min entre solicitudes al mismo número
@@ -88,7 +89,12 @@ async function marcarLlamadasFrias(req, res) {
       .limit(LOTE_LLAMADAS_FRIAS * 5) // margen porque muchos ya estarán excluidos
       .toArray();
 
-    const elegibles = candidatos.filter((n) => !telefonosExcluidos.has(n.telefono)).slice(0, LOTE_LLAMADAS_FRIAS);
+    // Salvaguarda extra por si quedó guardada alguna cadena/franquicia de
+    // scrapeos anteriores a este filtro (2026-09-12) — la exclusión real
+    // ya vive en _leadsProcessor.js, esto es solo por si acaso.
+    const elegibles = candidatos
+      .filter((n) => !telefonosExcluidos.has(n.telefono) && !esCadenaConocida(n.nombre))
+      .slice(0, LOTE_LLAMADAS_FRIAS);
 
     let marcadas = 0;
     const errores = [];

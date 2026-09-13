@@ -36,8 +36,10 @@ const CADENAS_CONOCIDAS = [
   "walmart", "bodega aurrera", "sam's club", "liverpool", "coppel", "soriana", "chedraui", "superama", "costco", "home depot", "office depot", "elektra",
   // Farmacias
   "farmacias del ahorro", "farmacias guadalajara", "farmacias similares", "farmacia san pablo", "farmacia benavides",
+  // Tiendas de conveniencia / franquicias de cadena
+  "oxxo", "7-eleven", "seven eleven", "circle k", "super k", "extra", "go express",
   // Comida rápida / cafeterías de cadena
-  "oxxo", "7-eleven", "mcdonald's", "mcdonalds", "burger king", "kfc", "starbucks", "domino's", "dominos", "little caesars", "subway", "pizza hut", "carl's jr",
+  "mcdonald's", "mcdonalds", "burger king", "kfc", "starbucks", "domino's", "dominos", "little caesars", "subway", "pizza hut", "carl's jr",
   // Gasolineras
   "pemex", "shell", "bp gas", "g500", "oxxo gas",
   // Hoteles de cadena
@@ -45,6 +47,22 @@ const CADENAS_CONOCIDAS = [
   // Otros corporativos comunes en búsquedas locales
   "cemex", "femsa", "bimbo", "grupo modelo", "gnp seguros", "axa seguros", "metlife", "allianz",
 ];
+
+// Solo el nombre — a diferencia de detectarEmpresaGrande() (que también
+// usa reseñas/categoría como proxy de tamaño), esto es específicamente
+// para EXCLUIR cadenas/franquicias reales de Google Maps — pedido
+// explícito del usuario el 2026-09-12: "quita de la campaña google maps,
+// cadenas de este tipo como oxxo, seven, super k, etc, franquicias debes
+// omitirlas... para no mandarles ni correo ni llamadas". Una sucursal de
+// OXXO no tiene autoridad de compra — la decisión está en corporativo,
+// inalcanzable desde una ficha de Google Maps de una tienda local. No se
+// usa reseñas/categoría aquí porque esas señales SÍ pueden ser un negocio
+// independiente grande y legítimo (ese caso sigue recibiendo el catálogo
+// "empresa grande", no se excluye).
+function esCadenaConocida(nombre) {
+  const nombreLower = (nombre || "").toLowerCase();
+  return CADENAS_CONOCIDAS.find((c) => nombreLower.includes(c)) || null;
+}
 
 function detectarEmpresaGrande(negocio) {
   const senales = [];
@@ -64,4 +82,4 @@ function detectarEmpresaGrande(negocio) {
   return { probablementeGrande: senales.length > 0, senales };
 }
 
-module.exports = { detectarEmpresaGrande, UMBRAL_RESENAS, CATEGORIAS_GRANDES, CADENAS_CONOCIDAS };
+module.exports = { detectarEmpresaGrande, esCadenaConocida, UMBRAL_RESENAS, CATEGORIAS_GRANDES, CADENAS_CONOCIDAS };
