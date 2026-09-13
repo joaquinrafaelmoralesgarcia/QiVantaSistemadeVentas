@@ -40,6 +40,35 @@ function headers() {
 // medianas/grandes).
 const SENIORITIES_DECISORES = ["owner", "founder", "c_suite", "partner", "vp", "director"];
 
+// Puestos específicos a buscar dentro de esas seniorities — pedido explícito
+// del usuario el 2026-09-13: "adicional a ceo, debes buscar presidentes,
+// vip [sic, VP], founders, cio, director de ti, o de it, director
+// comercial, director de operaciones, puestos por el estilo". Antes solo se
+// filtraba por seniority (owner/founder/c_suite/partner/vp/director), lo
+// cual en la práctica hacía que Apollo devolviera sobre todo founder/CEO —
+// confirmado con una prueba real de búsqueda gratis (0 créditos): de 25
+// candidatos con seniorities solamente, ninguno tenía CIO/director de TI/
+// director comercial/director de operaciones en el título, todo era
+// founder/co-founder/CEO. Agregando person_titles[] con esta lista (probado
+// también en real, 0 créditos) el resultado sí trae esos puestos (director
+// de TI, CIO, director de operaciones, director comercial, etc.) sin
+// quedarse sin candidatos: 17,409 resultados totales disponibles en México
+// solo, de sobra para el volumen diario del cron. Apollo hace OR entre los
+// valores de person_titles[] y coincidencia parcial/difusa contra el título
+// real (así "IT Director" también encuentra "IT Director | IT Senior"),
+// así que no hace falta enumerar cada variante exacta — se listan en
+// español e inglés porque Apollo indexa perfiles en ambos idiomas según el
+// país/empresa.
+const TITULOS_DECISORES = [
+  "President", "Presidente",
+  "Vice President", "VP", "Vicepresidente",
+  "Founder", "Co-Founder", "Fundador",
+  "CIO", "Chief Information Officer",
+  "IT Director", "Director of IT", "Director de TI", "Director de IT",
+  "Commercial Director", "Director Comercial",
+  "Operations Director", "Director de Operaciones",
+];
+
 const PAISES_LATAM = [
   "mexico", "colombia", "argentina", "chile", "peru", "brazil", "ecuador",
   "uruguay", "paraguay", "bolivia", "costa rica", "panama", "guatemala",
@@ -73,6 +102,7 @@ const NIVELES_APOLLO = PAISES_LATAM.flatMap((pais) =>
 async function buscarPersonas({ page = 1, perPage = 25, paises = PAISES_LATAM, rangosEmpleados = RANGOS_EMPLEADOS_PYME } = {}) {
   const params = new URLSearchParams();
   for (const s of SENIORITIES_DECISORES) params.append("person_seniorities[]", s);
+  for (const t of TITULOS_DECISORES) params.append("person_titles[]", t);
   for (const p of paises) params.append("organization_locations[]", p);
   for (const r of rangosEmpleados) params.append("organization_num_employees_ranges[]", r);
   params.append("contact_email_status[]", "verified");
