@@ -30,14 +30,15 @@ const { procesarPersonaEmpresa } = require("./_leadsProcessorComun");
 // encontrar como "nuevos" en la misma página (que no avanza, ver
 // cron-scrape-empresas.js) y sigue donde se quedó, sin perder ninguno.
 //
-// Bajado de 6 a 3 el 2026-09-11: las validaciones agregadas ese mismo día
-// (corregirAsuntosDelScript, corregirCifrasDelScript) pueden sumar hasta
-// 6 llamadas extra a la IA POR candidato si algo falla la validación —
-// con 6 candidatos, un intento real tardó 57s (contra ~15-37s antes de
-// esas validaciones) y el siguiente intento sí se pasó del límite de
-// Vercel (504). 3 candidatos deja margen real incluso en el peor caso de
-// que las 3 fallen todas las validaciones.
-const MAX_NUEVOS_POR_CORRIDA = 3;
+// Bajado de 6 a 3 el 2026-09-11, y de 3 a 2 el 2026-09-14 tras un segundo
+// timeout real (504/Vercel Runtime Timeout a los 60s) con 3 candidatos —
+// la variación real de latencia de DeepInfra sigue haciendo que el "peor
+// caso" calculado antes no sea suficiente margen de forma consistente.
+// Con esto, además, el workflow de GitHub Actions ya no aborta el ciclo
+// completo si UN intento se pasa del límite (ver
+// cron-scrape-empresas-diario.yml), así que el costo real de un timeout
+// ocasional ahora es solo ese intento, no el resto del día.
+const MAX_NUEVOS_POR_CORRIDA = 2;
 
 async function procesarPersonasApollo(coleccion, personas) {
   const ids = personas.map((p) => p.id);

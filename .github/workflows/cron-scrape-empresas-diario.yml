@@ -38,8 +38,14 @@ jobs:
             intento=$((intento + 1))
             echo "=== Intento $intento de hasta $MAX_INTENTOS (llevamos $totalConCorreo con correo enviados) ==="
 
-            respuesta=$(curl -sf -X POST "https://chatbotwati.vercel.app/api/cron-scrape-empresas" \
-              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+            # Sin -f y con "|| true" — un intento fallido (ej. timeout de
+            # 60s de Vercel, encontrado el 2026-09-14: el workflow entero
+            # abortaba con "bash -e" tras un solo intento fallido,
+            # perdiendo el resto de los intentos del día) ya NO tumba todo
+            # el ciclo, solo cuenta 0 para ese intento y sigue con el
+            # siguiente.
+            respuesta=$(curl -s -X POST "https://chatbotwati.vercel.app/api/cron-scrape-empresas" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" || echo '{}')
             echo "Resultado: $respuesta"
 
             enviados=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).correosEnviados||0)}catch(e){console.log(0)}})")

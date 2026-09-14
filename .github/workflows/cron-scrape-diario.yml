@@ -35,11 +35,14 @@ jobs:
             intento=$((intento + 1))
             echo "=== Búsqueda $intento de hasta $MAX_INTENTOS (llevamos $totalConCorreo con correo / $totalNuevos negocios nuevos) ==="
 
-            respuesta=$(curl -sf -X POST "https://chatbotwati.vercel.app/api/cron-scrape" \
-              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+            # Sin -f y con "|| true" — un intento fallido ya no debe
+            # abortar todo el ciclo (bash -e, encontrado el 2026-09-14 en
+            # el workflow de LATAM con el mismo patrón).
+            respuesta=$(curl -s -X POST "https://chatbotwati.vercel.app/api/cron-scrape" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" || echo '{}')
             echo "Inicio: $respuesta"
-            runId=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).runId))")
-            query=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).query))")
+            runId=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).runId||'')}catch(e){console.log('')}})")
+            query=$(echo "$respuesta" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).query||'')}catch(e){console.log('')}})")
 
             if [ -z "$runId" ]; then
               echo "No se pudo iniciar esta búsqueda, se salta."
@@ -49,8 +52,8 @@ jobs:
             terminada="false"
             for i in $(seq 1 40); do
               sleep 15
-              estado=$(curl -sf "https://chatbotwati.vercel.app/api/cron-scrape?runId=$runId&query=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$query")" \
-                -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+              estado=$(curl -s "https://chatbotwati.vercel.app/api/cron-scrape?runId=$runId&query=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$query")" \
+                -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" || echo '{}')
               echo "  poll $i: $estado"
               listo=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).listo))")
               if [ "$listo" = "true" ]; then
