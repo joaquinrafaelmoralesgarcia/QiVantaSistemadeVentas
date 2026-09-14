@@ -6,6 +6,7 @@
 const { aplicarCors } = require("./_cors");
 const { getDb } = require("./_mongo");
 const { esCadenaConocida } = require("./_empresaGrande");
+const { estadoFeriado } = require("./_feriadosMexico");
 
 const VAPI_API_URL = "https://api.vapi.ai/call";
 const COOLDOWN_MS = 10 * 60 * 1000; // 10 min entre solicitudes al mismo número
@@ -36,7 +37,19 @@ function dentroDeHorarioLlamadas(ahora) {
   const cdmx = new Date(ahora.toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
   const dia = cdmx.getDay(); // 0=domingo, 6=sabado
   if (dia === 0 || dia === 6) return false;
+
+  // Días festivos oficiales de México (LFT) o excepciones puntuales —
+  // pedido explícito del usuario el 2026-09-13: "los dias festivos en
+  // mexico no mandes correo ni llamadas de ninguna campaña".
+  const { festivoCompleto, medioDiaDesde } = estadoFeriado(cdmx);
+  if (festivoCompleto) return false;
+
   const horaDecimal = cdmx.getHours() + cdmx.getMinutes() / 60;
+  if (medioDiaDesde) {
+    const [h, m] = medioDiaDesde.split(":").map(Number);
+    if (horaDecimal >= h + m / 60) return false;
+  }
+
   const enManana = horaDecimal >= 10 && horaDecimal < 14; // 10am-2pm
   const enTarde = horaDecimal >= 16 && horaDecimal < 17; // 4pm-5pm
   return enManana || enTarde;
@@ -83,8 +96,15 @@ async function marcarLlamadasFrias(req, res) {
     const yaMarcados = await llamadasCol.find({}, { projection: { telefono: 1 } }).toArray();
     const telefonosExcluidos = new Set(yaMarcados.map((d) => d.telefono));
 
+    // Solo México — pedido explícito del usuario el 2026-09-13: "las
+    // llamadas de la campaña de google maps solo deben hacerse para
+    // empresas o negocios en mexico, solo los correos son los que podran
+    // irse a latam". normalizarTelefono() en _leadsProcessor.js ya
+    // antepone +52 a cualquier número mexicano real, así que filtrar por
+    // ese prefijo basta — un negocio de otro país de LatAm sigue
+    // recibiendo correo normal, solo queda fuera de las llamadas.
     const candidatos = await leadsCol
-      .find({ origenBusqueda: { $exists: true }, telefono: { $type: "string", $ne: "" } })
+      .find({ origenBusqueda: { $exists: true }, telefono: { $regex: "^\\+52" } })
       .sort({ createdAt: 1 })
       .limit(LOTE_LLAMADAS_FRIAS * 5) // margen porque muchos ya estarán excluidos
       .toArray();

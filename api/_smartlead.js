@@ -143,4 +143,31 @@ async function eliminarLeadDeCampania(campaignId, leadId) {
   return res.json();
 }
 
-module.exports = { agregarLeadACampania, actualizarTopeCampania, obtenerEstadosDeCampania, eliminarLeadDeCampania };
+// Pausa/reactiva una campaña completa — pedido explícito del usuario el
+// 2026-09-13: no mandar correo en días festivos oficiales de México
+// (LFT). Verificado en real contra la API (pausa y reactiva de inmediato,
+// sin dejar la campaña real pausada): POST .../status con
+// {status:"PAUSED"} pausa, {status:"START"} reactiva a ACTIVE.
+async function actualizarEstadoCampania(campaignId, status) {
+  const apiKey = process.env.SMARTLEAD_API_KEY;
+  const res = await fetch(`${SMARTLEAD_BASE_URL}/campaigns/${campaignId}/status?api_key=${encodeURIComponent(apiKey)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    throw new Error(`No se pudo cambiar el estado de la campaña ${campaignId} a ${status} (${res.status}): ${errBody}`);
+  }
+  return res.json();
+}
+
+async function obtenerEstadoRealCampania(campaignId) {
+  const apiKey = process.env.SMARTLEAD_API_KEY;
+  const res = await fetch(`${SMARTLEAD_BASE_URL}/campaigns/${campaignId}?api_key=${encodeURIComponent(apiKey)}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(`No se pudo consultar el estado de la campaña ${campaignId} (${res.status}): ${JSON.stringify(data)}`);
+  return data.status;
+}
+
+module.exports = { agregarLeadACampania, actualizarTopeCampania, obtenerEstadosDeCampania, eliminarLeadDeCampania, actualizarEstadoCampania, obtenerEstadoRealCampania };

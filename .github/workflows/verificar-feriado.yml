@@ -1,0 +1,33 @@
+name: Pausar campañas en días festivos (México)
+
+# Pedido explícito del usuario el 2026-09-13: "los dias festivos en
+# mexico no mandes correo ni llamadas de ninguna campaña". Corre temprano
+# cada día, antes de que arranque la ventana de envío (9am-7pm CDMX) --
+# pausa las campañas si hoy es festivo oficial LFT, o las reactiva si
+# ayer las pausamos nosotros por eso y hoy ya no es festivo.
+on:
+  schedule:
+    - cron: "0 13 * * *" # 7am CDMX
+  workflow_dispatch: {}
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Instalar dependencias
+        run: npm install --production
+      - name: Generar .env.local desde secrets
+        run: |
+          cat > .env.local << EOF
+          MONGODB_URI=${{ secrets.MONGODB_URI }}
+          MONGODB_DB=${{ secrets.MONGODB_DB }}
+          SMARTLEAD_API_KEY=${{ secrets.SMARTLEAD_API_KEY }}
+          SMARTLEAD_CAMPAIGN_ID=${{ secrets.SMARTLEAD_CAMPAIGN_ID }}
+          SMARTLEAD_CAMPAIGN_ID_LATAM=${{ secrets.SMARTLEAD_CAMPAIGN_ID_LATAM }}
+          EOF
+      - name: Verificar feriado y pausar/reactivar
+        run: node scripts/verificar-feriado.js
