@@ -12,6 +12,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
+  contents: read # necesario para actions/checkout
   actions: read # necesario para que validar-integridad.js consulte el historial de corridas de los demás workflows
 
 jobs:
