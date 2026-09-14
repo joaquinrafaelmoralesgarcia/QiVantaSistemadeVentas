@@ -127,6 +127,64 @@ function validarCruceEntreCampanias(correosGM, correosLatam) {
   }
 }
 
+// Chequeo 6: ¿de verdad corrieron solos los demás crons hoy? — pedido
+// explícito del usuario el 2026-09-14, después de que TODOS los crons de
+// una sola corrida diaria (festivo, monitor, scrapeos, métricas) no se
+// dispararan solos el día que se migró este repo — "debes desarrollar un
+// monitor que diario este validando todo... lo que detectes diario
+// arreglarlo de inmediato". No se puede saber por adelantado si un cron
+// disparará (eso lo decide GitHub) — pero SÍ se puede confirmar, después
+// de que ya pasó su horario esperado, si de verdad corrió. Usa la API de
+// GitHub Actions con el GITHUB_TOKEN automático de la propia corrida
+// (alcance de solo lectura sobre este mismo repo, no requiere secretos
+// nuevos).
+//
+// Cada entrada: cuántas horas hacia atrás es razonable esperar encontrar
+// AL MENOS una corrida exitosa. En vez de calcular el día/hora exacta de
+// cada cron (frágil si se les cambia el horario), se usa una ventana
+// generosa que cubre su propio patrón de días — ej. los que son
+// lunes-viernes necesitan ventana suficiente para que el chequeo del
+// lunes por la mañana todavía alcance a ver la última corrida real del
+// viernes, cruzando el fin de semana sin corridas.
+const CRONS_A_VIGILAR = [
+  { archivo: "verificar-feriado.yml", ventanaHoras: 30 }, // corre todos los días
+  { archivo: "cron-monitor-campanas.yml", ventanaHoras: 60 }, // lunes-sábado
+  { archivo: "cron-scrape-empresas-diario.yml", ventanaHoras: 66 }, // lunes-viernes
+  { archivo: "cron-scrape-diario.yml", ventanaHoras: 66 }, // lunes-viernes
+  { archivo: "cron-llamadas-frias.yml", ventanaHoras: 72 }, // lunes-viernes, varias veces al día
+];
+
+async function validarCronsCorrieron() {
+  const token = process.env.GITHUB_TOKEN;
+  const repo = process.env.GITHUB_REPOSITORY; // "owner/repo", ya lo da GitHub Actions
+  if (!token || !repo) {
+    console.log("[OK] Chequeo de crons omitido (no corre dentro de GitHub Actions, GITHUB_TOKEN/GITHUB_REPOSITORY no disponibles).");
+    return;
+  }
+
+  const ahora = new Date();
+
+  for (const cron of CRONS_A_VIGILAR) {
+    const desde = new Date(ahora.getTime() - cron.ventanaHoras * 3600000);
+    try {
+      const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/${cron.archivo}/runs?per_page=10`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+      });
+      const data = await res.json();
+      const corridasRecientes = (data.workflow_runs || []).filter((r) => new Date(r.created_at) >= desde);
+      const corrioBien = corridasRecientes.some((r) => r.status === "completed" && r.conclusion === "success");
+      if (!corrioBien) {
+        const motivo = corridasRecientes.length === 0 ? `no se registró ninguna corrida en las últimas ${cron.ventanaHoras}h (ni programada ni manual)` : `corrió pero sin éxito (última conclusion: ${corridasRecientes[0].conclusion})`;
+        reportar("ERROR", `${cron.archivo}: ${motivo}.`);
+      } else {
+        console.log(`[OK] ${cron.archivo} tuvo al menos una corrida exitosa en las últimas ${cron.ventanaHoras}h.`);
+      }
+    } catch (err) {
+      console.error(`Error consultando estado de ${cron.archivo}:`, err.message);
+    }
+  }
+}
+
 (async () => {
   console.log(`=== Validación diaria de integridad — ${new Date().toISOString()} ===\n`);
   const db = await getDb();
@@ -136,6 +194,7 @@ function validarCruceEntreCampanias(correosGM, correosLatam) {
   const correosGM = await validarDuplicadosSmartlead("Google Maps", process.env.SMARTLEAD_CAMPAIGN_ID);
   const correosLatam = await validarDuplicadosSmartlead("Piloto LATAM", process.env.SMARTLEAD_CAMPAIGN_ID_LATAM);
   validarCruceEntreCampanias(correosGM, correosLatam);
+  await validarCronsCorrieron();
 
   console.log(`\n=== Resultado: ${hallazgos.length} hallazgo(s) ===`);
   for (const h of hallazgos) console.log(`- [${h.nivel}] ${h.mensaje}`);
