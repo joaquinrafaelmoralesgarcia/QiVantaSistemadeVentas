@@ -209,7 +209,7 @@ const LINEA_DEMO_GRATIS = "<strong>Te creamos un demo/prototipo sin costo.</stro
 // Maps no exista, apunta a qi-vanta.com también (sin romper nada) — es
 // cambiar esta única constante cuando esté lista.
 const URL_LANDING_LATAM = "https://www.qi-vanta.com";
-const URL_LANDING_GM = "https://www.qi-vanta.com"; // TODO: actualizar cuando la landing de Google Maps esté lista
+const URL_LANDING_GM = "https://negocios.qi-vanta.com"; // landing PYME lista el 2026-09-13
 const LINEA_LANDING_LATAM = `Conoce más en <a href="${URL_LANDING_LATAM}">${URL_LANDING_LATAM.replace("https://", "")}</a>`;
 const LINEA_LANDING_GM = `Conoce más en <a href="${URL_LANDING_GM}">${URL_LANDING_GM.replace("https://", "")}</a>`;
 
