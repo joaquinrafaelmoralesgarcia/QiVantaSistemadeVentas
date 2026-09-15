@@ -55,10 +55,15 @@ jobs:
               estado=$(curl -s "https://chatbotwati.vercel.app/api/cron-scrape?runId=$runId&query=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$query")" \
                 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" || echo '{}')
               echo "  poll $i: $estado"
-              listo=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).listo))")
+              # Con try/catch — encontrado el 2026-09-14: cuando Vercel
+              # devuelve una página de error en texto plano (ej.
+              # "FUNCTION_INVOCATION_TIMEOUT") en vez de JSON, el
+              # JSON.parse sin proteger tronaba este paso completo,
+              # abortando el resto del ciclo del día.
+              listo=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).listo)}catch(e){console.log('false')}})")
               if [ "$listo" = "true" ]; then
-                nuevos=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).nuevos))")
-                conCorreo=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).conCorreo))")
+                nuevos=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).nuevos||0)}catch(e){console.log(0)}})")
+                conCorreo=$(echo "$estado" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).conCorreo||0)}catch(e){console.log(0)}})")
                 totalNuevos=$((totalNuevos + nuevos))
                 totalConCorreo=$((totalConCorreo + conCorreo))
                 terminada="true"
