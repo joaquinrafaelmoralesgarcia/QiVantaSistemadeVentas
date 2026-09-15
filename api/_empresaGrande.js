@@ -81,6 +81,21 @@ function esCadenaConocida(nombre) {
 // llamada o WhatsApp, igual que un dominio con MX inválido.
 const DOMINIOS_CORREO_EXCLUIDOS = ["doctoralia.com"];
 
+// Bienes raíces — pedido explícito del usuario el 2026-09-15: "quita del
+// scrapeo todo lo que son bienes raices o empresas de bienes raices".
+// Exclusión completa (igual que esCadenaConocida): ni correo ni llamada,
+// nunca entra a "leads". Se revisa tanto categoría (la señal más
+// confiable, ej. "Agencia de bienes inmuebles comerciales") como nombre
+// (por si Google Maps la categorizó mal — encontrado en real: "La Paz
+// baja Realty" venía categorizada como "Fábrica de muebles").
+const PALABRAS_INMOBILIARIA = ["inmobiliari", "bienes ra", "bienes inmuebles", "real estate", "realty"];
+
+function esInmobiliaria(negocio) {
+  const categoriaLower = (negocio.categoria || "").toLowerCase();
+  const nombreLower = (negocio.nombre || "").toLowerCase();
+  return PALABRAS_INMOBILIARIA.some((p) => categoriaLower.includes(p) || nombreLower.includes(p));
+}
+
 function esCorreoDePlataformaExcluida(correo) {
   const correoLower = (correo || "").toLowerCase();
   return DOMINIOS_CORREO_EXCLUIDOS.find((d) => correoLower.endsWith("@" + d)) || null;
@@ -104,4 +119,4 @@ function detectarEmpresaGrande(negocio) {
   return { probablementeGrande: senales.length > 0, senales };
 }
 
-module.exports = { detectarEmpresaGrande, esCadenaConocida, esCorreoDePlataformaExcluida, UMBRAL_RESENAS, CATEGORIAS_GRANDES, CADENAS_CONOCIDAS };
+module.exports = { detectarEmpresaGrande, esCadenaConocida, esCorreoDePlataformaExcluida, esInmobiliaria, UMBRAL_RESENAS, CATEGORIAS_GRANDES, CADENAS_CONOCIDAS };

@@ -1,7 +1,7 @@
 const { generarScript } = require("./_leadScript");
 const { agregarLeadACampania } = require("./_smartlead");
 const { correoTieneServidorValido } = require("./_emailVerify");
-const { esCadenaConocida, esCorreoDePlataformaExcluida } = require("./_empresaGrande");
+const { esCadenaConocida, esCorreoDePlataformaExcluida, esInmobiliaria } = require("./_empresaGrande");
 
 function normalizarTelefono(tel) {
   const digits = String(tel || "").replace(/[^\d+]/g, "");
@@ -63,18 +63,25 @@ async function procesarNegocios(coleccion, negocios, query) {
   // catálogo "empresa grande" normal) — solo coincidencia de nombre con
   // una cadena conocida, la señal inequívoca de que es una sucursal sin
   // autoridad de compra propia.
+  // También excluye bienes raíces/inmobiliarias — pedido explícito del
+  // usuario el 2026-09-15, mismo criterio de exclusión completa que las
+  // cadenas.
   let excluidosCadena = 0;
-  const negociosSinCadenas = [];
+  let excluidosInmobiliaria = 0;
+  const negociosFiltrados = [];
   for (const negocio of nuevosNegocios) {
-    const cadena = esCadenaConocida(negocio.nombre);
-    if (cadena) {
+    if (esCadenaConocida(negocio.nombre)) {
       excluidosCadena++;
       continue;
     }
-    negociosSinCadenas.push(negocio);
+    if (esInmobiliaria(negocio)) {
+      excluidosInmobiliaria++;
+      continue;
+    }
+    negociosFiltrados.push(negocio);
   }
   nuevosNegocios.length = 0;
-  nuevosNegocios.push(...negociosSinCadenas);
+  nuevosNegocios.push(...negociosFiltrados);
 
   // Verifica que el dominio del correo scrapeado exista y acepte correo
   // (registros MX) ANTES de mandarlo a Smartlead — pedido del usuario el
@@ -188,7 +195,7 @@ async function procesarNegocios(coleccion, negocios, query) {
 
   if (leads.length) await coleccion.insertMany(leads);
 
-  return { totalEncontrados: negocios.length, nuevos: leads.length, duplicados, excluidosCadena, conCorreo, soloTelefono, correosEnviados, erroresCorreo, correosInvalidos };
+  return { totalEncontrados: negocios.length, nuevos: leads.length, duplicados, excluidosCadena, excluidosInmobiliaria, conCorreo, soloTelefono, correosEnviados, erroresCorreo, correosInvalidos };
 }
 
 module.exports = { procesarNegocios, normalizarTelefono };
