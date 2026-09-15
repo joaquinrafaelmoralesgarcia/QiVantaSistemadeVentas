@@ -170,7 +170,13 @@ joaquin.morales@qi-vantatech.com`;
 // Maps, sin importar qué oferta haya elegido el modelo — pedido explícito
 // del usuario el 2026-09-04. Se agrega en código (no se le pide al modelo
 // que la redacte) para que el texto salga siempre idéntico.
-const LINEA_VOZ_IA = "Adicionamos Chatbots impulsados con voz natural con IA, inteligencia para las respuestas de tu negocio.";
+// Reescrita el 2026-09-15 — encontrado en real que esta línea fija
+// reintroducía la palabra "Chatbots" justo después del cuerpo, aun
+// cuando el cuerpo ya evitaba liderar con eso (pedido explícito del
+// usuario tras ver una respuesta real de un prospecto rechazando por
+// "ya tenemos chatbot"). Ahora lidera con el resultado (llamadas
+// contestadas, citas agendadas) en vez del medio.
+const LINEA_VOZ_IA = "También contestamos tus llamadas con voz natural de IA y agendamos citas automáticamente, las 24 horas.";
 
 // Complemento fijo adicional para Google Maps — pedido explícito del
 // usuario el 2026-09-10: "ofrece APPs aplicaciones moviles y Sitios Web,

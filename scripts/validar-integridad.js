@@ -37,6 +37,16 @@ function reportar(nivel, mensaje) {
 async function validarDuplicadosMongo(db) {
   const leadsCol = db.collection("leads");
 
+  // Un mismo teléfono en 2+ documentos SOLO es un problema real cuando es
+  // el mismo negocio (nombre idéntico) duplicado por error de scrapeo —
+  // cuando son negocios distintos que comparten un conmutador (ej.
+  // sucursales de una misma cadena), no es un bug: el código ya
+  // garantiza que ese número solo se llame una vez (dedup dentro del
+  // lote + llamadasFrio persistente), así que no hay riesgo real de
+  // doble contacto. Antes esto se reportaba siempre como ERROR sin
+  // distinguir los dos casos, generando alertas diarias por algo que no
+  // era un problema — encontrado el 2026-09-15 tras limpiar los
+  // duplicados reales y seguir viendo el mismo error por los legítimos.
   const dupTelefono = await leadsCol
     .aggregate([
       { $match: { telefono: { $type: "string", $ne: "" } } },
@@ -44,10 +54,15 @@ async function validarDuplicadosMongo(db) {
       { $match: { count: { $gt: 1 } } },
     ])
     .toArray();
-  if (dupTelefono.length) {
-    reportar("ERROR", `${dupTelefono.length} teléfono(s) duplicados en "leads": ${dupTelefono.slice(0, 5).map((d) => `${d._id} (${d.count}x, ej. ${d.nombres[0]})`).join("; ")}`);
+  const dupTelefonoReal = dupTelefono.filter((d) => new Set(d.nombres.map((n) => (n || "").trim().toLowerCase())).size === 1);
+  const dupTelefonoCompartido = dupTelefono.length - dupTelefonoReal.length;
+  if (dupTelefonoReal.length) {
+    reportar("ERROR", `${dupTelefonoReal.length} teléfono(s) duplicados en "leads" (mismo negocio repetido): ${dupTelefonoReal.slice(0, 5).map((d) => `${d._id} (${d.count}x, ej. ${d.nombres[0]})`).join("; ")}`);
   } else {
-    console.log("[OK] Sin teléfonos duplicados en \"leads\".");
+    console.log("[OK] Sin teléfonos duplicados reales en \"leads\".");
+  }
+  if (dupTelefonoCompartido) {
+    console.log(`[OK] ${dupTelefonoCompartido} teléfono(s) compartidos por negocios distintos (línea corporativa) — no es un problema, ya protegido contra doble llamada.`);
   }
 
   const dupCorreo = await leadsCol

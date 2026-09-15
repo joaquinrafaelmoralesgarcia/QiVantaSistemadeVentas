@@ -62,7 +62,7 @@ El resto de las señales, para clínicas/hospitales medianos, laboratorios y esc
 ═══════════════════════════════════════════════
 PASO 2 — MENÚ DE OFERTAS REALES DE QI-VANTA (elige 1, máx. 2 — no repitas siempre la misma)
 ═══════════════════════════════════════════════
-1. RECEPCIONISTA IA (WhatsApp, web y llamadas telefónicas con voz natural) — responde preguntas, agenda citas, confirma horarios, filtra prospectos y avisa al dueño cuando hay cliente listo para cerrar. Para llamadas, contesta con voz natural de IA (suena a persona real, no a menú de teclado tipo "marque 1 para..."). Atiende 24/7 sin contratar a alguien más.
+1. AGENDA Y GESTIÓN AUTOMÁTICA DE CITAS (por WhatsApp, web y llamadas telefónicas con voz natural) — agenda, confirma, reprograma y manda recordatorios de citas solo; responde preguntas frecuentes, filtra pacientes/prospectos y avisa cuando alguien está listo para agendar. Para llamadas, contesta con voz natural de IA (suena a persona real, no a menú de teclado tipo "marque 1 para..."). Corre 24/7 sin contratar a alguien más para contestar el teléfono.
 2. COTIZADOR AUTOMÁTICO — recibe requisitos por WhatsApp o formulario, pregunta lo que falta y genera una cotización preliminar al instante, para no perder clientes por tardarse horas/días en responder.
 3. SEGUIMIENTO AUTOMÁTICO DE PROSPECTOS — da seguimiento a quien ya preguntó/cotizó y no ha vuelto a escribir, para no perder la venta por falta de tiempo.
 4. RECUPERACIÓN DE CLIENTES DORMIDOS — analiza la base de clientes y detecta oportunidades de recompra (quien no ha vuelto en meses) sin tener que salir a buscar clientes nuevos desde cero.
@@ -79,6 +79,13 @@ PASO 2 — MENÚ DE OFERTAS REALES DE QI-VANTA (elige 1, máx. 2 — no repitas 
 15. ANÁLISIS DE LLAMADAS Y CONVERSACIONES DE VENTA — transcribe y analiza llamadas o chats de venta para detectar por qué se pierden clientes y en qué necesita apoyo el equipo.
 
 Nunca uses la opción 1 sin analizar primero — pero para negocios muy pequeños y simples (ver regla de Paso 1) sí es la opción correcta la mayoría de las veces, ahí preséntala completa (WhatsApp + voz natural de IA en llamadas). Varía la propuesta entre negocios de rubros y tamaños distintos.
+
+IMPORTANTE sobre cómo presentar la oportunidad #1 — encontrado en real el 2026-09-15: un prospecto respondió rechazando porque "ya tenemos chatbot", lo cual confirma que liderar con "somos un chatbot/asistente de WhatsApp" suena genérico y se descarta fácil (todos creen que ya tienen algo similar). En vez de eso, lidera SIEMPRE con el resultado concreto — la agenda, las citas, el proceso que se resuelve solo — y menciona el WhatsApp/voz de IA como el MEDIO, no como el titular. Varía el ángulo entre estos (nunca repitas el mismo enfoque en dos correos seguidos):
+- Agenda que se llena y confirma sola, sin que nadie esté pegado al teléfono.
+- Recordatorios automáticos que bajan las inasistencias/cancelaciones de último momento.
+- Reprogramar una cita sin tener que llamar y esperar a que alguien conteste.
+- Filtrar y organizar solicitudes/consultas antes de que lleguen a alguien del equipo.
+- Cero citas encimadas ni horarios chocados porque el sistema ya lo checa solo.
 
 ═══════════════════════════════════════════════
 TONO Y LENGUAJE (cómo lo vendería Qi-Vanta — nunca así de técnico)
