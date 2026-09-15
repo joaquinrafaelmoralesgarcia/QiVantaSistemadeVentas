@@ -13,18 +13,32 @@ const { PROSPECTING_SYSTEM_PROMPT_GRANDE_GM } = require("./_prospectingPromptGra
 // cada lead, y de ahí adapte una frase concreta, nunca la misma para
 // todos. Reemplaza la regla anterior de "siempre debe ser pregunta" —
 // varias de estas frases son afirmaciones directas, igual de válidas.
-const REGLA_ASUNTO_DINERO = `DEBE mencionar dinero/costo explícitamente (la palabra "dinero", "cuesta", "gastas", "pagas", "ahorro", "margen" o similar) — nunca un asunto genérico sin ese enfoque. Elige la FAMILIA de tono que mejor encaje con el negocio/empresa según tu propio análisis del Paso 1 (no siempre la misma familia, varía entre leads distintos):
+// Datos reales verificados por el usuario (2026-09-15) — NUNCA agregar
+// aquí un dato que no venga confirmado como real por el usuario. Se usan
+// tal cual en la familia 7 de abajo, la IA nunca inventa su propio
+// número/porcentaje.
+const DATOS_REALES_VERIFICADOS = ["45% de los usuarios resuelven sus dudas con agentes de IA"];
 
-1. AHORRO DIRECTO — cuando el argumento más fuerte es reducir costo operativo (operación con procesos manuales pesados, backoffice, tareas repetitivas): "Te ayudamos a gastar menos haciendo lo mismo, pero más rápido" / "Donde hoy pagas horas hombre, nosotros ponemos automatización" / "Si un proceso te cuesta todos los meses, ahí hay oportunidad de ahorro" / "Menos operación manual, menos errores, menos gasto".
-2. COMPARACIÓN CON COMPETENCIA — cuando el sector es competitivo/comoditizado y quedarse atrás es un riesgo real (retail, manufactura, servicios comerciales): "Tu competencia ya está automatizando; la pregunta es cuánto te está costando no hacerlo" / "Mientras otros reducen costos con IA, tú sigues pagando procesos manuales" / "Cada día que no automatizas, tu competencia gana margen".
-3. CIERRE DE INTERÉS CONSULTIVO — buen default seguro cuando ninguna otra familia encaja con claridad: "Déjanos mostrarte dónde estás perdiendo dinero" / "Primero encontramos el ahorro, después vemos la solución" / "La propuesta empieza con números, no con promesas".
-4. DIRECTA/COMERCIAL — para negocios con urgencia visible o cuando conviene un golpe de impacto corto (calificación alta): "El dinero se está yendo en tareas que una máquina ya puede hacer" / "Lo manual sale más caro de lo que parece" / "Cada Excel manual tiene un costo escondido".
-5. VENTA CONSULTIVA — tono suave, funciona casi siempre, otro buen default: "Primero detectamos fugas de dinero; después automatizamos" / "Donde hay repetición, hay ahorro posible" / "La automatización no es gasto: es recuperación de dinero".
-6. DUPLICAR CLIENTES (usa esta AL AZAR de vez en cuando, sin importar si encaja perfecto con el análisis del Paso 1 — no es por ajuste de contexto como las otras 5, es solo para variar): "¿Qué haces cuando tienes clientes pero no sabes cómo duplicarlos?" — ÚNICA excepción a la regla de mencionar dinero explícito (ver abajo), puedes usarla o adaptarla tal cual.
+// Cambiado de "dinero" a "tiempo" el 2026-09-15 — pedido explícito del
+// usuario: "quita el tema de dinero en los titulos, pero si resalta lo
+// del tiempo". Se agregan 2 familias nuevas ese mismo día: una con datos
+// reales VERIFICADOS por el usuario (nunca un número que la IA invente —
+// ver DATOS_REALES_VERIFICADOS abajo) y otra de gancho de curiosidad
+// sobre resolución en el primer contacto.
+const REGLA_ASUNTO_TIEMPO = `DEBE mencionar tiempo/rapidez explícitamente (la palabra "tiempo", "rápido", "rápida", "minutos", "horas", "espera", "tarda", "tardas", "24/7" o similar) — nunca un asunto genérico sin ese enfoque. Elige la FAMILIA de tono que mejor encaje con el negocio/empresa según tu propio análisis del Paso 1 (no siempre la misma familia, varía entre leads distintos):
 
-IMPORTANTE — las frases de arriba son solo EJEMPLOS de tono, NUNCA las copies textuales palabra por palabra: verificado el 2026-09-10 con una prueba real de 20 correos que, sin esta advertencia, el modelo repite "Donde hoy pagas horas hombre, nosotros ponemos automatización" IDÉNTICA en 9 de 20 empresas distintas — eso se ve como spam masivo, no personalización. Escribe SIEMPRE tu propia versión, inspirada en el tono de la familia elegida pero con palabras distintas y, cuando sea posible, referenciando algo concreto de ESE negocio específico (su sector, su tamaño, el reto plausible del Paso 1).
+1. AHORRO DE TIEMPO DIRECTO — cuando el argumento más fuerte es reducir tiempo operativo (procesos manuales pesados, backoffice, tareas repetitivas): "Recupera las horas que hoy se van en tareas repetitivas" / "Lo que antes tardaba horas, ahora toma minutos" / "Menos tiempo perdido en tareas que una máquina ya puede hacer".
+2. COMPARACIÓN CON COMPETENCIA — cuando el sector es competitivo/comoditizado y tardar en responder es un riesgo real: "Mientras tú tardas en contestar, tu competencia ya respondió" / "Cada minuto de espera es una oportunidad que se va con la competencia" / "Tu competencia ya no hace esperar a sus clientes".
+3. CIERRE DE INTERÉS CONSULTIVO — buen default seguro cuando ninguna otra familia encaja con claridad: "Déjanos mostrarte en dónde se te está yendo el tiempo" / "Primero encontramos dónde se pierde tiempo, después vemos la solución" / "La propuesta empieza con tu tiempo, no con promesas".
+4. DIRECTA/COMERCIAL — para negocios con urgencia visible o cuando conviene un golpe de impacto corto (calificación alta): "El tiempo que se va en tareas manuales ya se puede recuperar" / "Lo manual tarda más de lo que parece" / "Cada proceso manual tiene un costo de tiempo escondido".
+5. VENTA CONSULTIVA — tono suave, funciona casi siempre, otro buen default: "Primero detectamos en dónde se va tu tiempo; después automatizamos" / "Donde hay repetición, hay tiempo que se puede recuperar".
+6. DUPLICAR CLIENTES (usa esta AL AZAR de vez en cuando, sin importar si encaja perfecto con el análisis del Paso 1 — solo para variar): "¿Qué haces cuando tienes clientes pero no sabes cómo duplicarlos?" — excepción a la regla de mencionar tiempo (ver abajo), puedes usarla o adaptarla tal cual.
+7. DATO REAL VERIFICADO (usa esta AL AZAR de vez en cuando; excepción a la regla de tiempo) — usa EXCLUSIVAMENTE uno de estos datos reales, tal cual o con mínima adaptación de redacción, JAMÁS inventes tu propio número o estadística: ${DATOS_REALES_VERIFICADOS.map((d) => `"${d}"`).join(" / ")}.
+8. CURIOSIDAD DE RESOLUCIÓN — gancho de curiosidad sobre resolver todo desde el primer contacto, sin hacer esperar al cliente (combínalo con la palabra tiempo cuando puedas): "Descubre cómo mejorar la resolución en el primer contacto con tus clientes" / "¿Sabes cuánto tiempo se ahorra resolviendo todo desde el primer contacto?".
 
-No copies una frase literal igual entre leads distintos — adáptala o combínala con el gancho/observación real de ESE negocio cuando sea posible. No tiene que ser pregunta, puede ser una afirmación directa como los ejemplos de arriba, siempre que mencione dinero/costo con una de las palabras de la lista (dinero, cuesta, gastas, pagas, ahorro, margen) — NO basta con "pierdes/perder" sola sin la palabra dinero, ej. MAL: "¿Cuánto pierdes al no tener X?" (no dice dinero) — BIEN: "¿Cuánto dinero pierdes al no tener X?". IMPORTANTE: jamás pongas un monto específico ($5,000, 30%, etc.) ni un resultado de otro cliente que no te dieron — el enfoque de dinero se queda en concepto/pregunta retórica, nunca en una cifra o caso de éxito inventado.`;
+IMPORTANTE — las frases de arriba (excepto la familia 7, que debe usarse tal cual por ser un dato real verificado) son solo EJEMPLOS de tono, NUNCA las copies textuales palabra por palabra: verificado el 2026-09-10 con una prueba real de 20 correos que, sin esta advertencia, el modelo repite la misma frase IDÉNTICA en 9 de 20 empresas distintas — eso se ve como spam masivo, no personalización. Escribe SIEMPRE tu propia versión, inspirada en el tono de la familia elegida pero con palabras distintas y, cuando sea posible, referenciando algo concreto de ESE negocio específico (su sector, su tamaño, el reto plausible del Paso 1).
+
+No copies una frase literal igual entre leads distintos — adáptala o combínala con el gancho/observación real de ESE negocio cuando sea posible. No tiene que ser pregunta, puede ser una afirmación directa como los ejemplos de arriba, siempre que mencione tiempo/rapidez con una de las palabras de la lista (tiempo, rápido, rápida, minutos, horas, espera, tarda, tardas, 24/7). IMPORTANTE: jamás pongas un monto o porcentaje inventado ($5,000, 30%, etc.) ni un resultado de otro cliente que no te dieron — la única excepción de cifra permitida es la familia 7 (dato real verificado de la lista), nunca un número que tú mismo inventes.`;
 
 // Ajuste solo para Google Maps — pedido explícito del usuario el
 // 2026-09-13, a partir de datos reales de apertura sincronizados ese día
@@ -35,9 +49,9 @@ No copies una frase literal igual entre leads distintos — adáptala o combína
 // se aplica este ajuste — ahí la muestra de "directa_comercial" es
 // todavía muy chica (4 envíos) para actuar con confianza, y el usuario
 // explícitamente pidió dejar esa campaña igual por ahora.
-const REGLA_ASUNTO_DINERO_GM = REGLA_ASUNTO_DINERO + `
+const REGLA_ASUNTO_TIEMPO_GM = REGLA_ASUNTO_TIEMPO + `
 
-AJUSTE POR DATOS REALES (Google Maps, 2026-09-13): entre los negocios que ya hemos contactado, la familia 1 (AHORRO DIRECTO) es la que menos aperturas genera por correo enviado de las 6 — úsala poco, solo cuando ninguna otra encaje mejor. La familia 4 (DIRECTA/COMERCIAL) es la que mejor funciona — prefiérela quien tenga un gancho concreto y fuerte del negocio (reseñas altas, categoría con urgencia visible, sitio web ausente, etc.).`;
+AJUSTE POR DATOS REALES (Google Maps, 2026-09-13, medido cuando el enfoque todavía era dinero — el ajuste de familia sigue aplicando igual con el enfoque de tiempo): entre los negocios que ya hemos contactado, la familia 1 (AHORRO DE TIEMPO DIRECTO) es la que menos aperturas genera por correo enviado de las 6 — úsala poco, solo cuando ninguna otra encaje mejor. La familia 4 (DIRECTA/COMERCIAL) es la que mejor funciona — prefiérela quien tenga un gancho concreto y fuerte del negocio (reseñas altas, categoría con urgencia visible, sitio web ausente, etc.).`;
 
 // Seguimiento agregado el 2026-09-05: ninguna de las 2 campañas tenía más
 // que un solo correo (sequence_count:1) — con Google Maps en 0 respuestas
@@ -51,23 +65,23 @@ AJUSTE POR DATOS REALES (Google Maps, 2026-09-13): entre los negocios que ya hem
 // y contenido diferente esto aplica para las dos campañas". Antes eran
 // respuestas cortas (2-3 frases) en el mismo hilo sin asunto propio,
 // mandadas a los días 3 y 10 — ahora son correos completos con SU PROPIO
-// asunto (mismo banco de frases de REGLA_ASUNTO_DINERO) y un ángulo
+// asunto (mismo banco de frases de REGLA_ASUNTO_TIEMPO) y un ángulo
 // genuinamente distinto al correo 1 y entre sí, mandados a los días 7 y
 // 14 (el calendario de envío real vive en la secuencia de Smartlead, ver
 // commit que actualiza seq_delay_details — aquí solo se genera el
 // contenido).
 // Función en vez de const fijo — pedido explícito del usuario el
-// 2026-09-13: el rebalanceo de familias de asunto (REGLA_ASUNTO_DINERO_GM)
+// 2026-09-13: el rebalanceo de familias de asunto (REGLA_ASUNTO_TIEMPO_GM)
 // solo aplica a Google Maps, así que los asuntos de seguimiento también
 // necesitan poder recibir la regla de dinero correcta según campaña
-// (antes REGLA_ASUNTO_DINERO quedaba fijo/compartido para las 2).
+// (antes REGLA_ASUNTO_TIEMPO quedaba fijo/compartido para las 2).
 const construirReglaSeguimientos = (reglaDinero) => `"seguimiento1Asunto": "asunto del correo de seguimiento del día 7 — DEBE ser distinto al asuntoEmail del correo 1 (no lo repitas ni lo parafrasees). ${reglaDinero}",
   "seguimiento1": "correo de seguimiento completo (3-4 frases, puede ser un párrafo corto), se manda 7 días después si no responden. NO es una nota corta tipo 'sigo al pendiente' — es un correo con su propio valor: retoma la conversación desde un ÁNGULO DISTINTO al correo 1 (ej. si el correo 1 usó el gancho de X reto operativo, este puede enfocarse en otro reto plausible, o en la misma oferta pero desde el ángulo de riesgo de no actuar, o en una oferta secundaria del mismo catálogo). Nunca inventes cifras ni casos de éxito nuevos. Sin firma/despedida ni saludo repetido tipo 'Hola [Nombre]' otra vez si ya se saludó en el correo 1 — puede abrir directo con el gancho nuevo.",
   "seguimiento2Asunto": "asunto del correo de seguimiento del día 14 — DEBE ser distinto a asuntoEmail Y a seguimiento1Asunto. ${reglaDinero}",
   "seguimiento2": "correo de seguimiento final completo (3-4 frases), se manda 14 días después si no responden. Último intento antes de dejar de insistir — ángulo distinto a los 2 correos anteriores (ej. cierre de baja presión tipo 'este es mi último mensaje por ahora' pero seguido de una razón concreta y nueva para platicar, no solo la despedida sola). Nunca inventes cifras ni casos de éxito nuevos. Sin firma/despedida."`;
 
-const REGLA_SEGUIMIENTOS = construirReglaSeguimientos(REGLA_ASUNTO_DINERO);
-const REGLA_SEGUIMIENTOS_GM = construirReglaSeguimientos(REGLA_ASUNTO_DINERO_GM);
+const REGLA_SEGUIMIENTOS = construirReglaSeguimientos(REGLA_ASUNTO_TIEMPO);
+const REGLA_SEGUIMIENTOS_GM = construirReglaSeguimientos(REGLA_ASUNTO_TIEMPO_GM);
 
 // Banco de "ofertas gratis" (lead magnets) — pedido explícito del usuario
 // el 2026-09-12 (Piloto LATAM) y ampliado el mismo día a Google Maps
@@ -116,7 +130,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin t
   "calificacion": "alta" | "media" | "baja" (qué tan buen prospecto es: alta si claramente necesita automatización/IA y parece tener presupuesto, baja si no aplica bien),
   "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
   "mensajeWhatsapp": "mensaje corto, máx 280 caracteres, tono cercano y directo en español de México, cierra con pregunta abierta. Nunca escribas placeholders entre corchetes como [Nombre] — no sabes el nombre de quien lee, dirígete directo al negocio o usa un saludo genérico ('Hola,'). NO incluyas firma ni datos de contacto, se agregan automáticamente después",
-  "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_DINERO_GM}",
+  "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_TIEMPO_GM}",
   "cuerpoEmail": "correo frío completo, 3-5 frases cortas, sin HTML. Igual que el asunto, el cuerpo también debe reforzar el enfoque de dinero perdido/dejado de ganar por el problema detectado — no basta con mencionarlo solo en el asunto, dedica al menos 1 frase del cuerpo a plantear el costo en dinero de NO resolver ese problema (ej. 'cada cliente que se va sin cotización es dinero que ya gastaste en atraerlo'), antes de presentar la oferta como la solución a esa pérdida. NUNCA inventes una cifra específica ($5,000, 30%, 'ahorra X pesos') ni afirmes resultados con otros clientes ('hemos ayudado a empresas a lograr...') que no puedas verificar — el enfoque de dinero se queda en pregunta retórica o concepto, jamás en un número o caso de éxito inventado. No te presentes por nombre en ningún punto del texto (ni al inicio ni al final) — nunca escribas 'me llamo...' ni placeholders entre corchetes como [Nombre]. No incluyas firma, despedida ('Saludos', 'Equipo Qi-Vanta') ni datos de contacto — todo eso se agrega automáticamente después, fuera de este texto. Empieza directo con el gancho sobre el negocio, sigue con el costo en dinero de no resolverlo, presenta la oferta, y termina en la pregunta/invitación a platicar",
   "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, con emoji incluido), el que mejor encaje con la oportunidad que ya elegiste en el Paso 2:\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
   ${REGLA_SEGUIMIENTOS_GM}
@@ -135,7 +149,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin t
   "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
   "oferta": "el id exacto de la oferta elegida del menú (ej. 'ai_native_sdlc', 'legacy_modernization')",
   "mensajeWhatsapp": "mensaje corto, máx 280 caracteres, tono cercano y directo en español de México, cierra con pregunta abierta. Nunca escribas placeholders entre corchetes como [Nombre] — no sabes el nombre de quien lee, dirígete directo al negocio o usa un saludo genérico ('Hola,'). NO incluyas firma ni datos de contacto, se agregan automáticamente después",
-  "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_DINERO_GM}",
+  "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_TIEMPO_GM}",
   "cuerpoEmail": "correo frío completo, 3-5 párrafos cortos, sin HTML. Igual que el asunto, el cuerpo también debe reforzar el enfoque de dinero perdido/dejado de ganar por el problema detectado. NUNCA inventes una cifra específica ni afirmes resultados con otros clientes que no puedas verificar. No te presentes por nombre en ningún punto del texto. No incluyas firma, despedida ni datos de contacto — se agrega automáticamente después. Empieza directo con el gancho sobre el negocio, sigue con el costo en dinero de no resolverlo, presenta la oferta, y termina en la pregunta/invitación a platicar",
   "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, con emoji incluido), el que mejor encaje con la 'oferta' que ya elegiste arriba:\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
   ${REGLA_SEGUIMIENTOS_GM}
@@ -239,7 +253,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin t
   "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
   "oferta": "el id exacto de la oferta elegida del menú (ej. 'data_analytics', 'enterprise_automation')",
   "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, con emoji incluido), el que mejor encaje con la 'oferta' que ya elegiste arriba (ej. si elegiste 'legacy_modernization', usa el de modernización de sistemas legacy; si elegiste 'devsecops_cybersecurity', usa el de DevSecOps):\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
-  "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_DINERO}",
+  "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_TIEMPO}",
   "cuerpoEmail": "correo completo siguiendo la estructura de 5 pasos del prompt (saludo con nombre, gancho real sobre la empresa, reto plausible en tono hedgeado, oferta elegida, cierre invitando a 15-20 min esta semana), sin HTML. NUNCA inventes una cifra específica ($, %, ahorro en dinero) ni afirmes resultados con otros clientes ('hemos ayudado a bancos a lograr X%', 'nuestros clientes ahorran Y') que no puedas verificar — eso es mentir con datos y casos de éxito falsos a un tomador de decisión real. El enfoque de dinero/OPEX se queda en pregunta retórica o concepto, nunca en un número o cliente inventado. No te presentes por nombre en ningún punto del texto — nunca escribas 'me llamo...' ni placeholders entre corchetes. No incluyas firma ni despedida — se agrega automáticamente después, fuera de este texto. NO incluyas tú mismo el texto de 'ofertaGratis' dentro del cuerpo, se agrega aparte, en código, al final",
   ${REGLA_SEGUIMIENTOS}
 }
@@ -255,16 +269,19 @@ No agregues ninguna clave adicional fuera de esas 10.`;
 // si algún asunto no trae palabra de dinero, se reescribe con una llamada
 // puntual y barata (máx 60 tokens) que SOLO tiene esa tarea, mucho más
 // confiable que pedirle 3 cosas distintas en la misma respuesta larga.
-const PALABRAS_DINERO = /(dinero|cuesta|cuestan|gastas|gastan|pagas|pagan|pagar|ahorro|ahorras|margen|costo|costos)/i;
+// Cambiado de dinero a tiempo el 2026-09-15, junto con REGLA_ASUNTO_TIEMPO.
+const PALABRAS_TIEMPO = /(tiempo|r[aá]pid[oa]|minutos?|horas?|espera|tardas?|tarda|24\/7)/i;
 const PALABRAS_USTED = /\b(su|sus|suyo|suya|usted|ustedes)\b/i;
-// Única excepción a la regla de dinero — pedido explícito del usuario el
-// 2026-09-11: familia #6 "DUPLICAR CLIENTES" en REGLA_ASUNTO_DINERO, no
-// necesita palabra de dinero.
+// Excepciones a la regla de tiempo — pedido explícito del usuario:
+// familia #6 "DUPLICAR CLIENTES" (2026-09-11) y familia #7 "DATO REAL
+// VERIFICADO" (2026-09-15, detectada por traer un número+% de la lista
+// DATOS_REALES_VERIFICADOS) no necesitan palabra de tiempo.
 const EXCEPCION_DUPLICAR = /duplicar/i;
+const EXCEPCION_DATO_REAL = /\d+\s*%/;
 
 async function corregirAsunto(asuntoOriginal, contexto) {
   const problemas = [];
-  if (!PALABRAS_DINERO.test(asuntoOriginal) && !EXCEPCION_DUPLICAR.test(asuntoOriginal)) problemas.push("no menciona dinero/costo explícitamente (agrega una palabra como 'dinero', 'cuesta', 'gastas', 'ahorro', 'costo')");
+  if (!PALABRAS_TIEMPO.test(asuntoOriginal) && !EXCEPCION_DUPLICAR.test(asuntoOriginal) && !EXCEPCION_DATO_REAL.test(asuntoOriginal)) problemas.push("no menciona tiempo/rapidez explícitamente (agrega una palabra como 'tiempo', 'rápido', 'minutos', 'horas', 'espera', 'tarda')");
   if (PALABRAS_USTED.test(asuntoOriginal)) problemas.push("usa 'su/usted' — debe ser 'tú/tu'");
   if (!problemas.length) return asuntoOriginal;
 
@@ -274,7 +291,7 @@ async function corregirAsunto(asuntoOriginal, contexto) {
       user: `Asunto original: "${asuntoOriginal}"\nContexto: ${contexto}`,
       maxTokens: 60,
     });
-    return fix?.asunto && PALABRAS_DINERO.test(fix.asunto) && !PALABRAS_USTED.test(fix.asunto) ? fix.asunto.trim() : asuntoOriginal;
+    return fix?.asunto && PALABRAS_TIEMPO.test(fix.asunto) && !PALABRAS_USTED.test(fix.asunto) ? fix.asunto.trim() : asuntoOriginal;
   } catch (err) {
     console.error("Error corrigiendo asunto:", err.message);
     return asuntoOriginal;
