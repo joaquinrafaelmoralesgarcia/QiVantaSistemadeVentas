@@ -7,6 +7,7 @@ const { aplicarCors } = require("./_cors");
 const { getDb } = require("./_mongo");
 const { esCadenaConocida } = require("./_empresaGrande");
 const { estadoFeriado } = require("./_feriadosMexico");
+const { CATEGORIAS } = require("./_prospectingSegments");
 
 const VAPI_API_URL = "https://api.vapi.ai/call";
 const COOLDOWN_MS = 10 * 60 * 1000; // 10 min entre solicitudes al mismo número
@@ -103,8 +104,15 @@ async function marcarLlamadasFrias(req, res) {
     // antepone +52 a cualquier número mexicano real, así que filtrar por
     // ese prefijo basta — un negocio de otro país de LatAm sigue
     // recibiendo correo normal, solo queda fuera de las llamadas.
+    // Solo el nuevo sector (clínicas/consultorios/hospitales/escuelas) —
+    // pedido explícito del usuario el 2026-09-15: "de aqui en adelante...
+    // solo enviaremos... a este nuevo sector". Los negocios de fuera del
+    // sector que ya estaban en la base pueden seguir su correo en curso
+    // (decisión explícita del usuario, no se les corta a medias), pero
+    // una llamada a alguien que nunca se le ha marcado es un contacto
+    // NUEVO, así que sí aplica el filtro aquí.
     const candidatos = await leadsCol
-      .find({ origenBusqueda: { $exists: true }, telefono: { $regex: "^\\+52" } })
+      .find({ origenBusqueda: { $in: CATEGORIAS }, telefono: { $regex: "^\\+52" } })
       .sort({ createdAt: 1 })
       .limit(LOTE_LLAMADAS_FRIAS * 5) // margen porque muchos ya estarán excluidos
       .toArray();
