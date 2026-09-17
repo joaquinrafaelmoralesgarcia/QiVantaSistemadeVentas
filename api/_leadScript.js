@@ -255,6 +255,21 @@ const URL_LANDING_GM = "https://negocios.qi-vanta.com"; // landing PYME lista el
 const LINEA_LANDING_LATAM = `Conoce más en <a href="${URL_LANDING_LATAM}">${URL_LANDING_LATAM.replace("https://", "")}</a>`;
 const LINEA_LANDING_GM = `Conoce más en <a href="${URL_LANDING_GM}">${URL_LANDING_GM.replace("https://", "")}</a>`;
 
+// Catálogo de videos para Google Maps — pedido explícito del usuario el
+// 2026-09-16: "tendremos un portafolio de videos que despues tu
+// seleccionaras el link de este catalogo para saber cual enviar en cada
+// correo". Por ahora solo hay 1 video (agenda/citas automáticas, el uso
+// más demandado según el análisis de mercado del mismo día — WhatsApp +
+// llamadas para agendar citas). Cuando haya más videos, se agregan aquí
+// y se puede elegir por tema/categoría en vez de usar siempre el mismo.
+const VIDEOS_GM = [
+  { id: "agenda_citas_salud", url: "https://negocios.qi-vanta.com/videos/qi-vanta-cita.mp4", tema: "agenda y citas automáticas por WhatsApp y llamadas" },
+];
+function lineaVideoGM() {
+  const video = VIDEOS_GM[0]; // único disponible por ahora
+  return `Míralo funcionando en 30 segundos: <a href="${video.url}">${video.url}</a>`;
+}
+
 // Solo para la campaña "Piloto LATAM | Decisores" (empresas medianas/
 // grandes, no los negocios chicos de Google Maps) — pedido explícito del
 // usuario el 2026-09-04: "en la de piloto latam mencionar todo lo que te
@@ -456,8 +471,8 @@ async function generarScript(negocio) {
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
   if (script.cuerpoEmail) {
     script.cuerpoEmail = esGrande
-      ? script.cuerpoEmail.trim() + sufijoOfertaGratis + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`
-      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}` + sufijoOfertaGratis + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`;
+      ? script.cuerpoEmail.trim() + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`
+      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}` + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`;
