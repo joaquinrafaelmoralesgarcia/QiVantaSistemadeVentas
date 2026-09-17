@@ -79,7 +79,20 @@ function esCadenaConocida(nombre) {
 // negocio por completo), esto solo invalida el CORREO — el teléfono de
 // cada doctor/clínica sí es real y distinto, sigue siendo contactable por
 // llamada o WhatsApp, igual que un dominio con MX inválido.
-const DOMINIOS_CORREO_EXCLUIDOS = ["doctoralia.com"];
+// "doctoranytime.mx" agregado el 2026-09-17 — mismo patrón exacto que
+// Doctoralia (otra plataforma de citas médicas), encontrado con la
+// validación diaria: "support@doctoranytime.mx" apareció como correo de
+// 2 doctores de especialidades totalmente distintas.
+const DOMINIOS_CORREO_EXCLUIDOS = ["doctoralia.com", "doctoranytime.mx"];
+
+// Correos de plantilla/placeholder que a veces quedan en el sitio web de
+// un negocio sin que nadie los haya reemplazado (ej. "usuario@dominio.com"
+// literal, texto de ejemplo de una plantilla web) — encontrado el
+// 2026-09-17 con la validación diaria: 2 negocios totalmente distintos
+// compartían "usuario@dominio.com" porque ambos tenían el mismo texto de
+// plantilla sin reemplazar en su sitio, no porque compartan nada real.
+// Comparación EXACTA (no substring), a diferencia de DOMINIOS_CORREO_EXCLUIDOS.
+const CORREOS_PLACEHOLDER = ["usuario@dominio.com", "correo@dominio.com", "email@dominio.com", "tu@correo.com", "ejemplo@dominio.com", "nombre@dominio.com"];
 
 // Bienes raíces — pedido explícito del usuario el 2026-09-15: "quita del
 // scrapeo todo lo que son bienes raices o empresas de bienes raices".
@@ -98,6 +111,7 @@ function esInmobiliaria(negocio) {
 
 function esCorreoDePlataformaExcluida(correo) {
   const correoLower = (correo || "").toLowerCase();
+  if (CORREOS_PLACEHOLDER.includes(correoLower)) return "placeholder";
   return DOMINIOS_CORREO_EXCLUIDOS.find((d) => correoLower.endsWith("@" + d)) || null;
 }
 
