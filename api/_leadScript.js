@@ -270,6 +270,21 @@ function lineaVideoGM() {
   return `Míralo funcionando en 30 segundos: <a href="${video.url}">${video.url}</a>`;
 }
 
+// Catálogo de videos para Piloto LATAM — pedido explícito del usuario el
+// 2026-09-17. Primer video basado en el dato real de métricas: la
+// familia "duplicar_clientes" es la de mejor desempeño real en esta
+// campaña (134 aperturas en 122 envíos, la mejor muestra sólida) — el
+// video muestra justo ese ángulo (crecer sin duplicar la carga
+// operativa). Alojado en negocios.qi-vanta.com por ser el único dominio
+// con despliegue activo desde aquí (qi-vanta.com vive en Cloudflare).
+const VIDEOS_LATAM = [
+  { id: "duplicar_clientes_enterprise", url: "https://negocios.qi-vanta.com/videos/qi-vanta-escala.mp4", tema: "crecer/escalar sin duplicar la carga operativa" },
+];
+function lineaVideoLatam() {
+  const video = VIDEOS_LATAM[0]; // único disponible por ahora
+  return `Míralo funcionando en 30 segundos: <a href="${video.url}">${video.url}</a>`;
+}
+
 // Solo para la campaña "Piloto LATAM | Decisores" (empresas medianas/
 // grandes, no los negocios chicos de Google Maps) — pedido explícito del
 // usuario el 2026-09-04: "en la de piloto latam mencionar todo lo que te
@@ -423,7 +438,7 @@ async function generarScriptEmpresa(lead) {
   // ignora en vez de mandar un texto inventado/parafraseado al lead.
   const ofertaGratisValida = OFERTAS_GRATIS.includes(script.ofertaGratis) ? script.ofertaGratis : null;
   if (script.cuerpoEmail) {
-    script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
+    script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${lineaVideoLatam()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
