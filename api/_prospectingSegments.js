@@ -28,6 +28,11 @@ const CATEGORIAS = [
   // Escuelas
   "escuelas primarias", "escuelas secundarias", "escuelas preparatorias", "colegios privados",
   "guarderías", "jardines de niños", "escuelas de educación especial",
+  // Despachos contables — agregado el 2026-09-17, pedido explícito del
+  // usuario: buscar también despachos contables en Google Maps,
+  // ofreciendo el ángulo específico de "Inteligencia Artificial aplicada
+  // a la Contabilidad" (ver _prospectingPrompt.js).
+  "despachos contables",
 ];
 
 const CIUDADES = [
