@@ -2,6 +2,7 @@ const { chatCompletionJSON } = require("./_deepinfraClient");
 const { PROSPECTING_SYSTEM_PROMPT } = require("./_prospectingPrompt");
 const { construirPromptEmpresa } = require("./_prospectingPromptEnterprise");
 const { PROSPECTING_SYSTEM_PROMPT_GRANDE_GM } = require("./_prospectingPromptGrandeGoogleMaps");
+const { elegirProductoParaLead } = require("./_productosLatam");
 
 // Compartida entre PYME (Google Maps) y empresa (Piloto LATAM) — pedido
 // explícito del usuario el 2026-09-04, ampliado el 2026-09-10 con un banco
@@ -285,6 +286,19 @@ function lineaVideoLatam() {
   return `Míralo funcionando en 30 segundos: <a href="${video.url}">${video.url}</a>`;
 }
 
+// Catálogo enterprise (~90 líneas de solución de IA por área/industria) —
+// pedido explícito del usuario el 2026-09-18: "genera un link de vercel
+// para que puedan ver nuestros productos... ofrece uno de estos de
+// acuerdo a la empresa o negocio de los leads". elegirProductoParaLead()
+// mapea empresa/descripción/puesto del lead a la línea que mejor encaja
+// (ver _productosLatam.js); el link con ?p=slug resalta esa misma línea
+// en la página al abrirla, sin que el resto del catálogo desaparezca.
+function lineaProductoLatam(lead) {
+  const producto = elegirProductoParaLead(lead);
+  const url = `https://negocios.qi-vanta.com/enterprise/?p=${producto.slug}`;
+  return `Para empresas como la tuya, una de las líneas que más se pide es "${producto.nombre}": ${producto.resumen} Puedes ver ese ejemplo y el resto de líneas que trabajamos aquí: <a href="${url}">${url}</a>`;
+}
+
 // Solo para la campaña "Piloto LATAM | Decisores" (empresas medianas/
 // grandes, no los negocios chicos de Google Maps) — pedido explícito del
 // usuario el 2026-09-04: "en la de piloto latam mencionar todo lo que te
@@ -438,7 +452,7 @@ async function generarScriptEmpresa(lead) {
   // ignora en vez de mandar un texto inventado/parafraseado al lead.
   const ofertaGratisValida = OFERTAS_GRATIS.includes(script.ofertaGratis) ? script.ofertaGratis : null;
   if (script.cuerpoEmail) {
-    script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${lineaVideoLatam()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
+    script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${lineaVideoLatam()}\n\n${lineaProductoLatam(lead)}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
@@ -530,4 +544,4 @@ async function generarSeguimientos(cuerpoEmailOriginal, { esEmpresa = false } = 
   return script;
 }
 
-module.exports = { generarScript, generarScriptEmpresa, generarSeguimientos };
+module.exports = { generarScript, generarScriptEmpresa, generarSeguimientos, lineaProductoLatam };
