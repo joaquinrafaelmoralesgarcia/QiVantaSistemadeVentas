@@ -41,11 +41,23 @@ const PER_PAGE = 25;
 // de Google Maps se bajó a 50 (Piloto LATAM se subió a 190, fuera de
 // este archivo, vía Smartlead directo — no cambia dinámicamente, así
 // que no hace falta mantenerlo aquí). Cuando Apollo/Hunter se quedan sin
-// nada nuevo que mandar ese día, Google Maps sube a 240 (todo el cupo)
-// para no dejarlo sin usar; en cuanto Apollo vuelve a tener leads,
-// regresa solo a 50.
+// nada NUEVO que mandar ese día, Google Maps sube (TOPE_GOOGLE_MAPS_AMPLIADO)
+// para no dejar el cupo sin usar.
+//
+// BUG REAL encontrado el 2026-09-18 (el mismo día que se agotaron los
+// créditos de Apollo por completo): el ampliado estaba en 240, el cupo
+// COMPLETO de las 6 cuentas. "Sin leads nuevos que agregar" se estaba
+// tratando como "Piloto LATAM no necesita nada de cupo hoy" — falso: con
+// Apollo agotado hasta noviembre, esa condición pasó de ser un bache
+// ocasional a ser el estado de TODOS los días, y Piloto LATAM seguía
+// teniendo 746 leads EN PROGRESO (esperando su seguimiento 2 o 3, no
+// leads nuevos) que sí necesitan que le toque cupo de envío diario. El
+// resultado real ese día: Google Maps mandó 230+ correos y Piloto LATAM
+// mandó CERO en todo el día, pese a estar ACTIVE y dentro de su horario.
+// Bajado a 100 — sigue aprovechando el cupo ocioso de Google Maps sin
+// dejar a Piloto LATAM sin nada del pool compartido de 240.
 const TOPE_GOOGLE_MAPS_NORMAL = 50;
-const TOPE_GOOGLE_MAPS_AMPLIADO = 240;
+const TOPE_GOOGLE_MAPS_AMPLIADO = 100;
 
 // Progresión automática de niveles (país + banda de tamaño de empresa) —
 // pedido explícito del usuario el 2026-09-08: "cuando termines de

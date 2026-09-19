@@ -142,7 +142,96 @@ function validarCruceEntreCampanias(correosGM, correosLatam) {
   }
 }
 
-// Chequeo 6: ¿de verdad corrieron solos los demás crons hoy? — pedido
+// Chequeo 6 (cupo compartido): detecta si una campaña ACTIVA, dentro de
+// su horario de hoy, con leads EN PROGRESO (esperando seguimiento), se
+// quedó en CERO envíos — señal de que otra campaña se comió todo el cupo
+// compartido de las 6 cuentas de correo (40/cuenta = 240/día entre las 2
+// campañas). Encontrado en real el 2026-09-18: al agotarse los créditos
+// de Apollo, el tope "ampliado" de Google Maps quedó fijo en 240 (el
+// cupo COMPLETO) por confundir "sin leads nuevos que agregar" con "sin
+// nada que enviar" — Piloto LATAM tenía 746 leads en progreso esperando
+// su seguimiento y mandó CERO correos en todo el día. Ver
+// TOPE_GOOGLE_MAPS_AMPLIADO en cron-scrape-empresas.js (ya bajado a 100).
+// Solo evalúa después del mediodía CDMX para no dar falso positivo temprano
+// en el día, cuando todavía es normal no haber enviado nada.
+async function validarCupoCompartidoSmartlead() {
+  const CAMPANIAS = [
+    { nombre: "Google Maps", id: process.env.SMARTLEAD_CAMPAIGN_ID },
+    { nombre: "Piloto LATAM", id: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM },
+  ];
+
+  const ahoraCdmx = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
+  const diaSemanaCdmx = ahoraCdmx.getDay(); // 0=domingo..6=sábado
+  const horaCdmx = ahoraCdmx.getHours();
+
+  for (const { nombre, id } of CAMPANIAS) {
+    if (!id) continue;
+    try {
+      const resInfo = await fetch(`${SMARTLEAD_BASE}/campaigns/${id}?api_key=${encodeURIComponent(SMARTLEAD_API_KEY)}`);
+      const info = await resInfo.json();
+      if (info.status !== "ACTIVE") {
+        console.log(`[OK] ${nombre}: no está ACTIVE (${info.status}), se omite el chequeo de cupo.`);
+        continue;
+      }
+      const dias = info.scheduler_cron_value?.days || [];
+      // scheduler_cron_value usa 1=lunes..7=domingo (o 6=sábado sin domingo) — Date.getDay() usa 0=domingo.
+      const diaSemanaSmartlead = diaSemanaCdmx === 0 ? 7 : diaSemanaCdmx;
+      if (!dias.includes(diaSemanaSmartlead)) {
+        console.log(`[OK] ${nombre}: hoy no es día programado, se omite el chequeo de cupo.`);
+        continue;
+      }
+      const horaFin = parseInt((info.scheduler_cron_value?.endHour || "19:00").split(":")[0], 10);
+      if (horaCdmx < Math.min(14, horaFin - 1)) {
+        console.log(`[OK] ${nombre}: aún temprano en su horario de hoy, se omite el chequeo de cupo.`);
+        continue;
+      }
+
+      let enProgreso = 0;
+      let offset = 0;
+      const limit = 100;
+      while (true) {
+        const res = await fetch(`${SMARTLEAD_BASE}/campaigns/${id}/leads?api_key=${encodeURIComponent(SMARTLEAD_API_KEY)}&offset=${offset}&limit=${limit}`);
+        const data = await res.json();
+        const pagina = data.data || [];
+        enProgreso += pagina.filter((it) => it.status === "INPROGRESS" || it.status === "STARTED").length;
+        if (pagina.length < limit) break;
+        offset += limit;
+      }
+      if (!enProgreso) {
+        console.log(`[OK] ${nombre}: sin leads en progreso esperando envío hoy.`);
+        continue;
+      }
+
+      const inicioHoyCdmxUTC = new Date();
+      inicioHoyCdmxUTC.setUTCHours(inicioHoyCdmxUTC.getUTCHours() - 6); // aproxima CDMX (UTC-6, sin horario de verano)
+      inicioHoyCdmxUTC.setUTCHours(0, 0, 0, 0);
+      inicioHoyCdmxUTC.setUTCHours(inicioHoyCdmxUTC.getUTCHours() + 6);
+
+      let enviadosHoy = 0;
+      offset = 0;
+      while (true) {
+        const res = await fetch(`${SMARTLEAD_BASE}/campaigns/${id}/statistics?api_key=${encodeURIComponent(SMARTLEAD_API_KEY)}&offset=${offset}&limit=${limit}`);
+        const data = await res.json().catch(() => ({}));
+        const pagina = data.data || [];
+        if (!pagina.length) break;
+        enviadosHoy += pagina.filter((it) => it.sent_time && new Date(it.sent_time) >= inicioHoyCdmxUTC).length;
+        if (pagina.length < limit) break;
+        offset += limit;
+        if (offset > 3000) break;
+      }
+
+      if (enviadosHoy === 0) {
+        reportar("ERROR", `${nombre}: ACTIVA, dentro de su horario de hoy, con ${enProgreso} lead(s) en progreso, pero 0 correos enviados hoy — probable acaparamiento del cupo compartido por la otra campaña.`);
+      } else {
+        console.log(`[OK] ${nombre}: ${enviadosHoy} correo(s) enviados hoy, ${enProgreso} en progreso.`);
+      }
+    } catch (err) {
+      console.error(`Error validando cupo compartido de ${nombre}:`, err.message);
+    }
+  }
+}
+
+// Chequeo 7: ¿de verdad corrieron solos los demás crons hoy? — pedido
 // explícito del usuario el 2026-09-14, después de que TODOS los crons de
 // una sola corrida diaria (festivo, monitor, scrapeos, métricas) no se
 // dispararan solos el día que se migró este repo — "debes desarrollar un
@@ -209,6 +298,7 @@ async function validarCronsCorrieron() {
   const correosGM = await validarDuplicadosSmartlead("Google Maps", process.env.SMARTLEAD_CAMPAIGN_ID);
   const correosLatam = await validarDuplicadosSmartlead("Piloto LATAM", process.env.SMARTLEAD_CAMPAIGN_ID_LATAM);
   validarCruceEntreCampanias(correosGM, correosLatam);
+  await validarCupoCompartidoSmartlead();
   await validarCronsCorrieron();
 
   console.log(`\n=== Resultado: ${hallazgos.length} hallazgo(s) ===`);
