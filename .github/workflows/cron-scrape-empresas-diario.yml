@@ -26,10 +26,23 @@ jobs:
   scrapear:
     runs-on: ubuntu-latest
     steps:
-      - name: Buscar hasta juntar mínimo 150 contactos con correo
+      - name: Buscar hasta juntar mínimo 100 contactos con correo
         run: |
-          MIN_CON_CORREO=150
-          MAX_INTENTOS=10
+          # MAX_INTENTOS subido de 10 a 55 el 2026-09-19 — pedido explícito
+          # del usuario: "mi suscripcion de apollo me da para mas de 2 mil
+          # leads al mes, como aseguramos que cuando vuelva a pagar no se
+          # pierdan esos creditos". Cada intento procesa como máximo 2
+          # candidatos NUEVOS de Apollo (MAX_NUEVOS_POR_CORRIDA en
+          # _leadsProcessorEmpresa.js — ese tope es por el límite de 60s de
+          # Vercel Hobby por invocación, no se toca). Con 10 intentos el
+          # techo real eran ~20 candidatos de Apollo/día — a 5 días/semana
+          # eso es ~400-430/mes, muy por debajo de los 2000+ que da la
+          # suscripción: la mayoría de los créditos se hubieran quedado sin
+          # usar cada mes. Con 55 intentos el techo sube a ~110/día
+          # (~2,100-2,300/mes en los ~21 días hábiles de un mes), suficiente
+          # para agotar el cupo mensual real antes de que se renueve.
+          MIN_CON_CORREO=100
+          MAX_INTENTOS=55
           totalConCorreo=0
           intento=0
           detenido="false"
