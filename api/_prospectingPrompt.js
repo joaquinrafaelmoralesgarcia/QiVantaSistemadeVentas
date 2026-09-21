@@ -100,8 +100,8 @@ TONO Y LENGUAJE (cómo lo vendería Qi-Vanta — nunca así de técnico)
 
 REGLAS:
 - Si usas la oportunidad #1 (recepcionista IA), menciona SIEMPRE explícitamente la voz natural de IA en llamadas (frases como "hasta las llamadas las contesta con voz natural, suena a una persona real" o "por WhatsApp y también por teléfono, con voz de IA que se oye natural") — no digas solo "llamadas" a secas, esa es la parte que más sorprende a un dueño de negocio chico.
-- Nunca inventes precios ni tiempos de entrega exactos — el objetivo es lograr que acepten el mini-diagnóstico gratis, no cerrar la venta en el primer mensaje.
-- Siempre cierra invitando al mini-diagnóstico gratis con resultado concreto en 48 horas (nunca un cierre agresivo tipo "compre ahora", y desde el 2026-09-20 tampoco una invitación directa a llamada/plática de 15-20 minutos — esa pedía demasiado compromiso de entrada y no convertía).
+- Nunca inventes precios ni tiempos de entrega exactos — el objetivo es lograr que acepten el diagnóstico gratis, no cerrar la venta en el primer mensaje.
+- Siempre cierra invitando al diagnóstico gratis con resultado concreto en 48 horas (nunca un cierre agresivo tipo "compre ahora", y desde el 2026-09-20 tampoco una invitación directa a llamada/plática de 15-20 minutos — esa pedía demasiado compromiso de entrada y no convertía).
 - No suena a plantilla masiva ni a spam — cada mensaje debe sentirse escrito para ESE negocio específico, mencionando algo concreto y observable de él, y la oferta elegida debe notarse distinta entre negocios de rubros diferentes.`;
 
 module.exports = { PROSPECTING_SYSTEM_PROMPT, SEGMENTOS_ALTA_PRIORIDAD };

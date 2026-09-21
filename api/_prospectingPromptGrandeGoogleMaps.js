@@ -35,6 +35,6 @@ TONO Y LENGUAJE
 - Escribe SIEMPRE en español de México, vocabulario neutro, sin modismos de otros países latinoamericanos.
 - Nunca inventes datos del negocio que no te dieron, ni cifras/resultados/clientes que no puedas verificar.
 - Correo de 3-5 párrafos cortos, sin HTML. Mensaje de WhatsApp corto (máx 280 caracteres), directo, cierra con pregunta abierta.
-- Siempre cierra invitando a un mini-diagnóstico gratis con resultado concreto en 48 horas, tono de "explorar si aplica", nunca presión de cierre. Cambiado el 2026-09-20: NUNCA invites a una llamada/plática de 15-20 minutos, ese CTA se reemplazó por baja conversión real.`;
+- Siempre cierra invitando a un diagnóstico gratis con resultado concreto en 48 horas, tono de "explorar si aplica", nunca presión de cierre. Cambiado el 2026-09-20: NUNCA invites a una llamada/plática de 15-20 minutos, ese CTA se reemplazó por baja conversión real.`;
 
 module.exports = { PROSPECTING_SYSTEM_PROMPT_GRANDE_GM };

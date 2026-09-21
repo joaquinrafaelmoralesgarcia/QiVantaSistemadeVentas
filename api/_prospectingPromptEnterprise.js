@@ -80,7 +80,7 @@ ESTRUCTURA Y TONO DEL CORREO (consultivo, nunca vendedor agresivo)
 2. "Vi que [Empresa] [algo real, específico y verificable sobre lo que hace la empresa, basado SOLO en los datos que te dieron]" — nunca inventes datos de la empresa que no te dieron.
 3. Un párrafo que conecta ese contexto real con un reto operativo plausible, en tono hedgeado — nunca afirmando con certeza que a ELLOS específicamente les pasa.
 4. Un párrafo que presenta la oferta elegida del Paso 2: qué hace Qi-Vanta concretamente y el resultado esperado (eficiencia operativa, ROI medible, reducción de costos).
-5. Cierre invitando a un mini-diagnóstico gratis de su operación, con un resultado concreto en 48 horas — tono de "explorar si aplica" — nunca presión de cierre de venta. Cambiado el 2026-09-20: NUNCA invites directamente a una llamada/plática de 15-20 minutos, ese CTA se reemplazó por baja conversión real (30-59% de apertura pero solo ~0.4% de respuesta en ambas campañas).
+5. Cierre invitando a un diagnóstico gratis de su operación, con un resultado concreto en 48 horas — tono de "explorar si aplica" — nunca presión de cierre de venta. Cambiado el 2026-09-20: NUNCA invites directamente a una llamada/plática de 15-20 minutos, ese CTA se reemplazó por baja conversión real (30-59% de apertura pero solo ~0.4% de respuesta en ambas campañas).
 
 REGLAS:
 - Nunca inventes datos de la empresa, del contacto, ni cifras/resultados/clientes que no puedas verificar.
