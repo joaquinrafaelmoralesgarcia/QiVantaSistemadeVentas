@@ -263,6 +263,17 @@ const URL_LANDING_GM = "https://negocios.qi-vanta.com"; // landing PYME lista el
 const LINEA_LANDING_LATAM = `Conoce más en <a href="${URL_LANDING_LATAM}">${URL_LANDING_LATAM.replace("https://", "")}</a>`;
 const LINEA_LANDING_GM = `Conoce más en <a href="${URL_LANDING_GM}">${URL_LANDING_GM.replace("https://", "")}</a>`;
 
+// Google Maps no tenía el link al catálogo enterprise (negocios.qi-vanta.com/
+// enterprise/) en el cuerpo — solo Piloto LATAM y Alianzas lo tenían, vía
+// lineaProductoLatam()/el cuerpo fijo de _alianzasScript.js. Agregado el
+// 2026-09-21 — pedido explícito del usuario tras notar la firma
+// duplicaba el link que Piloto LATAM/Alianzas ya traían en el cuerpo:
+// en vez de quitarlo de la firma (afectaría a las 3 campañas por igual,
+// la firma es por CUENTA, no por campaña), se decidió que las 3
+// campañas lo traigan en el cuerpo también, por consistencia.
+const URL_ENTERPRISE = "https://negocios.qi-vanta.com/enterprise/";
+const LINEA_SERVICIOS_ENTERPRISE = `También puedes ver el resto de nuestras soluciones de IA aquí: <a href="${URL_ENTERPRISE}">${URL_ENTERPRISE}</a>`;
+
 // Catálogo de videos para Google Maps — pedido explícito del usuario el
 // 2026-09-16: "tendremos un portafolio de videos que despues tu
 // seleccionaras el link de este catalogo para saber cual enviar en cada
@@ -507,13 +518,13 @@ async function generarScript(negocio) {
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
   if (script.cuerpoEmail) {
     script.cuerpoEmail = esGrande
-      ? script.cuerpoEmail.trim() + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`
-      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}` + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`;
+      ? script.cuerpoEmail.trim() + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}`
+      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}` + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`;
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}`;
   if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_GM}`;
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}`;
   return script;
 }
 
