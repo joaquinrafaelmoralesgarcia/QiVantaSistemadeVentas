@@ -250,11 +250,23 @@ async function validarCupoCompartidoSmartlead() {
 // lunes-viernes necesitan ventana suficiente para que el chequeo del
 // lunes por la mañana todavía alcance a ver la última corrida real del
 // viernes, cruzando el fin de semana sin corridas.
+// Subido de 66 a 90h el 2026-09-21 tras un falso positivo real: GitHub
+// Actions sigue disparando los crons programados ~5h tarde (patrón ya
+// conocido, ver comentario de cron-scrape-empresas-diario.yml) — este
+// MISMO chequeo diario también se dispara tarde. El lunes 2026-09-21 el
+// chequeo corrió a las 18:26 UTC (programado 13:00 UTC), y la última
+// corrida real de cron-scrape-empresas-diario.yml era del viernes
+// 17:12 UTC (también tarde, programado 13:45 UTC) — 73h14min de
+// diferencia, más que las 66h de ventana. La corrida real del lunes
+// llegó 28 minutos después del chequeo (18:54 UTC), o sea SÍ estaba
+// corriendo bien, solo que el chequeo la buscó demasiado pronto. 90h da
+// margen a que ambos extremos (la corrida del viernes Y el chequeo del
+// lunes) lleguen tarde sin que se dispare una alarma falsa.
 const CRONS_A_VIGILAR = [
   { archivo: "verificar-feriado.yml", ventanaHoras: 30 }, // corre todos los días
   { archivo: "cron-monitor-campanas.yml", ventanaHoras: 60 }, // lunes-sábado
-  { archivo: "cron-scrape-empresas-diario.yml", ventanaHoras: 66 }, // lunes-viernes
-  { archivo: "cron-scrape-diario.yml", ventanaHoras: 66 }, // lunes-viernes
+  { archivo: "cron-scrape-empresas-diario.yml", ventanaHoras: 90 }, // lunes-viernes
+  { archivo: "cron-scrape-diario.yml", ventanaHoras: 90 }, // lunes-viernes
   { archivo: "cron-llamadas-frias.yml", ventanaHoras: 72 }, // lunes-viernes, varias veces al día
 ];
 
