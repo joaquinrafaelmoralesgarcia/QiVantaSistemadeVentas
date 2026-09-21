@@ -16,16 +16,10 @@
 // "Paso 1" por lead. Solo se personaliza el nombre y se rota el asunto.
 const LINK_SERVICIOS = "https://negocios.qi-vanta.com/enterprise/";
 
-const ASUNTOS_ALIANZA = [
-  "¿Alianza tecnológica entre tu empresa y Qi-Vanta?",
-  "Propuesta de alianza: IA para tus clientes, sin salir de tu marca",
-  "¿Te interesa una alianza para ofrecer IA a tus clientes?",
-  "Alianza tecnológica: tú mantienes al cliente, nosotros la IA",
-  "Una alianza que no compite con tu negocio",
-  "IA para tus clientes empresariales, en alianza con Qi-Vanta",
-  "¿Construimos una alianza de tecnología juntos?",
-  "Partner técnico de IA para tus clientes actuales",
-];
+// Fijo desde el 2026-09-21 — pedido explícito del usuario: "de ahora en
+// adelante en esta campaña de alianza el titulo sera el mismo para
+// todos". Antes rotaba entre 8 variantes; ya no.
+const ASUNTO_ALIANZA_FIJO = "Hagamos una Alianza que no compite con tu negocio con Qi-Vanta";
 
 const SEGUIMIENTO1_ASUNTOS = [
   "¿Alguna oportunidad de IA que no estés cubriendo hoy?",
@@ -68,7 +62,7 @@ function saludo(lead) {
 
 function generarCorreoAlianza(lead) {
   const saludoLead = saludo(lead);
-  const asuntoEmail = elegirPorHash(ASUNTOS_ALIANZA, lead.correo);
+  const asuntoEmail = ASUNTO_ALIANZA_FIJO;
 
   const cuerpoEmail = `${saludoLead}
 
