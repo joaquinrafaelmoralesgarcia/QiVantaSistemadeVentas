@@ -72,7 +72,7 @@ function generarCorreoAlianza(lead) {
 
   const cuerpoEmail = `${saludoLead}
 
-Soy Joaquín Morales de Qi-Vanta.
+Somos Qi-Vanta.
 
 Estamos buscando generar alianzas con empresas de tecnología que ya atienden clientes empresariales y que están recibiendo solicitudes relacionadas con Inteligencia Artificial, automatización, agentes de IA o modernización tecnológica, pero cuyo foco principal está en otras especialidades.
 
