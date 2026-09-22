@@ -170,4 +170,33 @@ async function obtenerEstadoRealCampania(campaignId) {
   return data.status;
 }
 
-module.exports = { agregarLeadACampania, actualizarTopeCampania, obtenerEstadosDeCampania, eliminarLeadDeCampania, actualizarEstadoCampania, obtenerEstadoRealCampania };
+// Buzón maestro de Smartlead — junta las respuestas de TODAS las
+// campañas en una sola llamada (a diferencia de recorrer
+// /campaigns/{id}/statistics campaña por campaña). Pedido explícito del
+// usuario el 2026-09-22: "de cualquier campaña si alguien contesta un
+// correo recuerda enviarlo a la cuenta de info@qi-vanta.com... desde
+// también el buzón maestro de smartlead". Paginado — devuelve TODAS las
+// respuestas encontradas, sin importar la campaña.
+async function obtenerRespuestasMasterInbox() {
+  const apiKey = process.env.SMARTLEAD_API_KEY;
+  const respuestas = [];
+  let offset = 0;
+  const limit = 20; // máximo que acepta este endpoint
+  while (true) {
+    const res = await fetch(`${SMARTLEAD_BASE_URL}/master-inbox/inbox-replies?api_key=${encodeURIComponent(apiKey)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offset, limit }),
+    });
+    if (!res.ok) throw new Error(`No se pudo consultar el buzón maestro de Smartlead (${res.status})`);
+    const data = await res.json();
+    const pagina = data.data || [];
+    respuestas.push(...pagina);
+    if (pagina.length < limit) break;
+    offset += limit;
+    if (offset > 2000) break; // límite de seguridad, no debería haber tantas respuestas
+  }
+  return respuestas;
+}
+
+module.exports = { agregarLeadACampania, actualizarTopeCampania, obtenerEstadosDeCampania, eliminarLeadDeCampania, actualizarEstadoCampania, obtenerEstadoRealCampania, obtenerRespuestasMasterInbox };

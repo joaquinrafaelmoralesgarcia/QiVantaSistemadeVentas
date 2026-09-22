@@ -309,6 +309,7 @@ const CRONS_A_VIGILAR = [
   { archivo: "cron-scrape-empresas-diario.yml", ventanaHoras: 90 }, // lunes-viernes
   { archivo: "cron-scrape-diario.yml", ventanaHoras: 90 }, // lunes-viernes
   { archivo: "cron-llamadas-frias.yml", ventanaHoras: 72 }, // lunes-viernes, varias veces al día
+  { archivo: "cron-notificar-respuestas.yml", ventanaHoras: 60 }, // lunes-sábado, cada 30 min
 ];
 
 async function validarCronsCorrieron() {
