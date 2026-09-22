@@ -21,43 +21,19 @@ const LINK_SERVICIOS = "https://negocios.qi-vanta.com/enterprise/";
 // todos". Antes rotaba entre 8 variantes; ya no.
 const ASUNTO_ALIANZA_FIJO = "Hagamos una Alianza que no compite con tu negocio con Qi-Vanta";
 
-const SEGUIMIENTO1_ASUNTOS = [
-  "¿Alguna oportunidad de IA que no estés cubriendo hoy?",
-  "Retomando la propuesta de alianza",
-  "Un ejemplo concreto de cómo trabajaríamos juntos",
-];
+// Fijos por el mismo pedido del 2026-09-22 (mismo título para todos) —
+// antes rotaban entre 3 variantes cada uno.
+const SEGUIMIENTO1_ASUNTO_FIJO = "¿Alguna oportunidad de IA que no estés cubriendo hoy?";
+const SEGUIMIENTO2_ASUNTO_FIJO = "Último mensaje sobre la alianza";
 
-const SEGUIMIENTO2_ASUNTOS = [
-  "Último mensaje sobre la alianza",
-  "Cierro el tema de la alianza por ahora",
-  "Quedamos abiertos cuando te haga sentido",
-];
-
-// Rotación determinística por correo (no al azar en cada corrida) — así
-// si algún día se re-genera el mismo lead, no cambia de asunto sin razón.
-function elegirPorHash(lista, semilla) {
-  let hash = 0;
-  for (const c of semilla || "") hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
-  return lista[hash % lista.length];
-}
-
-function primerNombre(nombreCompleto) {
-  return (nombreCompleto || "").trim().split(/\s+/)[0] || "";
-}
-
-// Los leads de Google Maps de esta lista no tienen contacto real, solo el
-// nombre del NEGOCIO ("Servicios Profesionales en Informática") — no un
-// nombre de persona como los de Piloto LATAM ("Julio Milla Hernandez").
-// Detectado el 2026-09-20 al ver que salía "Hola Servicios," con esos
-// leads. esPersona (lo pasa el caller según origen: true para
-// apollo_latam/clay_latam, false para Google Maps) decide si se usa el
-// saludo con nombre o uno genérico — mismo criterio que ya usa
-// mensajeWhatsapp en _prospectingPrompt.js para negocios sin contacto
-// conocido.
-function saludo(lead) {
-  if (lead.esPersona === false) return "Hola,";
-  const nombre = primerNombre(lead.nombre);
-  return nombre ? `Hola ${nombre},` : "Hola,";
+// Saludo genérico fijo para todos — pedido explícito del usuario el
+// 2026-09-22: "quiero el mismo titulo y cuerpo de correo para todos los
+// correos de la campaña alianza". Antes insertaba el primer nombre
+// cuando el lead traía contacto de persona (Piloto LATAM); ahora es
+// "Hola," siempre, igual para los 37 leads (25 ya enviados + 12 nuevos)
+// sin importar la fuente.
+function saludo() {
+  return "Hola,";
 }
 
 function generarCorreoAlianza(lead) {
@@ -94,14 +70,14 @@ Si actualmente tienen alguna oportunidad de IA que no estén cubriendo intername
 
 ¿Tendrías un espacio para explorar si existe posibilidad de colaboración?`;
 
-  const seguimiento1Asunto = elegirPorHash(SEGUIMIENTO1_ASUNTOS, lead.correo + "1");
+  const seguimiento1Asunto = SEGUIMIENTO1_ASUNTO_FIJO;
   const seguimiento1 = `${saludoLead} te escribí hace unos días sobre una posible alianza entre tu empresa y Qi-Vanta.
 
 Para que sea más concreto: si hoy uno de tus clientes te pidiera un agente de IA, automatización de un proceso, o modernizar un sistema legacy con IA, y no es algo que manejen internamente — ahí es donde entraríamos nosotros, como partner técnico, sin tocar la relación comercial que ya tienen con ese cliente.
 
 ¿Tiene sentido platicarlo 15 minutos, o prefieres que te comparta un caso concreto primero?`;
 
-  const seguimiento2Asunto = elegirPorHash(SEGUIMIENTO2_ASUNTOS, lead.correo + "2");
+  const seguimiento2Asunto = SEGUIMIENTO2_ASUNTO_FIJO;
   const seguimiento2 = `${saludoLead} este es mi último mensaje por ahora sobre la alianza — no quiero insistir de más.
 
 Si más adelante te llega una solicitud de IA que no cubran internamente, con gusto lo platicamos en ese momento. Quedo abierto cuando te haga sentido.`;
