@@ -158,6 +158,7 @@ async function validarCupoCompartidoSmartlead() {
   const CAMPANIAS = [
     { nombre: "Google Maps", id: process.env.SMARTLEAD_CAMPAIGN_ID },
     { nombre: "Piloto LATAM", id: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM },
+    { nombre: "Alianzas", id: process.env.SMARTLEAD_CAMPAIGN_ID_ALIANZAS || "3990563" },
   ];
 
   const ahoraCdmx = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
@@ -231,7 +232,47 @@ async function validarCupoCompartidoSmartlead() {
   }
 }
 
-// Chequeo 7: ¿de verdad corrieron solos los demás crons hoy? — pedido
+// Chequeo 7 (salud de cuentas de correo): revisa las 2 formas reales en
+// que una cuenta puede dejar de mandar sin que el status de la campaña
+// (ACTIVE) lo refleje — pedido explícito del usuario el 2026-09-22 tras
+// un incidente real: Piloto LATAM llevaba desde el jueves 2026-09-17 sin
+// mandar NADA (3 días hábiles en cero) y la causa real nunca fue el
+// status de la campaña (siempre dijo ACTIVE) sino:
+//   1. SMTP roto (is_smtp_success:false) — login inválido con Google
+//      (error 534-5.7.14), encontrado el 2026-09-19 en 4 de 6 cuentas.
+//   2. Warmup en INACTIVE — encontrado el 2026-09-22: cuando el login
+//      falló, Smartlead pausó el warmup de esas cuentas solo, y aunque
+//      el usuario ya arregló la contraseña (SMTP volvió a true), el
+//      warmup NUNCA se reactivó solo — dejando la cuenta con SMTP sano
+//      pero probablemente excluida de la rotación real de envío de
+//      todas formas. Ambos hallazgos son ERROR aunque el status de la
+//      campaña diga ACTIVE, precisamente porque ese campo no los detecta.
+async function validarSaludCuentasCorreo() {
+  try {
+    const res = await fetch(`${SMARTLEAD_BASE}/email-accounts/?api_key=${encodeURIComponent(SMARTLEAD_API_KEY)}&offset=0&limit=50`);
+    const cuentas = await res.json();
+    if (!Array.isArray(cuentas)) {
+      console.error("Error validando salud de cuentas de correo: respuesta inesperada de Smartlead.");
+      return;
+    }
+    for (const c of cuentas) {
+      if (!c.is_smtp_success) {
+        reportar("ERROR", `Cuenta de correo ${c.from_email}: SMTP roto (login inválido) — no puede enviar aunque la campaña diga ACTIVE.`);
+        continue;
+      }
+      const warmupStatus = c.warmup_details?.status;
+      if (warmupStatus && warmupStatus !== "ACTIVE") {
+        reportar("ERROR", `Cuenta de correo ${c.from_email}: warmup en ${warmupStatus} (no ACTIVE) — probablemente excluida de la rotación real de envío.`);
+        continue;
+      }
+      console.log(`[OK] ${c.from_email}: SMTP sano, warmup ${warmupStatus || "sin warmup configurado"}.`);
+    }
+  } catch (err) {
+    console.error("Error validando salud de cuentas de correo:", err.message);
+  }
+}
+
+// Chequeo 8: ¿de verdad corrieron solos los demás crons hoy? — pedido
 // explícito del usuario el 2026-09-14, después de que TODOS los crons de
 // una sola corrida diaria (festivo, monitor, scrapeos, métricas) no se
 // dispararan solos el día que se migró este repo — "debes desarrollar un
@@ -311,6 +352,7 @@ async function validarCronsCorrieron() {
   const correosLatam = await validarDuplicadosSmartlead("Piloto LATAM", process.env.SMARTLEAD_CAMPAIGN_ID_LATAM);
   validarCruceEntreCampanias(correosGM, correosLatam);
   await validarCupoCompartidoSmartlead();
+  await validarSaludCuentasCorreo();
   await validarCronsCorrieron();
 
   console.log(`\n=== Resultado: ${hallazgos.length} hallazgo(s) ===`);
