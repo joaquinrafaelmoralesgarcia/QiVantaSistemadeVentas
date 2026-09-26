@@ -42,6 +42,7 @@ const { enviarCorreoInterno } = require("../api/_mailer");
 
     if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
       await enviarCorreoInterno({
+        to: "joaquin.morales@qi-vanta.com",
         asunto: `Nueva respuesta: ${nombre} (${r.email_campaign_name})`,
         texto: [
           `Campaña: ${r.email_campaign_name}`,
