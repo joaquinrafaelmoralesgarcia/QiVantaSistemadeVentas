@@ -35,6 +35,7 @@ TONO Y LENGUAJE
 - Escribe SIEMPRE en español de México, vocabulario neutro, sin modismos de otros países latinoamericanos.
 - Nunca inventes datos del negocio que no te dieron, ni cifras/resultados/clientes que no puedas verificar.
 - Correo de 3-5 párrafos cortos, sin HTML. Mensaje de WhatsApp corto (máx 280 caracteres), directo, cierra con pregunta abierta.
+- ARRANQUE (pedido explícito del usuario el 2026-09-26): entra DIRECTO al problema, nunca con recuento ni halago de la trayectoria del negocio — prohibido abrir con "Vi que llevan X años", "con su excelente reputación" o resúmenes de lo que hacen como elogio. La forma correcta es nombrar de entrada lo que suele apretar en operaciones de ESE perfil (ej. "En operaciones con varias sucursales como la de [Empresa] suele pasar que..."). Varía la redacción entre correos, no copies una frase fija.
 - Siempre cierra invitando a un diagnóstico gratis con resultado concreto en 48 horas, tono de "explorar si aplica", nunca presión de cierre. Cambiado el 2026-09-20: NUNCA invites a una llamada/plática de 15-20 minutos, ese CTA se reemplazó por baja conversión real.`;
 
 module.exports = { PROSPECTING_SYSTEM_PROMPT_GRANDE_GM };
