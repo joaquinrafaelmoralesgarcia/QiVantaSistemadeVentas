@@ -3,6 +3,7 @@ const { PROSPECTING_SYSTEM_PROMPT } = require("./_prospectingPrompt");
 const { construirPromptEmpresa } = require("./_prospectingPromptEnterprise");
 const { PROSPECTING_SYSTEM_PROMPT_GRANDE_GM } = require("./_prospectingPromptGrandeGoogleMaps");
 const { elegirProductoParaLead } = require("./_productosLatam");
+const { analizarSitio, lineaObservaciones } = require("./_analisisSitio");
 
 // Compartida entre PYME (Google Maps) y empresa (Piloto LATAM) — pedido
 // explícito del usuario el 2026-09-04, ampliado el 2026-09-10 con un banco
@@ -452,11 +453,19 @@ async function generarScriptEmpresa(lead) {
     .filter(Boolean)
     .join("\n");
 
-  const script = await chatCompletionJSON({
-    system: construirPromptEmpresa(lead.numEmpleados, { ofertasExcluidas: lead.ofertasExcluidas || [], esReciclaje: Boolean(lead.esReciclaje) }) + JSON_INSTRUCTIONS_EMPRESA + OPEX_SUFFIX,
-    user: `Con estos datos públicos de una empresa y su contacto, genera el correo de ${lead.esReciclaje ? "reciclaje (otro servicio distinto, ver instrucciones)" : "primer contacto"} (nunca inventes datos que no te dieron):\n\n${detalles}`,
-    maxTokens: 1900,
-  });
+  // El análisis del sitio corre EN PARALELO con la generación del correo,
+  // no en serie — así no suma tiempo al presupuesto de 60s de Vercel, que
+  // ya está ajustado (MAX_NUEVOS_POR_CORRIDA=2 por timeouts reales).
+  // Nunca tumba la generación: si falla, devuelve null y no se anexa nada.
+  const [script, analisisSitio] = await Promise.all([
+    chatCompletionJSON({
+      system: construirPromptEmpresa(lead.numEmpleados, { ofertasExcluidas: lead.ofertasExcluidas || [], esReciclaje: Boolean(lead.esReciclaje) }) + JSON_INSTRUCTIONS_EMPRESA + OPEX_SUFFIX,
+      user: `Con estos datos públicos de una empresa y su contacto, genera el correo de ${lead.esReciclaje ? "reciclaje (otro servicio distinto, ver instrucciones)" : "primer contacto"} (nunca inventes datos que no te dieron):\n\n${detalles}`,
+      maxTokens: 1900,
+    }),
+    analizarSitio(lead.sitioWeb).catch(() => null),
+  ]);
+  const observaciones = lineaObservaciones(analisisSitio);
   await corregirAsuntosDelScript(script, `Empresa: ${lead.empresa}, contacto: ${lead.nombre}`, { esEmpresa: true });
   await corregirCifrasDelScript(script, `Empresa: ${lead.empresa}, contacto: ${lead.nombre}`);
 
@@ -470,7 +479,13 @@ async function generarScriptEmpresa(lead) {
   // ignora en vez de mandar un texto inventado/parafraseado al lead.
   const ofertaGratisValida = OFERTAS_GRATIS.includes(script.ofertaGratis) ? script.ofertaGratis : null;
   if (script.cuerpoEmail) {
-    script.cuerpoEmail = script.cuerpoEmail.trim() + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${lineaVideoLatam()}\n\n${lineaProductoLatam(lead)}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
+    // Observaciones reales del sitio de la empresa (ver _analisisSitio.js)
+    // — agregado el 2026-09-26. Va ANTES del bloque de ofertas fijas para
+    // que se lea como parte del análisis del negocio, no como anexo
+    // publicitario. Si no hay sitio o el análisis falla, queda vacío y el
+    // correo sale exactamente como antes.
+    const bloqueObservaciones = observaciones ? `\n\n${observaciones}` : "";
+    script.cuerpoEmail = script.cuerpoEmail.trim() + bloqueObservaciones + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${lineaVideoLatam()}\n\n${lineaProductoLatam(lead)}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;

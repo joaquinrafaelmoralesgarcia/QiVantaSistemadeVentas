@@ -147,6 +147,11 @@ async function revelarCorreo(personId) {
     correo: persona.email,
     empresa: persona.organization?.name || "",
     descripcionEmpresa: persona.organization?.short_description || null,
+    // Sitio web de la empresa — agregado el 2026-09-26, pedido explícito
+    // del usuario: antes de mandar cada correo de Piloto LATAM hay que
+    // analizar el sitio de la empresa y anexar observaciones reales al
+    // cuerpo (ver _analisisSitio.js). Sin este campo no había con qué.
+    sitioWeb: persona.organization?.website_url || null,
     // Número real de empleados (no la banda de búsqueda) — pedido explícito
     // del usuario el 2026-09-10: el catálogo de ofertas para empresas de
     // más de 100 empleados debe ser distinto (SDLC/DevSecOps/modernización

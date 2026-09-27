@@ -39,6 +39,7 @@ async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {
     titulo: persona.titulo || "",
     empresa: persona.empresa,
     correo: persona.correo,
+    sitioWeb: persona.sitioWeb || null,
     numEmpleados: typeof persona.numEmpleados === "number" ? persona.numEmpleados : null,
     calificacion: script?.calificacion || null,
     razonamiento: script?.razonamiento || "",
