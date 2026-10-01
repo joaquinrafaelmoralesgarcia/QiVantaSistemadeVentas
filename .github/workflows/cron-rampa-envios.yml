@@ -1,0 +1,25 @@
+name: Rampa diaria de envios (buzones nuevos)
+
+# Pedido explicito del usuario el 2026-10-01: subir poco a poco el tope de
+# envios de los buzones nuevos de SmartSenders hasta 40/dia por cuenta.
+# Corre sola cada dia; si un buzon se ve enfermo (SMTP roto, spam,
+# reputacion baja) NO sube su tope y este workflow queda en rojo.
+# 14:00 UTC = 8am CDMX. GitHub suele dispararlo ~5h tarde, no importa:
+# es un ajuste diario, no una ventana horaria.
+on:
+  schedule:
+    - cron: "0 14 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  rampa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Subir topes de los buzones nuevos
+        env:
+          SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+        run: node scripts/rampa-envios.js

@@ -25,7 +25,7 @@ const DOMINIOS_VIEJOS = ["qi-vanta.com", "qi-vantatech.com"];
 // Tope inicial BAJO a proposito: son dominios y buzones nuevos, sin
 // reputacion. Mandar 40/dia desde el dia 1 es justo lo que las deja en
 // spam. Se sube poco a poco (ver plan de warmup acordado con el usuario).
-const TOPE_INICIAL_POR_DIA = 8;
+const TOPE_INICIAL_POR_DIA = 5; // = dia 0 de scripts/rampa-envios.js, que lo sube solo hasta 40
 
 // Firma de siempre (la de las cuentas de Google), con UN cambio: el correo
 // de contacto ya no es joaquin.morales@qi-vantatech.com (dominio que se
@@ -77,7 +77,10 @@ async function api(metodo, ruta, cuerpo) {
 
   for (const a of nuevas) {
     const f = await api("POST", `/email-accounts/${a.id}`, { signature: FIRMA, message_per_day: TOPE_INICIAL_POR_DIA });
-    const w = await api("POST", `/email-accounts/${a.id}/warmup`, { warmup_enabled: true });
+    // Warmup propio de Smartlead (correos entre buzones, aparte de las campanas).
+    // 35 como tope = el que ya usaban las cuentas de Google; rampa de +2/dia.
+    let w = await api("POST", `/email-accounts/${a.id}/warmup`, { warmup_enabled: true, total_warmup_per_day: 35, daily_rampup: 2, reply_rate_percentage: 35 });
+    if (!w.ok) w = await api("POST", `/email-accounts/${a.id}/warmup`, { warmup_enabled: true }); // respaldo: solo encender
     console.log(`${a.from_email}: firma/tope ${f.status}, warmup ${w.status}`);
   }
 
