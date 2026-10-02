@@ -33,6 +33,7 @@ const DOMINIOS_VIEJOS = ["qi-vanta.com", "qi-vantatech.com"];
 const TOPE_INICIAL = 5;
 const TOPE_META = 40;
 const DIAS_PARA_META = 28;
+const DIAS_DE_GRACIA_REPUTACION = 14;
 const REPUTACION_MINIMA = 70; // % de warmup_reputation por debajo del cual se congela
 
 function topeParaDia(dias) {
@@ -52,14 +53,18 @@ async function api(metodo, ruta, cuerpo) {
 }
 
 // Devuelve el motivo por el que NO se debe subir, o null si esta sano.
-function motivoDeCongelacion(a) {
+function motivoDeCongelacion(a, dias) {
   if (!a.is_smtp_success) return "SMTP roto";
   const w = a.warmup_details || {};
   if (w.status && w.status !== "ACTIVE") return `warmup ${w.status}`;
   if (w.is_warmup_blocked || w.blocked_reason) return `warmup bloqueado (${w.blocked_reason || "sin motivo"})`;
   if ((w.total_spam_count || 0) > 0) return `${w.total_spam_count} correo(s) marcados como spam`;
+  // La reputacion de un buzon NUEVO empieza en 0% y se construye con las
+  // semanas: evaluarla desde el dia 0 congelaria todos los topes para siempre
+  // (encontrado el 2026-10-02 en la primera simulacion real). Solo cuenta
+  // pasados los dias de gracia.
   const rep = parseFloat(String(w.warmup_reputation ?? "").replace("%", ""));
-  if (!Number.isNaN(rep) && rep < REPUTACION_MINIMA) return `reputacion ${rep}% (< ${REPUTACION_MINIMA}%)`;
+  if (dias >= DIAS_DE_GRACIA_REPUTACION && !Number.isNaN(rep) && rep < REPUTACION_MINIMA) return `reputacion ${rep}% (< ${REPUTACION_MINIMA}%)`;
   return null;
 }
 
@@ -78,9 +83,9 @@ function motivoDeCongelacion(a) {
     const creada = new Date(a.created_at);
     const dias = Math.floor((Date.now() - creada.getTime()) / 86400000);
     const deseado = topeParaDia(dias);
-    const actual = a.message_per_day || 0;
+    const actual = a.message_per_day || 0; // se ESCRIBE con max_email_per_day, pero se LEE en message_per_day
 
-    const motivo = motivoDeCongelacion(a);
+    const motivo = motivoDeCongelacion(a, dias);
     if (motivo) {
       console.log(`CONGELADO ${a.from_email}: ${motivo} (se queda en ${actual}/dia, le tocaria ${deseado})`);
       congelados++;
@@ -93,7 +98,7 @@ function motivoDeCongelacion(a) {
     }
     console.log(`SUBE ${a.from_email}: ${actual} -> ${deseado}/dia (dia ${dias})`);
     if (!DRY) {
-      const r = await api("POST", `/email-accounts/${a.id}`, { message_per_day: deseado });
+      const r = await api("POST", `/email-accounts/${a.id}`, { max_email_per_day: deseado });
       if (!r.ok) { console.error(`  error ${r.status} ${JSON.stringify(r.json).slice(0, 120)}`); continue; }
     }
     subidos++;

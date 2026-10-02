@@ -76,7 +76,7 @@ async function api(metodo, ruta, cuerpo) {
   }
 
   for (const a of nuevas) {
-    const f = await api("POST", `/email-accounts/${a.id}`, { signature: FIRMA, message_per_day: TOPE_INICIAL_POR_DIA });
+    const f = await api("POST", `/email-accounts/${a.id}`, { signature: FIRMA, max_email_per_day: TOPE_INICIAL_POR_DIA });
     // Warmup propio de Smartlead (correos entre buzones, aparte de las campanas).
     // 35 como tope = el que ya usaban las cuentas de Google; rampa de +2/dia.
     let w = await api("POST", `/email-accounts/${a.id}/warmup`, { warmup_enabled: true, total_warmup_per_day: 35, daily_rampup: 2, reply_rate_percentage: 35 });
