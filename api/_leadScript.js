@@ -205,7 +205,6 @@ https://www.qi-vanta.com
 joaquin.morales@qi-vanta.com
 +52 720 644 2283
 
-Si no deseas recibir mas correos, responde "baja" y te retiramos de inmediato.
 Aviso de privacidad: https://www.qi-vanta.com/aviso-privacidad.html`;
 
 // Frase fija que debe ir en TODOS los correos de la campaña de Apify/Google
