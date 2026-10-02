@@ -247,6 +247,12 @@ const LINEA_APPS_LATAM = "También desarrollamos aplicaciones móviles a la medi
 // hipótesis es que pedir una llamada de 15-20 min de entrada pide
 // demasiado compromiso antes de mostrar valor concreto; un resultado
 // tangible en 48h sin llamada es un compromiso menor para el lead.
+// Garantia de devolucion — pedido explicito del usuario el 2026-10-02: al
+// final del cuerpo de Piloto LATAM y Google Maps, "si no disminuimos costo
+// y tiempo en su operacion le regresamos su dinero". Es un COMPROMISO
+// COMERCIAL, por eso es texto fijo en codigo y nunca lo redacta el modelo.
+// Adaptado a "tu" (las campanas automaticas nunca usan "su/le").
+const LINEA_GARANTIA = "<strong>Si no reducimos costo y tiempo en tu operación, te regresamos tu dinero.</strong>";
 const LINEA_DEMO_GRATIS = "<strong>Te hacemos un diagnóstico gratis de tu negocio, con un resultado concreto en 48 horas.</strong>";
 
 // Link de landing por campaña — pedido explícito del usuario el
@@ -485,7 +491,9 @@ async function generarScriptEmpresa(lead) {
     // publicitario. Si no hay sitio o el análisis falla, queda vacío y el
     // correo sale exactamente como antes.
     const bloqueObservaciones = observaciones ? `\n\n${observaciones}` : "";
-    script.cuerpoEmail = script.cuerpoEmail.trim() + bloqueObservaciones + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${lineaVideoLatam()}\n\n${lineaProductoLatam(lead)}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
+    script.cuerpoEmail = script.cuerpoEmail.trim() + bloqueObservaciones + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${lineaVideoLatam()}\n\n${lineaProductoLatam(lead)}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}
+
+${LINEA_GARANTIA}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
@@ -533,8 +541,12 @@ async function generarScript(negocio) {
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
   if (script.cuerpoEmail) {
     script.cuerpoEmail = esGrande
-      ? script.cuerpoEmail.trim() + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}`
-      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}` + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}`;
+      ? script.cuerpoEmail.trim() + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}
+
+${LINEA_GARANTIA}`
+      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}` + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}
+
+${LINEA_GARANTIA}`;
   }
   if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
   if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}`;
