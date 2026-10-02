@@ -8,3 +8,5 @@ smartlead-support-message.txt
 
 # Marcas del canario de entrega (estado local, no va al repo)
 .canario-marcas.json
+.firma-respaldo.json
+tmp_*.js
