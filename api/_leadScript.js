@@ -202,7 +202,8 @@ Joaquín Morales
 Strategic Transformation Advisor | Qi-Vanta
 AI-Native SDLC & Automatización
 https://www.qi-vanta.com
-joaquin.morales@qi-vantatech.com`;
+joaquin.morales@qi-vanta.com
++52 720 644 2283`;
 
 // Frase fija que debe ir en TODOS los correos de la campaña de Apify/Google
 // Maps, sin importar qué oferta haya elegido el modelo — pedido explícito
