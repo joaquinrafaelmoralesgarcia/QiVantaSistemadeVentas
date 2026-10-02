@@ -1,0 +1,58 @@
+name: Canario de entrega (SmartSenders)
+
+# Los buzones de SmartSenders llevan desde el 2026-10-01 aceptando todos los
+# envios con "success" sin entregar nada: Microsoft los acepta, aparecen en
+# Elementos enviados, y se retienen despues. Soporte de Smartlead lo tiene
+# escalado a un Message Trace de Microsoft.
+#
+# Mientras eso se resuelve, esto manda un correo de prueba por dominio y
+# verifica POR IMAP si llego — asi el dia que lo arreglen nos enteramos solos,
+# en vez de descubrirlo por casualidad semanas despues.
+#
+# Dos pasos separados a proposito: el envio tiene que salir primero y el
+# correo tarda en llegar, asi que la verificacion corre 3 horas mas tarde
+# sobre las marcas que dejo pendientes el envio anterior.
+on:
+  schedule:
+    - cron: "0 13 * * *" # 13:00 UTC — manda los canarios del dia
+    - cron: "0 16 * * *" # 16:00 UTC — revisa los que se mandaron a las 13:00
+  workflow_dispatch:
+    inputs:
+      accion:
+        description: "enviar o revisar"
+        required: false
+        default: "revisar"
+
+jobs:
+  canario:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci --omit=dev || npm install --omit=dev
+
+      - name: Enviar canarios
+        if: github.event.schedule == '0 13 * * *' || github.event.inputs.accion == 'enviar'
+        env:
+          SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: node scripts/canario-entrega.js
+
+      # Las marcas viven en un archivo local que no sobrevive entre corridas de
+      # Actions, asi que en la nube cada corrida manda Y revisa en la misma
+      # sesion tras una espera. No es tan limpio como separarlo, pero es lo
+      # unico que funciona sin almacenar estado entre workflows.
+      - name: Esperar y verificar entrega por IMAP
+        if: github.event.schedule == '0 13 * * *' || github.event.inputs.accion == 'enviar'
+        env:
+          SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          CANARIO_HORAS_DE_GRACIA: "0.25"
+        run: |
+          echo "Esperando 20 minutos a que lleguen..."
+          sleep 1200
+          node scripts/canario-entrega.js --revisar

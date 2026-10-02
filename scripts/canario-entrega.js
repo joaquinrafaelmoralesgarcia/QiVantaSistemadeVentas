@@ -36,7 +36,9 @@ const ARCHIVO_MARCAS = path.join(__dirname, "..", ".canario-marcas.json");
 // Horas que se le dan a un correo para aparecer antes de declararlo perdido.
 // Un envio normal llega en segundos; 2h es holgado y evita falsos negativos
 // por retrasos del cron de Smartlead o greylisting del receptor.
-const HORAS_DE_GRACIA = 2;
+// Configurable por entorno: en GitHub Actions el job no puede esperar 2h,
+// asi que ahi se baja a ~0.3h. En local 2h evita falsos negativos.
+const HORAS_DE_GRACIA = parseFloat(process.env.CANARIO_HORAS_DE_GRACIA || "2");
 
 async function api(metodo, ruta, cuerpo) {
   const sep = ruta.includes("?") ? "&" : "?";
