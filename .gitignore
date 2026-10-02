@@ -5,3 +5,6 @@ package-lock.json
 LOA-twilio-mx.txt
 wati-support-message.txt
 smartlead-support-message.txt
+
+# Marcas del canario de entrega (estado local, no va al repo)
+.canario-marcas.json
