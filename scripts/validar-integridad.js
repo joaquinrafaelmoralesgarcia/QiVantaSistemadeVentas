@@ -265,6 +265,25 @@ async function validarSaludCuentasCorreo() {
         reportar("ERROR", `Cuenta de correo ${c.from_email}: warmup en ${warmupStatus} (no ACTIVE) — probablemente excluida de la rotación real de envío.`);
         continue;
       }
+      // BUZON MUDO: Smartlead acepta los envios y reporta SMTP sano, pero no
+      // sale NADA — ni siquiera el correo de warmup entre buzones. Pasó el
+      // 2026-10-01 con los 3 buzones nuevos de qi-vantanova.com: 6 correos de
+      // prueba devolvieron "success", aparecieron en Elementos enviados de
+      // Outlook, y no llegaron a ningún destino (Google ni Microsoft), sin
+      // rebote — la firma clásica de DMARC p=reject con DKIM que no alinea.
+      // Sin este chequeo se detecta a mano, días después, con los leads ya
+      // quemados. El warmup necesita unas horas para su primer envío, por eso
+      // la ventana de gracia.
+      const w = c.warmup_details || {};
+      const horasDeWarmup = w.created_at ? (Date.now() - new Date(w.created_at).getTime()) / 3600000 : 0;
+      if (warmupStatus === "ACTIVE" && horasDeWarmup > 12 && (w.total_sent_count || 0) === 0) {
+        reportar(
+          "ERROR",
+          `Cuenta de correo ${c.from_email}: BUZON MUDO — warmup ACTIVO desde hace ${Math.round(horasDeWarmup)}h y 0 correos enviados. ` +
+            `Smartlead la reporta sana pero no sale nada. Revisar DMARC/DKIM del dominio antes de activar campañas con esta cuenta.`
+        );
+        continue;
+      }
       console.log(`[OK] ${c.from_email}: SMTP sano, warmup ${warmupStatus || "sin warmup configurado"}.`);
     }
   } catch (err) {
