@@ -11,3 +11,5 @@ smartlead-support-message.txt
 .firma-respaldo.json
 tmp_*.js
 .cuenta-respaldo.json
+.apollo-batch-500-state.json
+logs/

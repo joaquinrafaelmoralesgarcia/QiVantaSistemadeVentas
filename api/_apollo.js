@@ -79,7 +79,11 @@ const TITULOS_ALIANZAS = [
   "Director Comercial", "Commercial Director", "Business Development", "Desarrollo de Negocios",
   "Partnerships", "Alianzas Estratégicas", "Director de Alianzas",
 ];
-const PALABRAS_CLAVE_ALIANZAS = "software ERP CRM consultoría TI integrador cloud ciberseguridad desarrollo tecnología";
+// Apollo interpreta las palabras de q_keywords como una intersección. Por
+// eso se rota una especialidad por búsqueda, en lugar de pedir todas a la
+// vez (esa combinación devolvía cero resultados aunque cada nicho sí tiene
+// prospectos). Todas representan partners tecnológicos B2B.
+const PALABRAS_CLAVE_ALIANZAS = ["software", "ERP", "CRM", "cloud", "ciberseguridad"];
 
 const PAISES_LATAM = [
   "mexico", "colombia", "argentina", "chile", "peru", "brazil", "ecuador",
@@ -135,8 +139,9 @@ async function buscarPersonas({ page = 1, perPage = 25, paises = PAISES_LATAM, r
   };
 }
 
-function buscarPersonasAlianzas({ page = 1, perPage = 25, paises = PAISES_LATAM, rangosEmpleados = RANGOS_EMPLEADOS_PYME } = {}) {
-  return buscarPersonas({ page, perPage, paises, rangosEmpleados, seniorities: SENIORITIES_ALIANZAS, titulos: TITULOS_ALIANZAS, palabrasClave: PALABRAS_CLAVE_ALIANZAS });
+function buscarPersonasAlianzas({ page = 1, perPage = 25, paises = PAISES_LATAM, rangosEmpleados = RANGOS_EMPLEADOS_PYME, segmento = 0 } = {}) {
+  const palabrasClave = PALABRAS_CLAVE_ALIANZAS[segmento % PALABRAS_CLAVE_ALIANZAS.length];
+  return buscarPersonas({ page, perPage, paises, rangosEmpleados, seniorities: SENIORITIES_ALIANZAS, titulos: TITULOS_ALIANZAS, palabrasClave });
 }
 
 // Revela el correo real de UN candidato ya encontrado en buscarPersonas().
