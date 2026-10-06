@@ -40,7 +40,13 @@ const { procesarPersonaEmpresa } = require("./_leadsProcessorComun");
 // ocasional ahora es solo ese intento, no el resto del día.
 const MAX_NUEVOS_POR_CORRIDA = 2;
 
-async function procesarPersonasApollo(coleccion, personas) {
+async function procesarPersonasApollo(coleccion, personas, camposCampana = {}) {
+  const campana = {
+    campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM,
+    campaignKey: "piloto_latam",
+    campaignName: "Qi-Vanta | Piloto LATAM | Decisores",
+    ...camposCampana,
+  };
   const ids = personas.map((p) => p.id);
   const existentes = await coleccion
     .find({ apolloId: { $in: ids } })
@@ -79,7 +85,7 @@ async function procesarPersonasApollo(coleccion, personas) {
         };
       }
       console.error("Error revelando candidato de Apollo", persona.id, err.message);
-      await coleccion.insertOne({ apolloId: persona.id, origen: "apollo_latam", campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM, campaignKey: "piloto_latam", campaignName: "Qi-Vanta | Piloto LATAM | Decisores", estado: "error_apollo", errorApollo: err.message, createdAt: new Date() });
+      await coleccion.insertOne({ apolloId: persona.id, origen: "apollo_latam", ...campana, estado: "error_apollo", errorApollo: err.message, createdAt: new Date() });
       procesados++;
       continue;
     }
@@ -88,12 +94,12 @@ async function procesarPersonasApollo(coleccion, personas) {
 
     if (!revelado || !revelado.correo) {
       sinCorreoApollo++;
-      await coleccion.insertOne({ apolloId: persona.id, origen: "apollo_latam", campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM, campaignKey: "piloto_latam", campaignName: "Qi-Vanta | Piloto LATAM | Decisores", estado: "sin_correo_apollo", createdAt: new Date() });
+      await coleccion.insertOne({ apolloId: persona.id, origen: "apollo_latam", ...campana, estado: "sin_correo_apollo", createdAt: new Date() });
       continue;
     }
     revelados++;
 
-    const { resultado } = await procesarPersonaEmpresa(coleccion, revelado, "apollo_latam", { apolloId: persona.id });
+    const { resultado } = await procesarPersonaEmpresa(coleccion, revelado, "apollo_latam", { apolloId: persona.id, ...campana });
     if (resultado === "correo_invalido") correosInvalidos++;
     else if (resultado === "enviado") correosEnviados++;
     else if (resultado === "error_smartlead") erroresCorreo++;

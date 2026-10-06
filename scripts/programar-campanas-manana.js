@@ -19,6 +19,7 @@ const dry = process.argv.includes("--dry");
 const campanas = [
   { nombre: "Google Maps", id: process.env.SMARTLEAD_CAMPAIGN_ID },
   { nombre: "Piloto LATAM", id: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM },
+  { nombre: "Alianzas", id: process.env.SMARTLEAD_CAMPAIGN_ID_ALIANZAS || "3990563" },
 ].filter((campana) => campana.id);
 
 async function api(method, route, body) {

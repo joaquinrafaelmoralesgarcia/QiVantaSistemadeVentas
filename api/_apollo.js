@@ -69,6 +69,18 @@ const TITULOS_DECISORES = [
   "Operations Director", "Director de Operaciones",
 ];
 
+// Perfil de la campaña Alianzas: empresas que ya venden tecnología a otras
+// empresas, pero que pueden requerir un partner especializado en IA. No se
+// usa para clínicas, negocios locales ni compradores finales de Qi-Vanta.
+const SENIORITIES_ALIANZAS = ["owner", "founder", "c_suite", "partner", "vp", "head", "director"];
+const TITULOS_ALIANZAS = [
+  "CEO", "Chief Executive Officer", "Founder", "Co-Founder", "Fundador", "Socio", "Partner", "Managing Partner",
+  "CTO", "Chief Technology Officer", "Director de Tecnología", "Director de TI", "IT Director",
+  "Director Comercial", "Commercial Director", "Business Development", "Desarrollo de Negocios",
+  "Partnerships", "Alianzas Estratégicas", "Director de Alianzas",
+];
+const PALABRAS_CLAVE_ALIANZAS = "software ERP CRM consultoría TI integrador cloud ciberseguridad desarrollo tecnología";
+
 const PAISES_LATAM = [
   "mexico", "colombia", "argentina", "chile", "peru", "brazil", "ecuador",
   "uruguay", "paraguay", "bolivia", "costa rica", "panama", "guatemala",
@@ -99,13 +111,14 @@ const NIVELES_APOLLO = PAISES_LATAM.flatMap((pais) =>
   BANDAS_EMPLEADOS_PROGRESION.map((banda) => ({ pais, banda }))
 );
 
-async function buscarPersonas({ page = 1, perPage = 25, paises = PAISES_LATAM, rangosEmpleados = RANGOS_EMPLEADOS_PYME } = {}) {
+async function buscarPersonas({ page = 1, perPage = 25, paises = PAISES_LATAM, rangosEmpleados = RANGOS_EMPLEADOS_PYME, seniorities = SENIORITIES_DECISORES, titulos = TITULOS_DECISORES, palabrasClave = "" } = {}) {
   const params = new URLSearchParams();
-  for (const s of SENIORITIES_DECISORES) params.append("person_seniorities[]", s);
-  for (const t of TITULOS_DECISORES) params.append("person_titles[]", t);
+  for (const s of seniorities) params.append("person_seniorities[]", s);
+  for (const t of titulos) params.append("person_titles[]", t);
   for (const p of paises) params.append("organization_locations[]", p);
   for (const r of rangosEmpleados) params.append("organization_num_employees_ranges[]", r);
   params.append("contact_email_status[]", "verified");
+  if (palabrasClave) params.append("q_keywords", palabrasClave);
   params.append("page", String(page));
   params.append("per_page", String(perPage));
 
@@ -120,6 +133,10 @@ async function buscarPersonas({ page = 1, perPage = 25, paises = PAISES_LATAM, r
     totalEncontrados: data.total_entries || 0,
     personas: (data.people || []).filter((p) => p.has_email), // descarta candidatos sin correo antes de gastar crédito revelándolos
   };
+}
+
+function buscarPersonasAlianzas({ page = 1, perPage = 25, paises = PAISES_LATAM, rangosEmpleados = RANGOS_EMPLEADOS_PYME } = {}) {
+  return buscarPersonas({ page, perPage, paises, rangosEmpleados, seniorities: SENIORITIES_ALIANZAS, titulos: TITULOS_ALIANZAS, palabrasClave: PALABRAS_CLAVE_ALIANZAS });
 }
 
 // Revela el correo real de UN candidato ya encontrado en buscarPersonas().
@@ -179,4 +196,4 @@ async function obtenerCreditosLead() {
   return data.credit_usage_stats?.lead_credit || null; // {limit, consumed, left_over}
 }
 
-module.exports = { buscarPersonas, revelarCorreo, obtenerCreditosLead, NIVELES_APOLLO };
+module.exports = { buscarPersonas, buscarPersonasAlianzas, revelarCorreo, obtenerCreditosLead, NIVELES_APOLLO };

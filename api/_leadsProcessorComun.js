@@ -1,4 +1,5 @@
 const { generarScriptEmpresa } = require("./_leadScript");
+const { generarCorreoAlianza } = require("./_alianzasScript");
 const { agregarLeadACampania } = require("./_smartlead");
 const { correoTieneServidorValido } = require("./_emailVerify");
 const { esEmpresaNoContactar } = require("./_empresaGrande");
@@ -51,7 +52,8 @@ async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {
     return { resultado: "correo_invalido" };
   }
 
-  const script = await generarScriptEmpresa(persona).catch((err) => {
+  const crearScript = campaignKey === "alianzas" ? generarCorreoAlianza : generarScriptEmpresa;
+  const script = await Promise.resolve(crearScript(persona)).catch((err) => {
     console.error("Error generando script para", persona.nombre, err);
     return null;
   });

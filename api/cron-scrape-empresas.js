@@ -15,7 +15,7 @@
 // Las 2 fuentes corren en la misma invocación y sus resultados se suman;
 // si una se queda sin crédito/dominios pendientes, la otra sigue.
 const { getDb } = require("./_mongo");
-const { buscarPersonas, obtenerCreditosLead, NIVELES_APOLLO } = require("./_apollo");
+const { buscarPersonas, buscarPersonasAlianzas, obtenerCreditosLead, NIVELES_APOLLO } = require("./_apollo");
 const { procesarPersonasApollo } = require("./_leadsProcessorEmpresa");
 const { procesarDominiosHunter } = require("./_leadsProcessorHunter");
 const { actualizarTopeCampania } = require("./_smartlead");
@@ -66,9 +66,15 @@ const TOPE_GOOGLE_MAPS_AMPLIADO = 70;
 // gastarán en balde" tras el episodio de los 2,541 créditos sin
 // explicación clara. Esto convierte la garantía en algo verificable con
 // datos de Apollo mismos, no en una promesa del código.
-async function correrApollo(db) {
+async function correrApollo(db, opciones = {}) {
+  const esAlianza = Boolean(opciones.alianzas);
+  const cursorId = esAlianza ? "cursorAlianzas" : "cursorLatam";
+  const campana = esAlianza
+    ? { campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_ALIANZAS || "3990563", campaignKey: "alianzas", campaignName: "Alianzas" }
+    : {};
+  const buscar = esAlianza ? buscarPersonasAlianzas : buscarPersonas;
   const estadoCol = db.collection("estadoApollo");
-  const estadoGuardado = await estadoCol.findOne({ _id: "cursorLatam" });
+  const estadoGuardado = await estadoCol.findOne({ _id: cursorId });
   // nivelIndex no existía antes del 2026-09-08 (progresión país+tamaño) —
   // si el documento es de antes, usa 0 (México, banda 1-1000) sin tronar.
   const estado = { nivelIndex: estadoGuardado?.nivelIndex ?? 0, pagina: estadoGuardado?.pagina ?? 1 };
@@ -79,7 +85,7 @@ async function correrApollo(db) {
     return null;
   });
 
-  const { totalEncontrados, personas } = await buscarPersonas({
+  const { totalEncontrados, personas } = await buscar({
     page: estado.pagina,
     perPage: PER_PAGE,
     paises: [nivel.pais],
@@ -89,7 +95,7 @@ async function correrApollo(db) {
   if (!personas.length) {
     // Se agotó este nivel (país+tamaño) — avanza al siguiente de la lista.
     const siguienteIndex = (estado.nivelIndex + 1) % NIVELES_APOLLO.length;
-    await estadoCol.updateOne({ _id: "cursorLatam" }, { $set: { nivelIndex: siguienteIndex, pagina: 1 } }, { upsert: true });
+    await estadoCol.updateOne({ _id: cursorId }, { $set: { nivelIndex: siguienteIndex, pagina: 1 } }, { upsert: true });
     const siguienteNivel = NIVELES_APOLLO[siguienteIndex];
     return {
       nivel, totalEncontrados, sinCandidatosEnNivel: true, avanzoDeNivel: true,
@@ -97,7 +103,7 @@ async function correrApollo(db) {
     };
   }
 
-  const stats = await procesarPersonasApollo(db.collection("leads"), personas);
+  const stats = await procesarPersonasApollo(db.collection("leads"), personas, campana);
 
   // Si quedaron candidatos nuevos sin procesar en esta página (tope de
   // MAX_NUEVOS_POR_CORRIDA en _leadsProcessorEmpresa.js), NO avanza de
@@ -105,7 +111,7 @@ async function correrApollo(db) {
   // por apolloId salta a los que ya se procesaron y sigue con los que
   // faltaron, sin perder ninguno.
   if (!stats.detenidoPorErrores && !stats.quedaronPendientes) {
-    await estadoCol.updateOne({ _id: "cursorLatam" }, { $set: { nivelIndex: estado.nivelIndex, pagina: estado.pagina + 1 } }, { upsert: true });
+    await estadoCol.updateOne({ _id: cursorId }, { $set: { nivelIndex: estado.nivelIndex, pagina: estado.pagina + 1 } }, { upsert: true });
   }
 
   const creditosDespues = await obtenerCreditosLead().catch((err) => {
@@ -117,6 +123,7 @@ async function correrApollo(db) {
   const intentosQuePudieronCobrar = stats.revelados + (stats.sinCorreoApollo || 0); // revelar sin correo aún puede cobrar 1 crédito "demográfico" según Apollo, por eso se incluye
   await db.collection("auditoriaCreditosApollo").insertOne({
     fecha: new Date(),
+    campaignKey: esAlianza ? "alianzas" : "piloto_latam",
     nivel,
     paginaUsada: estado.pagina,
     creditosAntes,
@@ -143,8 +150,11 @@ module.exports = async function handler(req, res) {
   try {
     const db = await getDb();
 
-    const apollo = await correrApollo(db).catch((err) => {
-      console.error("Error en fase Apollo:", err);
+    // Prioridad explícita: la ventana actual de Apollo se destina primero a
+    // partners tecnológicos para Alianzas; Piloto LATAM no consume esos
+    // créditos mientras haya esta prioridad activa.
+    const apollo = await correrApollo(db, { alianzas: true }).catch((err) => {
+      console.error("Error en fase Apollo/Alianzas:", err);
       return { error: err.message, correosEnviados: 0, detenidoPorErrores: true };
     });
 
