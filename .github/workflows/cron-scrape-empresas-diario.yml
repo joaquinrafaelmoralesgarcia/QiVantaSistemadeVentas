@@ -23,7 +23,7 @@ jobs:
         run: |
           # Ventana extraordinaria solicitada el 2026-10-05: captar solo
           # durante ocho horas. Apollo solo revela correo; no pide teléfonos.
-          CAPTACION_HASTA_UTC="2026-10-06T11:15:00Z"
+          CAPTACION_HASTA_UTC="2026-10-06T11:16:00Z"
           if [ "$(date -u +%s)" -ge "$(date -u -d "$CAPTACION_HASTA_UTC" +%s)" ]; then
             echo "Ventana de captación cerrada ($CAPTACION_HASTA_UTC)."
             exit 0

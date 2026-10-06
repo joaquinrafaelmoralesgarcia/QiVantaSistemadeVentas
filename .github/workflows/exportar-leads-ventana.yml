@@ -3,7 +3,7 @@ name: Exportar leads de la ventana de captación
 # Reporte único de la ventana de ocho horas solicitada el 5 de octubre.
 on:
   schedule:
-    - cron: "20 11 6 10 *"
+    - cron: "35 11 6 10 *"
   workflow_dispatch: {}
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           MONGODB_DB: ${{ secrets.MONGODB_DB }}
           CAPTACION_DESDE_UTC: "2026-10-06T03:15:00Z"
-          CAPTACION_HASTA_UTC: "2026-10-06T11:15:00Z"
+          CAPTACION_HASTA_UTC: "2026-10-06T11:16:00Z"
           EXPORT_DIR: exports
         run: node scripts/exportar-leads-ventana.js
       - name: Publicar reportes Excel
