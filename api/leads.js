@@ -6,6 +6,7 @@ const { requiereAdmin } = require("./_adminAuth");
 const { agregarLeadACampania } = require("./_smartlead");
 const { importarFilas } = require("./_leadsProcessorImport");
 const { ObjectId } = require("mongodb");
+const { esEmpresaNoContactar } = require("./_empresaGrande");
 
 const CAMPOS_MENSAJE = ["mensajeWhatsapp", "asuntoEmail", "cuerpoEmail"];
 
@@ -90,12 +91,17 @@ module.exports = async function handler(req, res) {
         res.status(400).json({ error: "Este lead no tiene correo." });
         return;
       }
+      if (esEmpresaNoContactar(lead)) {
+        res.status(403).json({ error: "Este lead está bloqueado permanentemente de todo contacto." });
+        return;
+      }
       try {
         await agregarLeadACampania({
           nombre: lead.nombre,
           correo: lead.correo,
           empresa: lead.nombre,
           telefono: lead.telefono,
+          campaignId: lead.campaignId || process.env.SMARTLEAD_CAMPAIGN_ID,
           customFields: {
             qi_vanta_subject: lead.asuntoEmail || `Automatización e IA para ${lead.nombre}`,
             qi_vanta_message: lead.cuerpoEmail || "",

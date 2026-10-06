@@ -79,7 +79,7 @@ async function procesarPersonasApollo(coleccion, personas) {
         };
       }
       console.error("Error revelando candidato de Apollo", persona.id, err.message);
-      await coleccion.insertOne({ apolloId: persona.id, origen: "apollo_latam", estado: "error_apollo", errorApollo: err.message, createdAt: new Date() });
+      await coleccion.insertOne({ apolloId: persona.id, origen: "apollo_latam", campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM, campaignKey: "piloto_latam", campaignName: "Qi-Vanta | Piloto LATAM | Decisores", estado: "error_apollo", errorApollo: err.message, createdAt: new Date() });
       procesados++;
       continue;
     }
@@ -88,7 +88,7 @@ async function procesarPersonasApollo(coleccion, personas) {
 
     if (!revelado || !revelado.correo) {
       sinCorreoApollo++;
-      await coleccion.insertOne({ apolloId: persona.id, origen: "apollo_latam", estado: "sin_correo_apollo", createdAt: new Date() });
+      await coleccion.insertOne({ apolloId: persona.id, origen: "apollo_latam", campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM, campaignKey: "piloto_latam", campaignName: "Qi-Vanta | Piloto LATAM | Decisores", estado: "sin_correo_apollo", createdAt: new Date() });
       continue;
     }
     revelados++;

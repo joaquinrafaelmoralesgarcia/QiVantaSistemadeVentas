@@ -1,7 +1,7 @@
 const { generarScript } = require("./_leadScript");
 const { agregarLeadACampania } = require("./_smartlead");
 const { correoTieneServidorValido } = require("./_emailVerify");
-const { esCadenaConocida, esCorreoDePlataformaExcluida, esInmobiliaria } = require("./_empresaGrande");
+const { esCadenaConocida, esCorreoDePlataformaExcluida, esInmobiliaria, esEmpresaNoContactar } = require("./_empresaGrande");
 
 function normalizarTelefono(tel) {
   const digits = String(tel || "").replace(/[^\d+]/g, "");
@@ -15,7 +15,10 @@ function normalizarTelefono(tel) {
 // Idempotente: si se llama dos veces con los mismos negocios (ej. el
 // frontend hace polling y llega a llamar esto más de una vez), la segunda
 // corrida los encuentra como duplicados y no inserta nada de más.
-async function procesarNegocios(coleccion, negocios, query) {
+async function procesarNegocios(coleccion, negocios, query, campaign = {}) {
+  const campaignId = campaign.id || process.env.SMARTLEAD_CAMPAIGN_ID;
+  const campaignKey = campaign.key || "google_maps";
+  const campaignName = campaign.name || "Qi-Vanta | Apify Google Maps";
   const telefonos = negocios.map((n) => normalizarTelefono(n.telefono)).filter(Boolean);
   const urls = negocios.map((n) => n.googleMapsUrl).filter(Boolean);
   const existentes = await coleccion
@@ -68,10 +71,15 @@ async function procesarNegocios(coleccion, negocios, query) {
   // cadenas.
   let excluidosCadena = 0;
   let excluidosInmobiliaria = 0;
+  let excluidosNoContactar = 0;
   const negociosFiltrados = [];
   for (const negocio of nuevosNegocios) {
     if (esCadenaConocida(negocio.nombre)) {
       excluidosCadena++;
+      continue;
+    }
+    if (esEmpresaNoContactar(negocio)) {
+      excluidosNoContactar++;
       continue;
     }
     if (esInmobiliaria(negocio)) {
@@ -155,6 +163,9 @@ async function procesarNegocios(coleccion, negocios, query) {
       estado: "nuevo",
       emailEstado: null, // null | "enviado_a_campana" | "error"
       origenBusqueda: query,
+      campaignId,
+      campaignKey,
+      campaignName,
       createdAt: new Date(),
     };
 
@@ -169,6 +180,7 @@ async function procesarNegocios(coleccion, negocios, query) {
           correo: negocio.correo,
           empresa: negocio.nombre,
           telefono: negocio.telefono,
+          campaignId,
           customFields: {
             qi_vanta_subject: asuntoEmail,
             qi_vanta_message: cuerpoEmail,
@@ -195,7 +207,7 @@ async function procesarNegocios(coleccion, negocios, query) {
 
   if (leads.length) await coleccion.insertMany(leads);
 
-  return { totalEncontrados: negocios.length, nuevos: leads.length, duplicados, excluidosCadena, excluidosInmobiliaria, conCorreo, soloTelefono, correosEnviados, erroresCorreo, correosInvalidos };
+  return { totalEncontrados: negocios.length, nuevos: leads.length, duplicados, excluidosCadena, excluidosInmobiliaria, excluidosNoContactar, conCorreo, soloTelefono, correosEnviados, erroresCorreo, correosInvalidos };
 }
 
 module.exports = { procesarNegocios, normalizarTelefono };

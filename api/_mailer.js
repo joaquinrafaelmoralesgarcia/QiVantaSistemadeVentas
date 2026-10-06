@@ -15,12 +15,9 @@ function getTransporter() {
   return transporter;
 }
 
-// "to" opcional (default info@qi-vanta.com, sin cambios para los usos ya
-// existentes de chat-lead.js/cron-monitor-campanas.js) — pedido explícito
-// del usuario el 2026-09-26: las notificaciones de RESPUESTAS de correo
-// (scripts/notificar-respuestas.js) ahora van a joaquin.morales@qi-vanta.com
-// en vez de info@qi-vanta.com.
-async function enviarCorreoInterno({ asunto, texto, to = "info@qi-vanta.com" }) {
+// "to" opcional. Todas las notificaciones internas van por defecto a
+// joaquin.morales@qi-vanta.com; cada llamada puede reemplazarlo si hace falta.
+async function enviarCorreoInterno({ asunto, texto, to = "joaquin.morales@qi-vanta.com" }) {
   await getTransporter().sendMail({
     from: process.env.GMAIL_USER,
     to,

@@ -5,7 +5,7 @@
 // 2026-09-04 para el botón "Llámame" del portal.
 const { aplicarCors } = require("./_cors");
 const { getDb } = require("./_mongo");
-const { esCadenaConocida } = require("./_empresaGrande");
+const { esCadenaConocida, esEmpresaNoContactar } = require("./_empresaGrande");
 const { estadoFeriado } = require("./_feriadosMexico");
 const { CATEGORIAS } = require("./_prospectingSegments");
 
@@ -134,7 +134,7 @@ async function marcarLlamadasFrias(req, res) {
     const telefonosVistosEnEsteLote = new Set();
     const elegibles = candidatos
       .filter((n) => {
-        if (telefonosExcluidos.has(n.telefono) || esCadenaConocida(n.nombre)) return false;
+        if (telefonosExcluidos.has(n.telefono) || esCadenaConocida(n.nombre) || esEmpresaNoContactar(n)) return false;
         if (telefonosVistosEnEsteLote.has(n.telefono)) return false;
         telefonosVistosEnEsteLote.add(n.telefono);
         return true;

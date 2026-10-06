@@ -52,6 +52,35 @@ const CADENAS_CONOCIDAS = [
   "cemex", "femsa", "bimbo", "grupo modelo", "gnp seguros", "axa seguros", "metlife", "allianz",
 ];
 
+// Lista permanente de no contacto. Estas organizaciones y sus variantes no
+// pueden recibir correos, mensajes ni llamadas desde ningún flujo. Se separa
+// de CADENAS_CONOCIDAS porque también aplica a Apollo, Hunter, importaciones
+// manuales y a leads históricos ya guardados.
+const EMPRESAS_NO_CONTACTAR = [
+  "apesa", "anepsa", "price shoes", "grupo salinas", "banco azteca", "tv azteca", "elektra",
+];
+
+function normalizarTexto(texto) {
+  return String(texto || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function esEmpresaNoContactar(empresa) {
+  const valores = typeof empresa === "object" && empresa
+    ? [empresa.nombre, empresa.empresa, empresa.sitioWeb, empresa.correo]
+    : [empresa];
+  const texto = valores.map(normalizarTexto).join(" ");
+  const textoCompacto = texto.replace(/\s/g, "");
+  return EMPRESAS_NO_CONTACTAR.find((nombre) => {
+    const normalizado = normalizarTexto(nombre);
+    return texto.includes(normalizado) || textoCompacto.includes(normalizado.replace(/\s/g, ""));
+  }) || null;
+}
+
 // Solo el nombre — a diferencia de detectarEmpresaGrande() (que también
 // usa reseñas/categoría como proxy de tamaño), esto es específicamente
 // para EXCLUIR cadenas/franquicias reales de Google Maps — pedido
@@ -133,4 +162,4 @@ function detectarEmpresaGrande(negocio) {
   return { probablementeGrande: senales.length > 0, senales };
 }
 
-module.exports = { detectarEmpresaGrande, esCadenaConocida, esCorreoDePlataformaExcluida, esInmobiliaria, UMBRAL_RESENAS, CATEGORIAS_GRANDES, CADENAS_CONOCIDAS };
+module.exports = { detectarEmpresaGrande, esCadenaConocida, esCorreoDePlataformaExcluida, esInmobiliaria, esEmpresaNoContactar, UMBRAL_RESENAS, CATEGORIAS_GRANDES, CADENAS_CONOCIDAS, EMPRESAS_NO_CONTACTAR };

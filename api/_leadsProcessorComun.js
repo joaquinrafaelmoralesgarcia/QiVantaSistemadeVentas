@@ -1,6 +1,7 @@
 const { generarScriptEmpresa } = require("./_leadScript");
 const { agregarLeadACampania } = require("./_smartlead");
 const { correoTieneServidorValido } = require("./_emailVerify");
+const { esEmpresaNoContactar } = require("./_empresaGrande");
 
 // Paso compartido por las 3 fuentes de contactos de Piloto LATAM (Apollo,
 // Hunter, e importación manual de Clay/Snov.io/Lusha/Kaspr) — agregado el
@@ -10,6 +11,26 @@ const { correoTieneServidorValido } = require("./_emailVerify");
 // REAL — revelar/encontrar ese correo es responsabilidad de cada fuente
 // antes de llamar esto, no de esta función.
 async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {}) {
+  const campaignId = camposExtra.campaignId || process.env.SMARTLEAD_CAMPAIGN_ID_LATAM;
+  const campaignKey = camposExtra.campaignKey || "piloto_latam";
+  const campaignName = camposExtra.campaignName || "Qi-Vanta | Piloto LATAM | Decisores";
+  const empresaBloqueada = esEmpresaNoContactar({ nombre: persona.empresa, empresa: persona.empresa, sitioWeb: persona.sitioWeb, correo: persona.correo });
+  if (empresaBloqueada) {
+    await leadsCol.insertOne({
+      origen,
+      ...camposExtra,
+      nombre: persona.nombre,
+      empresa: persona.empresa,
+      correo: persona.correo,
+      campaignId,
+      campaignKey,
+      campaignName,
+      estado: "bloqueado_no_contactar",
+      motivoBloqueo: empresaBloqueada,
+      createdAt: new Date(),
+    });
+    return { resultado: "bloqueado_no_contactar" };
+  }
   const existe = await leadsCol.findOne({ correo: persona.correo });
   if (existe) return { resultado: "ya_existia" };
 
@@ -21,6 +42,9 @@ async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {
       nombre: persona.nombre,
       empresa: persona.empresa,
       correoInvalido: persona.correo,
+      campaignId,
+      campaignKey,
+      campaignName,
       estado: "correo_invalido",
       createdAt: new Date(),
     });
@@ -52,6 +76,9 @@ async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {
     seguimiento2: script?.seguimiento2 || "",
     estado: "nuevo",
     emailEstado: null,
+    campaignId,
+    campaignKey,
+    campaignName,
     createdAt: new Date(),
   };
 
@@ -61,7 +88,7 @@ async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {
       correo: persona.correo,
       empresa: persona.empresa,
       telefono: "",
-      campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM,
+      campaignId,
       customFields: {
         qi_vanta_subject: lead.asuntoEmail,
         qi_vanta_message: lead.cuerpoEmail,
