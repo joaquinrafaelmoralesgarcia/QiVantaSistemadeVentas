@@ -2,7 +2,7 @@ const { generarScriptEmpresa } = require("./_leadScript");
 const { generarCorreoAlianza } = require("./_alianzasScript");
 const { agregarLeadACampania } = require("./_smartlead");
 const { correoTieneServidorValido } = require("./_emailVerify");
-const { esEmpresaNoContactar } = require("./_empresaGrande");
+const { esEmpresaNoContactar, esInmobiliaria } = require("./_empresaGrande");
 
 // Paso compartido por las 3 fuentes de contactos de Piloto LATAM (Apollo,
 // Hunter, e importación manual de Clay/Snov.io/Lusha/Kaspr) — agregado el
@@ -31,6 +31,24 @@ async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {
       createdAt: new Date(),
     });
     return { resultado: "bloqueado_no_contactar" };
+  }
+  // La exclusión de bienes raíces es global: también aplica a los contactos
+  // de Apollo/Hunter, no sólo a los resultados de Google Maps.
+  if (esInmobiliaria({ nombre: persona.empresa })) {
+    await leadsCol.insertOne({
+      origen,
+      ...camposExtra,
+      nombre: persona.nombre,
+      empresa: persona.empresa,
+      correo: persona.correo,
+      campaignId,
+      campaignKey,
+      campaignName,
+      estado: "bloqueado_inmobiliaria",
+      motivoBloqueo: "bienes_raices",
+      createdAt: new Date(),
+    });
+    return { resultado: "bloqueado_inmobiliaria" };
   }
   const existe = await leadsCol.findOne({ correo: persona.correo });
   if (existe) return { resultado: "ya_existia" };

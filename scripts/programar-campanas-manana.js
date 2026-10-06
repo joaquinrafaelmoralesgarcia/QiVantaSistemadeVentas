@@ -16,6 +16,7 @@ const key = process.env.SMARTLEAD_API_KEY;
 if (!key) throw new Error("Falta SMARTLEAD_API_KEY.");
 const base = "https://server.smartlead.ai/api/v1";
 const dry = process.argv.includes("--dry");
+const cadenciaRapida = process.argv.includes("--cadencia-rapida");
 const campanas = [
   { nombre: "Google Maps", id: process.env.SMARTLEAD_CAMPAIGN_ID },
   { nombre: "Piloto LATAM", id: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM },
@@ -43,7 +44,7 @@ async function api(method, route, body) {
       days_of_the_week: horario.days || [1, 2, 3, 4, 5],
       start_hour: "08:00",
       end_hour: horario.endHour || "19:00",
-      min_time_btw_emails: actual.min_time_btwn_emails || 4,
+      min_time_btw_emails: cadenciaRapida ? 3 : (actual.min_time_btwn_emails || 4),
       max_new_leads_per_day: actual.max_leads_per_day || 1,
     };
     console.log(JSON.stringify({ campana: campana.nombre, id: campana.id, estadoActual: actual.status, horarioNuevo: nuevoHorario, accion: dry ? "simulacion" : "programar_y_activar" }));

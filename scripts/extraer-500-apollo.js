@@ -21,6 +21,15 @@ const PER_PAGE = 25;
 // del usuario el 2026-10-06. Los leads ya guardados no se alteran.
 const PAISES = ["mexico"];
 const RANGOS = ["1,10", "11,20", "21,50", "51,100", "101,200", "201,500", "501,1000"];
+// Rotación explícita para evitar que el orden de Apollo llene el lote sólo
+// con Directores de Operaciones. Cada vuelta toma un grupo de alto mando.
+const TITULOS_PILOTO = [
+  ["CEO", "Chief Executive Officer", "Director General", "Presidente", "President", "Founder", "Co-Founder", "Fundador"],
+  ["Partner", "Socio", "Managing Partner", "Vice President", "VP", "Vicepresidente"],
+  ["CIO", "Chief Information Officer", "CTO", "Chief Technology Officer", "Director de TI", "Director de IT", "IT Director"],
+  ["Director Comercial", "Commercial Director", "Business Development", "Desarrollo de Negocios"],
+  ["Director de Operaciones", "Operations Director"],
+];
 const archivoEstado = path.join(__dirname, "..", ".apollo-batch-500-state.json");
 
 function leerEstado() {
@@ -38,13 +47,16 @@ async function extraerCampana(db, clave, estado) {
   while (estado.logrados < META && vacias < 30) {
     const resultado = esAlianzas
       ? await buscarPersonasAlianzas({ page: estado.pagina, perPage: PER_PAGE, paises: PAISES, rangosEmpleados: RANGOS, segmento: estado.segmento })
-      : await buscarPersonas({ page: estado.pagina, perPage: PER_PAGE, paises: PAISES, rangosEmpleados: RANGOS });
+    : await buscarPersonas({ page: estado.pagina, perPage: PER_PAGE, paises: PAISES, rangosEmpleados: RANGOS, titulos: TITULOS_PILOTO[(estado.segmento || 0) % TITULOS_PILOTO.length] });
     if (!resultado.personas.length) {
       vacias++;
       if (esAlianzas) {
         estado.segmento = (estado.segmento + 1) % 5;
         if (estado.segmento === 0) estado.pagina++;
-      } else estado.pagina++;
+      } else {
+        estado.segmento = ((estado.segmento || 0) + 1) % TITULOS_PILOTO.length;
+        if (estado.segmento === 0) estado.pagina++;
+      }
       guardarEstado(global.estadoBatch);
       continue;
     }
@@ -53,7 +65,12 @@ async function extraerCampana(db, clave, estado) {
     // "enviado" y los estados de correo inválido también cuentan como lead
     // capturado/auditado en Mongo; los duplicados no.
     estado.logrados += nuevos;
-    estado.pagina++;
+    if (esAlianzas) {
+      estado.pagina++;
+    } else {
+      estado.segmento = ((estado.segmento || 0) + 1) % TITULOS_PILOTO.length;
+      if (estado.segmento === 0) estado.pagina++;
+    }
     if (stats.detenidoPorErrores) throw new Error(`${clave}: Apollo detuvo la extracción por créditos o error.`);
     guardarEstado(global.estadoBatch);
     console.log(JSON.stringify({ campana: clave, pagina: estado.pagina - 1, logrados: estado.logrados, meta: META, stats }));

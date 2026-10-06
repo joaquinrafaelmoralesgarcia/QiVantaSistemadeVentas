@@ -1,5 +1,6 @@
 const { revelarCorreo } = require("./_apollo");
 const { procesarPersonaEmpresa } = require("./_leadsProcessorComun");
+const { esInmobiliaria } = require("./_empresaGrande");
 
 // Espejo de _leadsProcessor.js (Google Maps) pero para el pipeline de
 // Piloto LATAM vía Apollo — pedido explícito del usuario el 2026-09-07:
@@ -54,8 +55,21 @@ async function procesarPersonasApollo(coleccion, personas, camposCampana = {}) {
     .toArray();
   const idsExistentes = new Set(existentes.map((e) => e.apolloId));
   const todasLasNuevas = personas.filter((p) => !idsExistentes.has(p.id));
-  const nuevas = todasLasNuevas.slice(0, MAX_NUEVOS_POR_CORRIDA);
-  const quedaronPendientes = todasLasNuevas.length > nuevas.length;
+  const inmobiliarias = todasLasNuevas.filter((p) => esInmobiliaria({ nombre: p.organization?.name || "" }));
+  if (inmobiliarias.length) {
+    await coleccion.insertMany(inmobiliarias.map((p) => ({
+      apolloId: p.id,
+      origen: "apollo_latam",
+      ...campana,
+      empresa: p.organization?.name || "",
+      estado: "bloqueado_inmobiliaria",
+      motivoBloqueo: "bienes_raices",
+      createdAt: new Date(),
+    })));
+  }
+  const candidatas = todasLasNuevas.filter((p) => !esInmobiliaria({ nombre: p.organization?.name || "" }));
+  const nuevas = candidatas.slice(0, MAX_NUEVOS_POR_CORRIDA);
+  const quedaronPendientes = candidatas.length > nuevas.length;
 
   let procesados = 0;
   let revelados = 0;
