@@ -1,32 +1,26 @@
-name: Scrapeo diario de leads (Apify)
+name: Captación continua de leads (Apify)
 
 # Corre en los runners de GitHub Actions (máquinas de GitHub, no en Vercel
 # ni en tu computadora) — necesario porque Apify tarda varios minutos en
 # terminar y las funciones de Vercel Hobby se cortan a los 60s.
 #
-# Objetivo real: 150 leads CON CORREO/día (25 correos x 6 cuentas de envío
-# de Smartlead) — no 150 negocios en total. Como solo ~40-45% de los
-# negocios encontrados traen correo, sigue disparando búsquedas (rubro+
-# ciudad al azar, hasta 50 negocios cada una) hasta juntar ese mínimo de
-# leads con correo, con un tope de seguridad de 25 búsquedas para acotar
-# el costo si un día toca mala racha de rubros/ciudades con poco correo
-# público.
+# La captación es independiente de Smartlead: guarda los leads en Mongo y
+# los deja en la cola de su campaña incluso cuando esa campaña esté pausada.
+# Corre un lote acotado cada hora para repartir consumo de Apify y evitar que
+# una sola ejecución gaste el presupuesto diario completo.
 on:
   schedule:
-    # 14:00 UTC = 8:00 AM hora de Ciudad de México, antes de que abra la
-    # ventana de envío de correos (10:15) para que los leads del día ya
-    # estén listos.
-    - cron: "0 14 * * 1-5"
+    - cron: "0 * * * *"
   workflow_dispatch: {}
 
 jobs:
   scrapear:
     runs-on: ubuntu-latest
     steps:
-      - name: Buscar hasta juntar mínimo 150 leads con correo
+      - name: Captar un lote de leads sin activar envíos
         run: |
-          MIN_CON_CORREO=150
-          MAX_INTENTOS=25
+          MIN_CON_CORREO=1
+          MAX_INTENTOS=1
           totalConCorreo=0
           totalNuevos=0
           intento=0
@@ -78,7 +72,7 @@ jobs:
           done
 
           echo ""
-          echo "=== RESUMEN: $totalConCorreo leads con correo ($totalNuevos negocios nuevos en total) en $intento búsqueda(s) ==="
+          echo "=== RESUMEN: $totalConCorreo leads con correo ($totalNuevos negocios nuevos) en $intento búsqueda(s) ==="
           if [ "$totalConCorreo" -lt "$MIN_CON_CORREO" ]; then
             echo "::warning::No se alcanzó el mínimo de $MIN_CON_CORREO leads con correo tras $MAX_INTENTOS intentos (se lograron $totalConCorreo)."
           fi

@@ -1,4 +1,4 @@
-name: Scrapeo diario de contactos LATAM (Apollo + Hunter)
+name: Captación continua de contactos LATAM (Apollo + Hunter)
 
 # Antes se llamaba cron-scrape-apollo-diario.yml; se renombró el
 # 2026-09-07 al agregar Hunter.io como segunda fuente de contactos para
@@ -7,28 +7,21 @@ name: Scrapeo diario de contactos LATAM (Apollo + Hunter)
 # diferencia de Snov.io/Lusha/Kaspr/Adapt.io que la reservan para planes
 # de paga.
 #
-# Corre en GitHub Actions por el mismo límite de Vercel Hobby (60s por
-# función) que cron-scrape-diario.yml. Cada llamada a
-# /api/cron-scrape-empresas corre ambas fuentes en la misma invocación y
-# devuelve el resultado ya terminado (ninguna de las 2 necesita sondeo
-# async), así que este workflow solo repite la llamada hasta juntar el
-# mínimo diario o hasta que ambas fuentes se queden sin nada que dar hoy
-# (detenidoPorErrores:true significa que Apollo está sin créditos Y
-# Hunter ya no tiene dominios pendientes/también se quedó sin créditos).
+# La captación es independiente de Smartlead: guarda contactos en Mongo y
+# los agrega a la cola aun cuando Piloto LATAM esté pausada. Cada ejecución
+# procesa un lote pequeño para distribuir créditos de Apollo durante el día.
 on:
   schedule:
-    # 13:45 UTC = 7:45 AM CDMX, antes de la ventana de envío y del scrapeo
-    # de Google Maps (14:00 UTC) para no cruzar ambos al mismo minuto.
-    - cron: "45 13 * * 1-5"
+    - cron: "15 * * * *"
   workflow_dispatch: {}
 
 jobs:
   scrapear:
     runs-on: ubuntu-latest
     steps:
-      - name: Buscar hasta juntar mínimo 100 contactos con correo
+      - name: Captar un lote de contactos sin activar envíos
         run: |
-          # MAX_INTENTOS subido de 10 a 55 el 2026-09-19 — pedido explícito
+          # Anteriormente MAX_INTENTOS era 55 en una sola corrida diaria — pedido explícito
           # del usuario: "mi suscripcion de apollo me da para mas de 2 mil
           # leads al mes, como aseguramos que cuando vuelva a pagar no se
           # pierdan esos creditos". Cada intento procesa como máximo 2
@@ -41,8 +34,8 @@ jobs:
           # usar cada mes. Con 55 intentos el techo sube a ~110/día
           # (~2,100-2,300/mes en los ~21 días hábiles de un mes), suficiente
           # para agotar el cupo mensual real antes de que se renueve.
-          MIN_CON_CORREO=100
-          MAX_INTENTOS=55
+          MIN_CON_CORREO=1
+          MAX_INTENTOS=1
           totalConCorreo=0
           intento=0
           detenido="false"
