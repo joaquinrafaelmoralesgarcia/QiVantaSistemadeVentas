@@ -1,14 +1,11 @@
-name: Notificar respuestas de correo a info@qi-vanta.com
+name: Notificar todas las respuestas de correo a Joaquin
 
-# Pedido explícito del usuario el 2026-09-22: "de cualquier campaña si
-# alguien contesta un correo recuerda enviarlo a la cuenta de
-# info@qi-vanta.com... desde también el buzón maestro de smartlead".
-# Corre cada 30 min durante el horario real de envío de las 3 campañas
-# (9am-7pm CDMX = 15:00-01:00 UTC) — se puede tardar hasta 30 min en
-# avisar de una respuesta nueva, aceptable para este caso.
+# Toda respuesta del buzón maestro de Smartlead se reenvía a
+# joaquin.morales@qi-vanta.com y se guarda en Mongo, sin importar campaña
+# o clasificación. Corre cada 10 min, incluido fuera del horario de envío.
 on:
   schedule:
-    - cron: "*/30 15-23,0 * * 1-6"
+    - cron: "*/10 * * * *"
   workflow_dispatch: {}
 
 jobs:

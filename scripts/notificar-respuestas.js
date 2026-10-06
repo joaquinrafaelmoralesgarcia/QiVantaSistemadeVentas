@@ -1,7 +1,7 @@
 // Guarda en Mongo el contenido real de CADA respuesta de correo de
 // cualquier campaña (Google Maps, Piloto LATAM, Alianzas, y cualquier
 // otra que se agregue después), y notifica a joaquin.morales@qi-vanta.com
-// solo las que parecen interés/rechazo HUMANO real — pedido explícito del
+// toda respuesta nueva a joaquin.morales@qi-vanta.com — pedido explícito del
 // usuario el 2026-09-22 ("de cualquier campaña si alguien contesta un
 // correo... buzón maestro de smartlead") y ampliado el 2026-09-26:
 // "quiero que guardes esto respuestas... en nuestra base de datos" +
@@ -11,8 +11,8 @@
 // mensaje" — solo 1 de 13 (Pablo, Tul) era interés real).
 //
 // Guarda TODO (real, rebote, fuera de oficina, bot) en Mongo — la
-// clasificación es solo para decidir qué te notifica por correo, nunca
-// para descartar datos.
+// clasificación se conserva en Mongo para facilitar revisión; no descarta ni
+// retrasa una notificación.
 //
 // Corre como script directo (no endpoint de Vercel) — el plan Hobby ya
 // está en el tope de 12 funciones serverless. Mismo patrón que
@@ -85,19 +85,18 @@ async function obtenerTextoRespuesta(campaignId, leadId) {
 
     console.log(`[${clasificacion}] ${nombre} <${r.lead_email}> — ${r.email_campaign_name}`);
 
-    // Solo se notifica por correo lo que parece interés/rechazo humano
-    // real — rebotes, fuera-de-oficina y bots de ticket se guardan pero
-    // NO generan correo, para no llenar la bandeja de falsos positivos.
-    // El envío de la notificación NUNCA debe tumbar el guardado en Mongo
+    // Toda respuesta de cualquier campaña se reenvía al usuario: interés,
+    // rechazo, rebote, fuera de oficina o bot. El envío de la notificación
+    // NUNCA debe tumbar el guardado en Mongo.
     // — encontrado en real el 2026-09-26: la cuenta de GMAIL_USER también
     // tenía el login inválido (mismo patrón "Invalid credentials" que las
     // de Smartlead) y, sin este try/catch, una sola falla de correo
     // abortaba el resto del lote sin guardar nada más.
-    if (clasificacion === "posible_real" && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
       try {
         await enviarCorreoInterno({
           to: "joaquin.morales@qi-vanta.com",
-          asunto: `Nueva respuesta (posible interés real): ${nombre} (${r.email_campaign_name})`,
+          asunto: `Nueva respuesta [${clasificacion}]: ${nombre} (${r.email_campaign_name})`,
           texto: [
             `Campaña: ${r.email_campaign_name}`,
             `Lead: ${nombre} <${r.lead_email}>`,
