@@ -85,11 +85,9 @@ const TITULOS_ALIANZAS = [
 // prospectos). Todas representan partners tecnológicos B2B.
 const PALABRAS_CLAVE_ALIANZAS = ["software", "ERP", "CRM", "cloud", "ciberseguridad"];
 
-const PAISES_LATAM = [
-  "mexico", "colombia", "argentina", "chile", "peru", "brazil", "ecuador",
-  "uruguay", "paraguay", "bolivia", "costa rica", "panama", "guatemala",
-  "honduras", "el salvador", "dominican republic", "venezuela",
-];
+// Desde el 2026-10-06 la captación de Apollo se limita a México por
+// instrucción del usuario. No se revelan teléfonos en ningún caso.
+const PAISES_LATAM = ["mexico"];
 
 // Pedido explícito del usuario el 2026-09-08, después de ver el primer
 // lote de 197 (traía conglomerados como Grupo Bimbo, Grupo Salinas,
