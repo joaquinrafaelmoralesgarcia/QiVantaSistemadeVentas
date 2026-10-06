@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "dependencies": {
+    "xlsx": "^0.18.5",
     "imapflow": "^2.2.1",
     "mongodb": "^6.10.0",
     "nodemailer": "^9.1.1"

@@ -1,0 +1,31 @@
+name: Exportar leads de la ventana de captación
+
+# Reporte único de la ventana de ocho horas solicitada el 5 de octubre.
+on:
+  schedule:
+    - cron: "20 11 6 10 *"
+  workflow_dispatch: {}
+
+jobs:
+  exportar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - name: Generar Excel de Apollo y Apify
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
+          CAPTACION_DESDE_UTC: "2026-10-06T03:15:00Z"
+          CAPTACION_HASTA_UTC: "2026-10-06T11:15:00Z"
+          EXPORT_DIR: exports
+        run: node scripts/exportar-leads-ventana.js
+      - name: Publicar reportes Excel
+        uses: actions/upload-artifact@v4
+        with:
+          name: leads-apollo-y-apify-2026-10-06
+          path: exports/*.xlsx
+          if-no-files-found: error
