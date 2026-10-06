@@ -17,7 +17,9 @@ process.env.APOLLO_API_KEY = fs.readFileSync("G:\\Apis\\apiapollo.txt", "utf8").
 
 const META = 250;
 const PER_PAGE = 25;
-const PAISES = ["mexico", "colombia", "argentina", "chile", "peru", "brazil", "ecuador", "uruguay", "paraguay", "bolivia", "costa rica", "panama", "guatemala", "honduras", "el salvador", "dominican republic", "venezuela"];
+// La continuación del lote quedó limitada a México por instrucción expresa
+// del usuario el 2026-10-06. Los leads ya guardados no se alteran.
+const PAISES = ["mexico"];
 const RANGOS = ["1,10", "11,20", "21,50", "51,100", "101,200", "201,500", "501,1000"];
 const archivoEstado = path.join(__dirname, "..", ".apollo-batch-500-state.json");
 
