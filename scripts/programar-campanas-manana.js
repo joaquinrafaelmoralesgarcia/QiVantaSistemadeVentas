@@ -1,6 +1,5 @@
-// Programa únicamente las campañas que reciben leads de la ventana actual:
-// Google Maps (Apify) y Piloto LATAM (Apollo). Al activarlas fuera de su
-// horario, Smartlead espera a las 08:00 America/Mexico_City para enviar.
+// Programa las campañas sin una ventana muerta: la cuota diaria se reparte
+// entre cuentas, pero Smartlead puede distribuirla las 24 horas del día.
 const fs = require("fs");
 const path = require("path");
 
@@ -41,9 +40,9 @@ async function api(method, route, body) {
     const horario = actual.scheduler_cron_value || {};
     const nuevoHorario = {
       timezone: horario.tz || "America/Mexico_City",
-      days_of_the_week: horario.days || [1, 2, 3, 4, 5],
-      start_hour: "08:00",
-      end_hour: horario.endHour || "19:00",
+      days_of_the_week: [0, 1, 2, 3, 4, 5, 6],
+      start_hour: "00:00",
+      end_hour: "23:59",
       min_time_btw_emails: cadenciaRapida ? 3 : (actual.min_time_btwn_emails || 4),
       max_new_leads_per_day: actual.max_leads_per_day || 1,
     };
