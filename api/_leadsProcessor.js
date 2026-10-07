@@ -16,7 +16,9 @@ function normalizarTelefono(tel) {
 // frontend hace polling y llega a llamar esto más de una vez), la segunda
 // corrida los encuentra como duplicados y no inserta nada de más.
 async function procesarNegocios(coleccion, negocios, query, campaign = {}) {
-  const campaignId = campaign.id || process.env.SMARTLEAD_CAMPAIGN_ID;
+  // Los leads nuevos van a la campaña aislada; la campaña histórica conserva
+  // sus cuentas para completar seguimientos ya iniciados.
+  const campaignId = campaign.id || process.env.SMARTLEAD_CAMPAIGN_ID_GOOGLE_NUEVOS || "4093547";
   const campaignKey = campaign.key || "google_maps";
   const campaignName = campaign.name || "Qi-Vanta | Apify Google Maps";
   const telefonos = negocios.map((n) => normalizarTelefono(n.telefono)).filter(Boolean);

@@ -43,7 +43,7 @@ const MAX_NUEVOS_POR_CORRIDA = 2;
 
 async function procesarPersonasApollo(coleccion, personas, camposCampana = {}) {
   const campana = {
-    campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM,
+    campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM_NUEVOS || "4093533",
     campaignKey: "piloto_latam",
     campaignName: "Qi-Vanta | Piloto LATAM | Decisores",
     ...camposCampana,

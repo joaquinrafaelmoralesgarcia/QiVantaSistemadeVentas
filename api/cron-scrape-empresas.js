@@ -70,7 +70,7 @@ async function correrApollo(db, opciones = {}) {
   const esAlianza = Boolean(opciones.alianzas);
   const cursorId = esAlianza ? "cursorAlianzas" : "cursorLatam";
   const campana = esAlianza
-    ? { campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_ALIANZAS || "3990563", campaignKey: "alianzas", campaignName: "Alianzas" }
+    ? { campaignId: process.env.SMARTLEAD_CAMPAIGN_ID_ALIANZAS_NUEVOS || "4093546", campaignKey: "alianzas", campaignName: "Alianzas" }
     : {};
   const buscar = esAlianza ? buscarPersonasAlianzas : buscarPersonas;
   const estadoCol = db.collection("estadoApollo");
