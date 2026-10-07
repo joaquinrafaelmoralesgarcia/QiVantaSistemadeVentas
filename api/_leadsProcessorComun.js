@@ -116,6 +116,16 @@ async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {
         qi_vanta_followup1: lead.seguimiento1,
         qi_vanta_followup2_subject: lead.seguimiento2Asunto,
         qi_vanta_followup2: lead.seguimiento2,
+        // La secuencia de Alianzas usa estos merge tags. Se conservan
+        // también los qi_vanta_* para las demás campañas y compatibilidad.
+        ...(campaignKey === "alianzas" ? {
+          alianza_subject: lead.asuntoEmail,
+          alianza_message: lead.cuerpoEmail,
+          alianza_followup1_subject: lead.seguimiento1Asunto,
+          alianza_followup1: lead.seguimiento1,
+          alianza_followup2_subject: lead.seguimiento2Asunto,
+          alianza_followup2: lead.seguimiento2,
+        } : {}),
       },
     });
     lead.emailEstado = "enviado_a_campana";
