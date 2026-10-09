@@ -4,8 +4,8 @@ name: Guardián de rebote de campañas
 # todo al cron". Mide el rebote de los últimos 7 días de cada campaña y
 # ajusta su ritmo solo: normal (<=5%), reducido a 10 leads/día (5-15%), o
 # pausa de 7 días (>15%) con reanudación automática en modo reducido.
-# Alianzas queda en reposo hasta el 2026-10-22 y Laboratorios hasta el
-# 2026-10-15; después el guardián las reanuda a goteo y las vuelve a pausar
+# Alianzas y Laboratorios quedan en reposo hasta el 2026-10-15; después el
+# guardián las reanuda a goteo y las vuelve a pausar
 # solo si el rebote sigue alto. Ver scripts/cron-guardian-rebote.js.
 #
 # Corre en GitHub Actions (no en esta computadora). Cada 3 horas: el rebote

@@ -69,13 +69,16 @@ const LEADS_DIA = { normal: 40, reducido: 10 };
 const ENFRIAMIENTO_DIAS = 7;
 
 // enfriamientoInicial: reposo con el que arranca la campaña la PRIMERA vez
-// que el guardián la ve (si ya está pausada). Alianzas: 2 semanas desde el
-// 2026-10-08 para que qi-vantarush.com acumule historial con el warmup antes
-// de volver a escribir a sus 174 leads sin correo alternativo. Laboratorios:
-// 1 semana desde su pausa por 20% de rebote.
+// que el guardián la ve (si ya está pausada). Alianzas y Laboratorios: hasta
+// el 2026-10-15, cuando salen de la ventana de 7 días los rebotes viejos.
+// Alianzas iba a reposar 2 semanas por "correos adivinados por Apollo", pero
+// el 2026-10-09 se encontró la causa real: 31 de sus 32 rebotes venían de UN
+// buzón (automation@qi-vantarush.com) bloqueado por Microsoft para enviar
+// (550 5.1.8 bad outbound sender) desde el primer día. Ese buzón ya se retiró
+// de la campaña; sin él, Alianzas rebotaba ~3%.
 const CAMPANAS = [
   { id: "4093533", nombre: "Piloto LATAM" },
-  { id: "4093546", nombre: "Alianzas", enfriamientoInicial: "2026-10-22T14:00:00Z" },
+  { id: "4093546", nombre: "Alianzas", enfriamientoInicial: "2026-10-15T14:00:00Z" },
   { id: "4093547", nombre: "Google Maps" },
   { id: "4093548", nombre: "Laboratorios", enfriamientoInicial: "2026-10-15T14:00:00Z" },
 ];

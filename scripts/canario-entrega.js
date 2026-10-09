@@ -141,6 +141,41 @@ async function buscarMarcas(marcas) {
   return hallazgos;
 }
 
+// Rebote de Microsoft que significa "este buzón tiene prohibido enviar"
+// (restricted sender). Visto por primera vez el 2026-10-09 en
+// automation@qi-vantarush.com: 100% de sus envíos rechazados desde el día
+// 1, y eso pasaba como "68% de rebote de Alianzas" sin que nadie supiera
+// que el problema era un solo buzón.
+const BLOQUEO_MICROSOFT = /5\.1\.8|bad outbound sender/i;
+
+async function rebotePorBloqueo(m) {
+  const L = await api("GET", `/campaigns/${m.campaignId}/leads?offset=0&limit=5`);
+  const lead = (L.json?.data || [])[0];
+  if (!lead) return null;
+  const h = await api("GET", `/campaigns/${m.campaignId}/leads/${lead.lead.id}/message-history`);
+  const r = (h.json?.history || []).find((x) => x.type === "REPLY" && BLOQUEO_MICROSOFT.test(x.email_body || ""));
+  return r ? ((r.email_body || "").replace(/<[^>]+>/g, " ").match(/5\.1\.8[^<]{0,60}/) || ["5.1.8"])[0].trim() : null;
+}
+
+// Campañas vigentes de las que se retira un buzón bloqueado, para que no
+// siga mandando correos que rebotan (y dañan la reputación del dominio).
+const CAMPANAS_VIGENTES = ["4093533", "4093546", "4093547", "4093548"];
+
+async function retirarDeCampanas(cuentaId) {
+  const retiradas = [];
+  for (const id of CAMPANAS_VIGENTES) {
+    const acc = await api("GET", `/campaigns/${id}/email-accounts`);
+    const asignadas = Array.isArray(acc.json) ? acc.json : [];
+    if (!asignadas.some((a) => a.id === cuentaId)) continue;
+    // Nunca dejar una campaña sin ningún buzón: si es el único, se avisa
+    // pero no se retira (pausar o reemplazar es decisión del usuario).
+    if (asignadas.length <= 1) { retiradas.push(`${id} (NO retirado: es su único buzón)`); continue; }
+    await api("DELETE", `/campaigns/${id}/email-accounts`, { email_account_ids: [cuentaId] });
+    retiradas.push(id);
+  }
+  return retiradas;
+}
+
 (async () => {
   if (!DESTINO || !process.env.GMAIL_APP_PASSWORD) {
     console.error("Falta GMAIL_USER / GMAIL_APP_PASSWORD — sin eso no se puede verificar la entrega.");
@@ -157,15 +192,18 @@ async function buscarMarcas(marcas) {
     });
     // Un canario por DOMINIO, no por buzon: el problema se ha comportado
     // siempre a nivel de dominio/tenant, y asi no se gasta cupo de envio.
-    // Dentro de cada dominio, el buzón con más cupo libre hoy: un buzón que
-    // ya llegó a su tope diario no manda el canario hasta mañana y saldría
-    // "PERDIDO" sin serlo (el 2026-10-09 se elegían justo las cuentas de
-    // Piloto, en 20/21).
+    // Un canario por BUZÓN (cambio del 2026-10-09). Antes era uno por
+    // dominio, pero el bloqueo de Microsoft resultó ser por buzón:
+    // automation@qi-vantarush.com estuvo bloqueado desde el primer día
+    // (550 5.1.8 bad outbound sender) mientras strategy@, del mismo dominio,
+    // entregaba bien, y el canario por dominio nunca lo habría visto.
+    // Se omite un buzón sin cupo libre hoy: no mandaría el canario hasta
+    // mañana y saldría "PERDIDO" sin serlo.
     const libre = (a) => (a.message_per_day || 0) - (a.daily_sent_count || 0);
     const porDominio = new Map();
     for (const a of cuentas) {
-      const d = (a.from_email.split("@")[1] || "").toLowerCase();
-      if (!porDominio.has(d) || libre(a) > libre(porDominio.get(d))) porDominio.set(d, a);
+      if (libre(a) <= 0) { console.log(`omitido ${a.from_email}: sin cupo libre hoy (${a.daily_sent_count}/${a.message_per_day})`); continue; }
+      porDominio.set(a.from_email, a);
     }
     for (const [dominio, a] of porDominio) {
       try {
@@ -199,6 +237,13 @@ async function buscarMarcas(marcas) {
       // Spam no tumba el job (el correo sí sale), pero se marca como aviso
       // visible en GitHub: es señal de que ese buzón necesita warmup.
       if (m.resultado === "spam") console.log(`::warning::Canario de ${m.fromEmail} cayó en SPAM`);
+    } else if (await rebotePorBloqueo(m).catch(() => null)) {
+      // Un rechazo 5.1.8 es definitivo: no hace falta esperar el plazo.
+      const detalle = await rebotePorBloqueo(m).catch(() => "5.1.8");
+      const retiradas = await retirarDeCampanas(m.cuentaId).catch((e) => [`error al retirar: ${e.message}`]);
+      m.resultado = "bloqueado_microsoft";
+      perdidos++;
+      console.error(`ERROR ${m.marca} (${m.fromEmail}): BLOQUEADO POR MICROSOFT para enviar (${detalle}). Retirado de campañas: ${retiradas.join(", ") || "ninguna asignada"}. Hay que pedir a Smartlead/SmartSenders que lo desbloqueen.`);
     } else if (horas >= HORAS_DE_GRACIA) {
       m.resultado = "perdido";
       perdidos++;
