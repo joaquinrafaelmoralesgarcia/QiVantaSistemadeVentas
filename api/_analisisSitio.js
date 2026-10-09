@@ -93,9 +93,43 @@ async function analizarSitio(url) {
   }
 }
 
+// Envoltorio variado por lead — pedido explícito del usuario el 2026-10-08
+// ("sí que varíe"): esta frase es COMPARTIDA por Piloto LATAM y Alianzas, y
+// salía idéntica en todos los correos de ambas campañas (mismo intro, mismo
+// cierre), el mismo patrón de repetición que ya se corrigió en el núcleo de
+// Alianzas. Solo se varía el envoltorio (intro/conector/cierre); las 4
+// frases de observación (OBSERVACIONES arriba) NO se tocan — son las
+// afirmaciones verificadas hecho por hecho que evitan que el modelo
+// alucine, y variarlas arriesgaría cambiarles el sentido.
+//
+// Selección DETERMINISTICA por semilla (normalmente el correo del lead):
+// mismo lead siempre da la misma frase, para no cambiarle el texto a un
+// correo que ya se envió si se regenera el copy.
+function hashDeTexto(texto) {
+  let h = 0;
+  for (let i = 0; i < texto.length; i++) h = (h * 31 + texto.charCodeAt(i)) >>> 0;
+  return h;
+}
+function elegir(opciones, semilla) {
+  return opciones[hashDeTexto(semilla) % opciones.length];
+}
+
+const INTRO_OBSERVACION = [
+  "Además, revisando su sitio: ",
+  "De paso, viendo su página: ",
+  "Algo que noté al revisar su sitio: ",
+];
+const CONECTOR_DOS_OBSERVACIONES = [", y ", ", además de que ", "; también noté que "];
+const CIERRE_OBSERVACION = [
+  "Lo comento como oportunidad, no como crítica — son cosas que se resuelven rápido y suelen mover la aguja comercial.",
+  "No es una crítica, es una oportunidad concreta — y de las que se resuelven rápido.",
+  "Lo digo en plan de oportunidad, no de señalamiento — son ajustes rápidos que suelen notarse en el resultado.",
+];
+
 // Devuelve el bloque listo para anexar al cuerpo, o "" si no hay nada
-// verificable que decir.
-function lineaObservaciones(analisis) {
+// verificable que decir. `semilla` identifica al lead (correo normalmente)
+// para que la variante elegida sea siempre la misma para ese lead.
+function lineaObservaciones(analisis, semilla = "") {
   if (!analisis || typeof analisis !== "object") return "";
 
   const encontradas = OBSERVACIONES.filter((o) => analisis[o.clave] === false)
@@ -104,8 +138,11 @@ function lineaObservaciones(analisis) {
 
   if (!encontradas.length) return "";
 
-  const cuerpo = encontradas.length === 1 ? encontradas[0] : `${encontradas[0]}, y ${encontradas[1]}`;
-  return `Además, revisando su sitio: ${cuerpo}. Lo comento como oportunidad, no como crítica — son cosas que se resuelven rápido y suelen mover la aguja comercial.`;
+  const conector = elegir(CONECTOR_DOS_OBSERVACIONES, semilla + ":conector");
+  const cuerpo = encontradas.length === 1 ? encontradas[0] : `${encontradas[0]}${conector}${encontradas[1]}`;
+  const intro = elegir(INTRO_OBSERVACION, semilla + ":introObs");
+  const cierre = elegir(CIERRE_OBSERVACION, semilla + ":cierreObs");
+  return `${intro}${cuerpo}. ${cierre}`;
 }
 
 module.exports = { analizarSitio, lineaObservaciones };

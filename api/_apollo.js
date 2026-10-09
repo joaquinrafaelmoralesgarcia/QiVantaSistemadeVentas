@@ -161,10 +161,28 @@ async function revelarCorreo(personId) {
   const persona = data.person;
   if (!persona || !persona.email) return null;
 
+  // Señal de confianza del correo revelado — pedido explícito del usuario
+  // el 2026-10-08, tras ver 68% de rebote en Alianzas con correos de
+  // Apollo. El filtro de búsqueda (contact_email_status[]=verified en
+  // buscarPersonas) no bastó: igual rebotaron. Se guarda CUALQUIER campo de
+  // confianza que Apollo traiga en /people/match (nombre exacto sin
+  // confirmar en vivo — Apollo tiene 0 créditos desde el 2026-10-07, ciclo
+  // nuevo hasta el 2026-11-06 — así que no se pudo ver una respuesta real
+  // de revelación todavía). Se intentan los nombres de campo documentados
+  // públicamente por Apollo; el primero que exista en la respuesta real
+  // gana. Si ninguno existe, emailStatus queda null y el llamador decide
+  // (hoy: no bloquea nada, solo lo registra, hasta ver datos reales).
+  //
+  // EN EL PRIMER REVEAL CON CRÉDITOS REALES: revisar el payload completo
+  // (console.log(JSON.stringify(persona))) para confirmar el nombre de
+  // campo correcto y, si es necesario, agregarlo a esta lista.
+  const emailStatus = persona.email_status || persona.contact_email_status || persona.extrapolated_email_confidence || null;
+
   return {
     nombre: `${persona.first_name || ""} ${persona.last_name || ""}`.trim(),
     titulo: persona.title || "",
     correo: persona.email,
+    emailStatus,
     empresa: persona.organization?.name || "",
     descripcionEmpresa: persona.organization?.short_description || null,
     // Sitio web de la empresa — agregado el 2026-09-26, pedido explícito

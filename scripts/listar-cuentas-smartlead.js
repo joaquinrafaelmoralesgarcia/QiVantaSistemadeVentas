@@ -1,0 +1,3 @@
+const fs = require("fs"); const path = require("path");
+for (const line of fs.readFileSync(path.join(__dirname, "..", ".env.local"), "utf8").split("\n")) { const m = line.match(/^([A-Z0-9_]+)=(.*)$/); if (m) process.env[m[1]] = m[2].replace(/^"|"$/g, ""); }
+(async () => { const r = await fetch(`https://server.smartlead.ai/api/v1/email-accounts/?offset=0&limit=100&api_key=${encodeURIComponent(process.env.SMARTLEAD_API_KEY)}`); if (!r.ok) throw new Error(`HTTP ${r.status}`); const rows = await r.json(); console.log(JSON.stringify((Array.isArray(rows) ? rows : []).map((x) => ({ id: x.id, email: x.from_email, smtp: Boolean(x.is_smtp_success), limit: x.message_per_day, status: x.status })), null, 2)); })().catch((e) => { console.error(e.message); process.exitCode = 1; });

@@ -1,5 +1,5 @@
 const { generarScriptEmpresa } = require("./_leadScript");
-const { generarCorreoAlianza } = require("./_alianzasScript");
+const { generarCorreoAlianzaIA } = require("./_alianzasScript");
 const { agregarLeadACampania } = require("./_smartlead");
 const { correoTieneServidorValido } = require("./_emailVerify");
 const { esEmpresaNoContactar, esInmobiliaria } = require("./_empresaGrande");
@@ -70,7 +70,11 @@ async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {
     return { resultado: "correo_invalido" };
   }
 
-  const crearScript = campaignKey === "alianzas" ? generarCorreoAlianza : generarScriptEmpresa;
+  // Alianzas pasa por DeepInfra desde el 2026-10-07 (generarCorreoAlianzaIA):
+  // personaliza el gancho segun el analisis de cada empresa, conservando fijo
+  // el nucleo de la propuesta de alianza. Antes usaba generarCorreoAlianza(),
+  // que es la plantilla identica para todos.
+  const crearScript = campaignKey === "alianzas" ? generarCorreoAlianzaIA : generarScriptEmpresa;
   const script = await Promise.resolve(crearScript(persona)).catch((err) => {
     console.error("Error generando script para", persona.nombre, err);
     return null;

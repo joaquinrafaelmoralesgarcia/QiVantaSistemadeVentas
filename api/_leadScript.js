@@ -474,7 +474,7 @@ async function generarScriptEmpresa(lead) {
     }),
     analizarSitio(lead.sitioWeb).catch(() => null),
   ]);
-  const observaciones = lineaObservaciones(analisisSitio);
+  const observaciones = lineaObservaciones(analisisSitio, lead.correo || lead.empresa || lead.nombre || "");
   await corregirAsuntosDelScript(script, `Empresa: ${lead.empresa}, contacto: ${lead.nombre}`, { esEmpresa: true });
   await corregirCifrasDelScript(script, `Empresa: ${lead.empresa}, contacto: ${lead.nombre}`);
 

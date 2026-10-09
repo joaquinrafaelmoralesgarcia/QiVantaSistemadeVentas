@@ -12,4 +12,9 @@ smartlead-support-message.txt
 tmp_*.js
 .cuenta-respaldo.json
 .apollo-batch-500-state.json
+.apollo-solo-mongo-state.json
+.apify-solo-mongo-runs.json
+.apify-google-maps-runs.json
 logs/
+.logs/
+exports/

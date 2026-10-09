@@ -1,0 +1,48 @@
+name: Carga continua de leads a Smartlead
+
+# Pedido explícito del usuario el 2026-10-08: "crea el cron para cargar
+# leads todo el tiempo en todas las campañas de acuerdo a su perfil y que
+# viva en la nube para que no dependa de esta computadora".
+#
+# POR QUE: hasta este día, ningún cron cargaba leads nuevos a Smartlead —
+# solo existía el monitor de salud (cron-monitor-campanas) y la rampa de
+# envíos (cron-rampa-envios), que sube el TOPE de envío pero no mueve
+# leads de Mongo a las campañas. El tope subía solo mientras las campañas
+# se quedaban sin leads sin que nadie lo notara (Google Maps llegó a 13
+# leads sin empezar, Piloto a 166, el mismo día que se encontró esto).
+#
+# Corre en los runners de GitHub Actions (máquinas de GitHub, no esta
+# computadora ni Vercel) — igual que sincronizar-metricas.yml, porque
+# genera copy con DeepInfra y sube leads uno por uno, muy por encima de
+# los 60s que da Vercel Hobby.
+#
+# Cada 2 horas: la mayoría de corridas no hacen nada (el colchón ya está
+# cubierto) y terminan en segundos — solo actúa cuando una campaña
+# realmente necesita más leads. Ver scripts/cron-cargar-leads.js para el
+# detalle completo (colchón objetivo, topes por corrida, generador de
+# copy correcto por campaña).
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  cargar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Instalar dependencias
+        run: npm install --production
+      - name: Generar .env.local desde secrets
+        run: |
+          cat > .env.local << EOF
+          MONGODB_URI=${{ secrets.MONGODB_URI }}
+          MONGODB_DB=${{ secrets.MONGODB_DB }}
+          SMARTLEAD_API_KEY=${{ secrets.SMARTLEAD_API_KEY }}
+          DEEPINFRA_API_KEY=${{ secrets.DEEPINFRA_API_KEY }}
+          EOF
+      - name: Cargar leads pendientes a cada campaña
+        run: node scripts/cron-cargar-leads.js
