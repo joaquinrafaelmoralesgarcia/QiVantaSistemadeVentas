@@ -1,13 +1,18 @@
 name: Pausar campañas en días festivos (México)
 
 # Pedido explícito del usuario el 2026-09-13: "los dias festivos en
-# mexico no mandes correo ni llamadas de ninguna campaña". Corre temprano
-# cada día, antes de que arranque la ventana de envío (9am-7pm CDMX) --
-# pausa las campañas si hoy es festivo oficial LFT, o las reactiva si
-# ayer las pausamos nosotros por eso y hoy ya no es festivo.
+# mexico no mandes correo ni llamadas de ninguna campaña". Reconfirmado el
+# 2026-10-09: "ejecutar las campañas y envíos de lunes a viernes y menos
+# feriados". Pausa las campañas si la PRÓXIMA ventana de envío (8am-7pm
+# CDMX) cae en festivo oficial LFT, y las reactiva cuando ya no.
+#
+# Cada 3 horas, no una vez al día: GitHub dispara los cron con ~6 horas de
+# retraso (la corrida de "7am CDMX" llegaba ~1pm), así que con una sola
+# corrida un festivo arrancaba enviando toda la mañana. Con varias corridas
+# y mirando la próxima ventana, la de la noche anterior ya pausa a tiempo.
 on:
   schedule:
-    - cron: "0 13 * * *" # 7am CDMX
+    - cron: "40 */3 * * *"
   workflow_dispatch: {}
 
 jobs:

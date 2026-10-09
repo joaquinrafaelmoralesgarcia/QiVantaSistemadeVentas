@@ -45,6 +45,18 @@ if (fs.existsSync(envPath)) {
   }
 }
 const { actualizarTopeCampania, actualizarEstadoCampania, obtenerEstadoRealCampania } = require("../api/_smartlead");
+const { esFestivoOficialMexico } = require("../api/_feriadosMexico");
+
+// Misma regla que verificar-feriado.js: la próxima ventana de envío es hoy
+// si no ha cerrado (19:00 CDMX), si no mañana. El guardián no reanuda una
+// campaña si esa ventana cae en festivo — verificar-feriado.js solo
+// reactiva lo que él pausó, así que una reanudación del guardián en
+// festivo enviaría correos ese día.
+function proximaVentanaEsFestivo() {
+  const ahoraCdmx = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
+  if (ahoraCdmx.getHours() >= 19) ahoraCdmx.setDate(ahoraCdmx.getDate() + 1);
+  return esFestivoOficialMexico(ahoraCdmx);
+}
 
 const DRY = process.argv.includes("--dry");
 const BASE = "https://server.smartlead.ai/api/v1";
@@ -117,6 +129,7 @@ async function procesar(col, c) {
 
   // Terminó el enfriamiento de una pausa propia: reanudar en reducido
   if (estado.pausadoPorGuardian && real === "PAUSED") {
+    if (proximaVentanaEsFestivo()) return { campana: c.nombre, accion: "fin del reposo, pero la próxima ventana es festivo: se reanuda en la siguiente corrida" };
     await aplicarNivel(c.id, "reducido");
     if (!DRY) await actualizarEstadoCampania(c.id, "START");
     await guardar({ pausadoPorGuardian: false, enfriamientoHasta: null, nivel: "reducido" }, "fin del reposo: reanudada en reducido");

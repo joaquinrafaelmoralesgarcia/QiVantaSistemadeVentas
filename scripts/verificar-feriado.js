@@ -23,10 +23,32 @@ const { getDb } = require("../api/_mongo");
 const { actualizarEstadoCampania, obtenerEstadoRealCampania } = require("../api/_smartlead");
 const { esFestivoOficialMexico } = require("../api/_feriadosMexico");
 
+// Las 4 campañas vigentes desde el 2026-10-07. Antes esta lista apuntaba a
+// las 2 campañas viejas (SMARTLEAD_CAMPAIGN_ID / _LATAM), que ya están
+// COMPLETED: las campañas que de verdad envían no quedaban protegidas en
+// festivos (encontrado el 2026-10-09, pedido del usuario: "ejecutar las
+// campañas y envíos de lunes a viernes y menos feriados").
 const CAMPANIAS = [
-  { nombre: "Google Maps", id: process.env.SMARTLEAD_CAMPAIGN_ID },
-  { nombre: "Piloto LATAM", id: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM },
+  { nombre: "Piloto LATAM", id: "4093533" },
+  { nombre: "Alianzas", id: "4093546" },
+  { nombre: "Google Maps", id: "4093547" },
+  { nombre: "Laboratorios", id: "4093548" },
 ];
+
+// Hora (CDMX) en que cierra la ventana de envío de las campañas.
+const CIERRE_VENTANA = 19;
+
+// Fecha de la PRÓXIMA ventana de envío: hoy si todavía no cierra, mañana si
+// ya cerró. Antes se miraba solo "hoy" con una corrida a las 7am CDMX, pero
+// GitHub dispara los cron con ~6 horas de retraso (corridas reales: 12:46,
+// 13:12 y 13:08 CDMX): en un festivo los correos habrían salido toda la
+// mañana antes de pausar. Mirando la próxima ventana, una corrida de la
+// noche anterior ya pausa a tiempo.
+function fechaProximaVentana(ahoraCdmx) {
+  const f = new Date(ahoraCdmx);
+  if (ahoraCdmx.getHours() >= CIERRE_VENTANA) f.setDate(f.getDate() + 1);
+  return f;
+}
 
 async function procesarCampania(db, col, campania, esFestivoHoy) {
   const estadoGuardado = await col.findOne({ _id: campania.id });
@@ -52,9 +74,10 @@ async function procesarCampania(db, col, campania, esFestivoHoy) {
 }
 
 (async () => {
-  const hoyCdmx = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
-  const esFestivoHoy = esFestivoOficialMexico(hoyCdmx);
-  console.log(`Hoy (CDMX): ${hoyCdmx.toDateString()} — ¿festivo oficial LFT?: ${esFestivoHoy}`);
+  const ahoraCdmx = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
+  const ventana = fechaProximaVentana(ahoraCdmx);
+  const esFestivoHoy = esFestivoOficialMexico(ventana);
+  console.log(`Ahora (CDMX): ${ahoraCdmx.toString().slice(0, 21)} — próxima ventana: ${ventana.toDateString()} — ¿festivo oficial LFT?: ${esFestivoHoy}`);
 
   const db = await getDb();
   const col = db.collection("estadoFeriadoCampanias");
