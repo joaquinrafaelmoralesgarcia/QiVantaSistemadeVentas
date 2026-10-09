@@ -64,26 +64,39 @@ async function api(metodo, ruta, cuerpo) {
 }
 
 // Devuelve el motivo por el que NO se debe subir, o null si esta sano.
-// Peor tasa de rebote entre las campanas a las que sirve este buzon. Si
-// cualquiera esta por encima del umbral, no se sube el tope de nadie: un
-// rebote alto quema el dominio, no solo la campana.
-async function peorRebote() {
+// Peor tasa de rebote (ultimos 7 dias) entre las campanas ACTIVAS que usa
+// CADA buzon. Antes (2026-10-08 temprano) se tomaba el peor rebote de
+// cualquier campana y se congelaban las 8 cuentas: el 10% de Google Maps
+// frenaba tambien a las cuentas de Piloto, que iba en 0%. Desde que cada
+// campana tiene sus propias cuentas (y Alianzas su propio dominio, ver
+// aislar-dominio-alianzas.js), se congela solo la cuenta afectada. Ventana
+// de 7 dias en vez del acumulado historico: el acumulado nunca baja y
+// dejaria congelada para siempre a una campana que ya se corrigio.
+const VENTANA_REBOTE_DIAS = 7;
+async function reboteDeCuentas() {
+  const fin = new Date();
+  const inicio = new Date(fin.getTime() - (VENTANA_REBOTE_DIAS - 1) * 86400000);
+  const rango = `start_date=${inicio.toISOString().slice(0, 10)}&end_date=${fin.toISOString().slice(0, 10)}`;
+  const porCuenta = new Map();
   const campanas = await api("GET", "/campaigns");
-  let peor = { tasa: 0, nombre: null };
   for (const c of (Array.isArray(campanas.json) ? campanas.json : [])) {
     if (c.status !== "ACTIVE") continue;
-    const an = await api("GET", `/campaigns/${c.id}/analytics`);
+    const an = await api("GET", `/campaigns/${c.id}/analytics-by-date?${rango}`);
     const enviados = Number(an.json?.sent_count || 0);
     const rebotes = Number(an.json?.bounce_count || 0);
     if (enviados < MINIMO_ENVIADOS_PARA_JUZGAR) continue;
     const tasa = (100 * rebotes) / enviados;
-    if (tasa > peor.tasa) peor = { tasa, nombre: c.name };
+    const cuentas = await api("GET", `/campaigns/${c.id}/email-accounts`);
+    for (const cu of (Array.isArray(cuentas.json) ? cuentas.json : [])) {
+      const previo = porCuenta.get(cu.id);
+      if (!previo || tasa > previo.tasa) porCuenta.set(cu.id, { tasa, nombre: c.name });
+    }
   }
-  return peor;
+  return porCuenta;
 }
 
-function motivoDeCongelacion(a, dias, peor) {
-  if (peor && peor.tasa > REBOTE_MAXIMO) return `rebote ${peor.tasa.toFixed(1)}% en "${peor.nombre}" (> ${REBOTE_MAXIMO}%)`;
+function motivoDeCongelacion(a, dias, rebote) {
+  if (rebote && rebote.tasa > REBOTE_MAXIMO) return `rebote ${rebote.tasa.toFixed(1)}% en "${rebote.nombre}" (ultimos ${VENTANA_REBOTE_DIAS} dias, > ${REBOTE_MAXIMO}%)`;
   if (!a.is_smtp_success) return "SMTP roto";
   const w = a.warmup_details || {};
   // El warmup APAGADO a proposito no es un buzon enfermo. Se apago el
@@ -113,8 +126,7 @@ function motivoDeCongelacion(a, dias, peor) {
   console.log(`${DRY ? "SIMULACION" : "EJECUTANDO"} rampa — buzones nuevos: ${cuentas.length}`);
   if (!cuentas.length) { console.log("Aun no hay buzones nuevos."); return; }
 
-  const peor = await peorRebote();
-  if (peor.nombre) console.log(`peor rebote entre campanas activas: ${peor.tasa.toFixed(1)}% ("${peor.nombre}")`);
+  const rebotePorCuenta = await reboteDeCuentas();
   let subidos = 0, congelados = 0, enMeta = 0;
   for (const a of cuentas) {
     const creada = new Date(a.created_at);
@@ -122,7 +134,7 @@ function motivoDeCongelacion(a, dias, peor) {
     const deseado = topeParaDia(dias);
     const actual = a.message_per_day || 0; // se ESCRIBE con max_email_per_day, pero se LEE en message_per_day
 
-    const motivo = motivoDeCongelacion(a, dias, peor);
+    const motivo = motivoDeCongelacion(a, dias, rebotePorCuenta.get(a.id));
     if (motivo) {
       console.log(`CONGELADO ${a.from_email}: ${motivo} (se queda en ${actual}/dia, le tocaria ${deseado})`);
       congelados++;
