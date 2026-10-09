@@ -57,6 +57,17 @@ const { generarCorreoAlianzaIA } = require("../api/_alianzasScript");
 const { esEmpresaNoContactar, esInmobiliaria } = require("../api/_empresaGrande");
 const { correoTieneServidorValido } = require("../api/_emailVerify");
 const { agregarLeadACampania } = require("../api/_smartlead");
+const { extraerCorreoGenerico } = require("../api/_correoGenericoSitio");
+
+// Campañas cuyos leads salen de Google Maps (Apify). Apify casi nunca trae
+// correo: el 2026-10-08 había 111 negocios con sitio web pero sin correo
+// esperando (92 de Google Maps, 19 de Laboratorios) mientras ambas campañas
+// se quedaban sin leads. Para un negocio local el correo genérico de su
+// propio sitio (info@, contacto@) es justo el canal correcto, así que se
+// busca ahí antes de dar la campaña por vacía. Cada sitio se intenta una
+// sola vez (correoGenericoIntentadoEn) para no recrawlear en cada corrida.
+const CAMPANAS_CON_ENRIQUECIMIENTO = ["google_maps", "laboratorios"];
+const MAX_SITIOS_POR_CORRIDA = 40; // cada sitio tarda 1-10s; acota la duración de la corrida
 
 const DRY = process.argv.includes("--dry");
 const BASE = "https://server.smartlead.ai/api/v1";
@@ -139,6 +150,37 @@ function camposPersonalizados(lead, key) {
   };
 }
 
+// Busca correo genérico en el sitio de negocios sin correo de esta campaña.
+// Devuelve cuántos quedaron con correo (y por lo tanto en la cola normal).
+async function enriquecerSinCorreo(col, key) {
+  const sinCorreo = await col.find({
+    campaignKey: key,
+    $or: [{ correo: { $exists: false } }, { correo: null }, { correo: "" }],
+    sitioWeb: { $type: "string", $ne: "" },
+    emailEstado: { $nin: ["no_contactar", "enviado_a_campana"] },
+    correoGenericoIntentadoEn: { $exists: false },
+  }).sort({ createdAt: -1 }).limit(MAX_SITIOS_POR_CORRIDA).toArray();
+
+  let encontrados = 0, i = 0;
+  async function trabajador() {
+    while (i < sinCorreo.length) {
+      const lead = sinCorreo[i++];
+      const r = await extraerCorreoGenerico(lead.sitioWeb).catch(() => null);
+      const cambios = { correoGenericoIntentadoEn: new Date() };
+      // No reutilizar un correo que ya tiene otro lead (misma empresa
+      // captada dos veces, o ya contactada por otra campaña).
+      const yaUsado = r && await col.findOne({ correo: r.correo, _id: { $ne: lead._id } }, { projection: { _id: 1 } });
+      if (r && !yaUsado) {
+        Object.assign(cambios, { correo: r.correo, correoFuente: "sitio_generico", emailEstado: "pendiente_carga_smartlead" });
+        encontrados++;
+      }
+      if (!DRY) await col.updateOne({ _id: lead._id }, { $set: cambios });
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(8, sinCorreo.length) }, trabajador));
+  return { revisados: sinCorreo.length, encontrados };
+}
+
 async function procesarCampania(col, key, presupuestoRestante) {
   const { campaignId, nombre } = CAMPANAS[key];
   const notStarted = await notStartedDeCampania(campaignId);
@@ -147,6 +189,13 @@ async function procesarCampania(col, key, presupuestoRestante) {
 
   const resumen = { campana: nombre, sinEmpezarAntes: notStarted, objetivo, agregados: 0, copyGenerado: 0, copyFallido: 0, correoInvalido: 0, bloqueados: 0, duplicados: 0 };
   if (objetivo <= 0) { resumen.motivo = notStarted >= COLCHON_OBJETIVO ? "colchon ya cubierto" : "sin presupuesto en esta corrida"; return resumen; }
+
+  if (CAMPANAS_CON_ENRIQUECIMIENTO.includes(key)) {
+    resumen.sitiosRevisados = 0;
+    const e = await enriquecerSinCorreo(col, key);
+    resumen.sitiosRevisados = e.revisados;
+    resumen.correosDeSitio = e.encontrados;
+  }
 
   const candidatos = await col.find({
     campaignKey: key,
