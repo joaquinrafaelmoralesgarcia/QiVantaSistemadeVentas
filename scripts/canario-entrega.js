@@ -81,9 +81,32 @@ async function enviarCanario(cuentaId, fromEmail) {
     start_hour: "00:00", end_hour: "23:59", min_time_btw_emails: 3, max_new_leads_per_day: 10,
   });
   await api("POST", `/campaigns/${id}/email-accounts`, { email_account_ids: [cuentaId] });
-  await api("POST", `/campaigns/${id}/leads`, {
-    lead_list: [{ email: DESTINO, first_name: "Canario", company_name: "Qi-Vanta" }],
+  // ignore_duplicate_leads_in_other_campaign: el destino es siempre el mismo
+  // Gmail, y Smartlead por defecto DESCARTA en silencio un lead que ya existe
+  // en otra campaña. Encontrado el 2026-10-09: desde el segundo canario,
+  // todas las campañas canario quedaban sin lead (sent=0, COMPLETED) y el
+  // canario reportaba "PERDIDO" como si fuera un problema de entrega, cuando
+  // nunca se había enviado nada. Por eso además se verifica upload_count.
+  // ignore_global_block_list: el destino (nuestro propio buzón) está en la
+  // lista de bloqueo global de Smartlead — la respuesta traía block_count: 1
+  // y el lead se descartaba aunque upload_count dijera 1. Es seguro
+  // ignorarla aquí porque el único destinatario es nuestro buzón.
+  // Dirección ÚNICA por canario (sub-dirección con "+", que Google Workspace
+  // entrega al mismo buzón). Smartlead no deja el mismo destinatario en dos
+  // campañas activas aunque se le pida ignorar duplicados
+  // (skipped_in_other_campaign_count: 1, probado el 2026-10-09), así que con
+  // el mismo correo solo el primer canario del día entraba.
+  const destinoUnico = DESTINO.replace("@", `+${marca.toLowerCase()}@`);
+  const alta = await api("POST", `/campaigns/${id}/leads`, {
+    lead_list: [{ email: destinoUnico, first_name: "Canario", company_name: "Qi-Vanta" }],
+    settings: { ignore_duplicate_leads_in_other_campaign: true, ignore_global_block_list: true },
   });
+  // upload_count NO confirma nada (cuenta intentos, no altas). Se verifica
+  // que el lead esté de verdad dentro de la campaña.
+  const enCampana = await api("GET", `/campaigns/${id}/leads?offset=0&limit=5`);
+  if (!(enCampana.json?.data || []).length) {
+    throw new Error(`Smartlead no agregó el lead del canario (campaña ${id}): ${JSON.stringify(alta.json).slice(0, 220)}`);
+  }
   await api("POST", `/campaigns/${id}/status`, { status: "START" });
   return { marca, campaignId: id, cuentaId, fromEmail, enviado: new Date().toISOString() };
 }
@@ -134,10 +157,15 @@ async function buscarMarcas(marcas) {
     });
     // Un canario por DOMINIO, no por buzon: el problema se ha comportado
     // siempre a nivel de dominio/tenant, y asi no se gasta cupo de envio.
+    // Dentro de cada dominio, el buzón con más cupo libre hoy: un buzón que
+    // ya llegó a su tope diario no manda el canario hasta mañana y saldría
+    // "PERDIDO" sin serlo (el 2026-10-09 se elegían justo las cuentas de
+    // Piloto, en 20/21).
+    const libre = (a) => (a.message_per_day || 0) - (a.daily_sent_count || 0);
     const porDominio = new Map();
     for (const a of cuentas) {
       const d = (a.from_email.split("@")[1] || "").toLowerCase();
-      if (!porDominio.has(d)) porDominio.set(d, a);
+      if (!porDominio.has(d) || libre(a) > libre(porDominio.get(d))) porDominio.set(d, a);
     }
     for (const [dominio, a] of porDominio) {
       try {
@@ -145,7 +173,11 @@ async function buscarMarcas(marcas) {
         marcas.push(m);
         console.log(`enviado canario ${m.marca} desde ${dominio} (campana ${m.campaignId})`);
       } catch (e) {
-        console.error(`no se pudo enviar canario desde ${dominio}: ${e.message}`);
+        // Antes solo se registraba y el job salía en verde: así pasaron días
+        // sin que ningún canario se enviara (lead bloqueado en Smartlead)
+        // sin que nada lo marcara. Un canario que no sale es un error.
+        console.error(`ERROR no se pudo enviar canario desde ${dominio}: ${e.message}`);
+        process.exitCode = 1;
       }
     }
     guardarMarcas(marcas);
@@ -164,6 +196,9 @@ async function buscarMarcas(marcas) {
     if (donde) {
       m.resultado = donde === "INBOX" ? "entregado" : "spam";
       console.log(`${m.marca} (${m.fromEmail}): ${m.resultado.toUpperCase()}`);
+      // Spam no tumba el job (el correo sí sale), pero se marca como aviso
+      // visible en GitHub: es señal de que ese buzón necesita warmup.
+      if (m.resultado === "spam") console.log(`::warning::Canario de ${m.fromEmail} cayó en SPAM`);
     } else if (horas >= HORAS_DE_GRACIA) {
       m.resultado = "perdido";
       perdidos++;

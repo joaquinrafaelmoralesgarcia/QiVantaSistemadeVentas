@@ -30,6 +30,19 @@ function reportar(nivel, mensaje) {
   console.log(`[${nivel}] ${mensaje}`);
 }
 
+// Las 4 campañas que envían desde el 2026-10-07. Antes los chequeos de
+// Smartlead apuntaban a las campañas viejas (SMARTLEAD_CAMPAIGN_ID / _LATAM
+// / 3990563), ya COMPLETED: revisaban "0 leads" y se saltaban el cupo, así
+// que no vigilaban nada real (encontrado el 2026-10-09).
+const CAMPANAS_VIGENTES = [
+  { nombre: "Piloto LATAM", id: "4093533" },
+  { nombre: "Alianzas", id: "4093546" },
+  { nombre: "Google Maps", id: "4093547" },
+  { nombre: "Laboratorios", id: "4093548" },
+];
+
+const ESTADOS_PENDIENTES = [null, "pendiente_carga_smartlead", "bloqueado_limite_contactos_smartlead", "error"];
+
 // Chequeo 1 y 2: duplicados dentro de nuestra propia base — mismo
 // teléfono o correo guardado en más de un documento de "leads". Esto es
 // lo que directamente podría causar un correo o llamada duplicada a la
@@ -65,17 +78,33 @@ async function validarDuplicadosMongo(db) {
     console.log(`[OK] ${dupTelefonoCompartido} teléfono(s) compartidos por negocios distintos (línea corporativa) — no es un problema, ya protegido contra doble llamada.`);
   }
 
+  // Duplicados de correo: se separa lo ACCIONABLE de lo histórico (cambio
+  // del 2026-10-09). Accionable = esa persona todavía puede recibir otro
+  // correo: dos registros pendientes, o uno pendiente y otro ya enviado.
+  // Eso es ERROR. Histórico = ya se le escribió dos veces en el pasado (no
+  // se puede deshacer) o los registros extra ya están bloqueados: eso es
+  // ADVERTENCIA. Antes todo era ERROR y el workflow salía en rojo todos los
+  // días por casos ya resueltos, sin distinguir el riesgo real.
   const dupCorreo = await leadsCol
     .aggregate([
       { $match: { correo: { $type: "string", $ne: "" } } },
-      { $group: { _id: { $toLower: "$correo" }, count: { $sum: 1 }, nombres: { $push: "$nombre" } } },
+      { $group: { _id: { $toLower: "$correo" }, count: { $sum: 1 }, estados: { $push: "$emailEstado" } } },
       { $match: { count: { $gt: 1 } } },
     ])
     .toArray();
-  if (dupCorreo.length) {
-    reportar("ERROR", `${dupCorreo.length} correo(s) duplicados en "leads": ${dupCorreo.slice(0, 5).map((d) => `${d._id} (${d.count}x)`).join("; ")}`);
+  const accionables = dupCorreo.filter((d) => {
+    const pendientes = d.estados.filter((e) => ESTADOS_PENDIENTES.includes(e ?? null)).length;
+    const enviados = d.estados.filter((e) => e === "enviado_a_campana").length;
+    return pendientes >= 2 || (pendientes >= 1 && enviados >= 1);
+  });
+  const historicosDobles = dupCorreo.filter((d) => d.estados.filter((e) => e === "enviado_a_campana").length >= 2);
+  if (accionables.length) {
+    reportar("ERROR", `${accionables.length} correo(s) que todavía podrían recibir un correo repetido: ${accionables.slice(0, 5).map((d) => `${d._id} (${d.count}x)`).join("; ")}`);
   } else {
-    console.log('[OK] Sin correos duplicados en "leads".');
+    console.log('[OK] Ningún correo pendiente que ya se haya contactado (sin riesgo de repetir).');
+  }
+  if (historicosDobles.length) {
+    reportar("ADVERTENCIA", `${historicosDobles.length} correo(s) ya cargados en campaña más de una vez en el pasado (no se puede deshacer; el cron de carga ya lo evita): ${historicosDobles.slice(0, 5).map((d) => d._id).join("; ")}`);
   }
 }
 
@@ -133,12 +162,20 @@ async function validarDuplicadosSmartlead(nombre, campaignId) {
 // no es un bug de código, pero sí sería un duplicado real de cara al
 // cliente (2 correos de Qi-Vanta con enfoques distintos a la misma
 // persona). Cruza los correos ya vistos en Google Maps vs. Piloto LATAM.
-function validarCruceEntreCampanias(correosGM, correosLatam) {
-  const cruzados = [...correosGM.keys()].filter((c) => correosLatam.has(c));
-  if (cruzados.length) {
-    reportar("ADVERTENCIA", `${cruzados.length} correo(s) contactados en AMBAS campañas a la vez: ${cruzados.slice(0, 5).join("; ")}`);
+// Generalizado el 2026-10-09 de 2 campañas a todas las vigentes.
+function validarCruceEntreCampanias(porCampana) {
+  const vistos = new Map();
+  const cruzados = new Set();
+  for (const { nombre, correos } of porCampana) {
+    for (const c of correos.keys()) {
+      if (vistos.has(c) && vistos.get(c) !== nombre) cruzados.add(c);
+      else vistos.set(c, nombre);
+    }
+  }
+  if (cruzados.size) {
+    reportar("ADVERTENCIA", `${cruzados.size} correo(s) contactados en más de una campaña a la vez: ${[...cruzados].slice(0, 5).join("; ")}`);
   } else {
-    console.log("[OK] Ninguna persona contactada en las 2 campañas a la vez.");
+    console.log("[OK] Ninguna persona contactada en dos campañas a la vez.");
   }
 }
 
@@ -155,11 +192,7 @@ function validarCruceEntreCampanias(correosGM, correosLatam) {
 // Solo evalúa después del mediodía CDMX para no dar falso positivo temprano
 // en el día, cuando todavía es normal no haber enviado nada.
 async function validarCupoCompartidoSmartlead() {
-  const CAMPANIAS = [
-    { nombre: "Google Maps", id: process.env.SMARTLEAD_CAMPAIGN_ID },
-    { nombre: "Piloto LATAM", id: process.env.SMARTLEAD_CAMPAIGN_ID_LATAM },
-    { nombre: "Alianzas", id: process.env.SMARTLEAD_CAMPAIGN_ID_ALIANZAS || "3990563" },
-  ];
+  const CAMPANIAS = CAMPANAS_VIGENTES;
 
   const ahoraCdmx = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
   const diaSemanaCdmx = ahoraCdmx.getDay(); // 0=domingo..6=sábado
@@ -378,9 +411,11 @@ async function validarCronsCorrieron() {
 
   await validarDuplicadosMongo(db);
   await validarDuplicadosLlamadas(db);
-  const correosGM = await validarDuplicadosSmartlead("Google Maps", process.env.SMARTLEAD_CAMPAIGN_ID);
-  const correosLatam = await validarDuplicadosSmartlead("Piloto LATAM", process.env.SMARTLEAD_CAMPAIGN_ID_LATAM);
-  validarCruceEntreCampanias(correosGM, correosLatam);
+  const porCampana = [];
+  for (const { nombre, id } of CAMPANAS_VIGENTES) {
+    porCampana.push({ nombre, correos: await validarDuplicadosSmartlead(nombre, id) });
+  }
+  validarCruceEntreCampanias(porCampana);
   await validarCupoCompartidoSmartlead();
   await validarSaludCuentasCorreo();
   await validarCronsCorrieron();

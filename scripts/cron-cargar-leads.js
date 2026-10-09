@@ -206,6 +206,13 @@ async function procesarCampania(col, key, presupuestoRestante) {
   if (!candidatos.length) { resumen.motivo = "sin leads pendientes en Mongo"; return resumen; }
 
   const presentes = DRY ? new Set() : await correosEnCampania(campaignId);
+  // Correos que YA recibieron campaña antes, en cualquier campaña (actual o
+  // vieja). correosEnCampania solo mira la campaña de hoy: encontrado el
+  // 2026-10-09, 9 leads pendientes de Piloto ya habían sido contactados en
+  // las campañas de septiembre, y ~8 se volvieron a cargar en Alianzas,
+  // Google Maps y Laboratorios. Volver a escribirle a alguien que ya se
+  // contactó sin decirlo es justo lo que nunca debe pasar.
+  const yaContactados = new Set((await col.distinct("correo", { emailEstado: "enviado_a_campana" })).filter(Boolean).map((c) => c.toLowerCase()));
   let i = 0;
   // enVuelo cuenta intentos YA RECLAMADOS pero sin resolver todavia. Sin
   // esto, con CONCURRENCIA=5 y un objetivo chico (ej. 1-2, lo normal en
@@ -241,6 +248,11 @@ async function procesarCampania(col, key, presupuestoRestante) {
         return;
       }
       if (presentes.has(correo)) { resumen.duplicados++; if (!DRY) await col.updateOne({ _id: lead._id }, { $set: { emailEstado: "enviado_a_campana" } }); return; }
+      if (yaContactados.has(correo)) {
+        resumen.duplicados++;
+        if (!DRY) await col.updateOne({ _id: lead._id }, { $set: { estado: "duplicado_ya_contactado", emailEstado: "no_contactar" } });
+        return;
+      }
 
       let leadConCopy = lead;
       if (!tieneCopyCompleto(lead)) {
