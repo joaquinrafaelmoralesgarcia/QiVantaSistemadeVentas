@@ -176,6 +176,18 @@ const CIERRE_PROPUESTA = [
   "Nunca se trata de disputarles al cliente, sino de <strong>ampliar entre los dos lo que pueden ofrecerle, con oportunidades de negocio para ambas empresas</strong>.",
 ];
 
+// Link a la raíz de negocios.qi-vanta.com — pedido explícito del usuario
+// el 2026-10-09: "en campañas que no sean de piloto latam agrega este
+// link https://negocios.qi-vanta.com/". Alianzas era la única de las 3
+// campañas no-Piloto sin ese link (Google Maps/Laboratorios ya lo traen
+// vía LINEA_LANDING_GM en _leadScript.js — no se duplica ahí).
+const URL_RAIZ_NEGOCIOS = "https://negocios.qi-vanta.com/";
+const VER_MAS_QIVANTA = [
+  (link) => `Puedes conocer más de Qi-Vanta aquí: <a href="${link}">${link}</a>`,
+  (link) => `Si quieres ver más de lo que hacemos: <a href="${link}">${link}</a>`,
+  (link) => `Más sobre Qi-Vanta en: <a href="${link}">${link}</a>`,
+];
+
 function nucleoAlianza(semilla) {
   // join("\n\n") ya separa cada elemento con una linea en blanco — sin "" de
   // relleno entre medio, que duplicaba los saltos (encontrado al probar con
@@ -187,6 +199,7 @@ function nucleoAlianza(semilla) {
     mezclarBullets(semilla + ":bullets"),
     elegir(VER_DETALLE, semilla + ":detalle")(LINK_SERVICIOS),
     elegir(CIERRE_PROPUESTA, semilla + ":cierre"),
+    elegir(VER_MAS_QIVANTA, semilla + ":masqivanta")(URL_RAIZ_NEGOCIOS),
   ].join("\n\n");
 }
 

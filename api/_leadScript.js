@@ -330,13 +330,18 @@ function lineaVideoLatam() {
 // pedido explícito del usuario el 2026-09-18: "genera un link de vercel
 // para que puedan ver nuestros productos... ofrece uno de estos de
 // acuerdo a la empresa o negocio de los leads". elegirProductoParaLead()
-// mapea empresa/descripción/puesto del lead a la línea que mejor encaja
-// (ver _productosLatam.js); el link con ?p=slug resalta esa misma línea
-// en la página al abrirla, sin que el resto del catálogo desaparezca.
+// mapeaba empresa/descripción/puesto del lead al producto que mejor
+// encajaba, con un link ?p=slug personalizado por lead.
+//
+// Cambiado el 2026-10-09 — pedido explícito del usuario: el link
+// personalizado por producto se reemplaza por uno fijo a la sección de
+// industrias del catálogo (negocios.qi-vanta.com/enterprise/#industrias),
+// igual para todos los leads de Piloto LATAM. elegirProductoParaLead()
+// y _productosLatam.js se dejan sin borrar por si se vuelve a usar la
+// personalización por producto más adelante.
+const URL_INDUSTRIAS_LATAM = "https://negocios.qi-vanta.com/enterprise/#industrias";
 function lineaProductoLatam(lead) {
-  const producto = elegirProductoParaLead(lead);
-  const url = `https://negocios.qi-vanta.com/enterprise/?p=${producto.slug}`;
-  return `Para empresas como la tuya, una de las líneas que más se pide es "${producto.nombre}": ${producto.resumen} Puedes ver ese ejemplo y el resto de líneas que trabajamos aquí: <a href="${url}">${url}</a>`;
+  return `Puedes ver cómo aplicamos esto por industria aquí: <a href="${URL_INDUSTRIAS_LATAM}">${URL_INDUSTRIAS_LATAM}</a>`;
 }
 
 // Solo para la campaña "Piloto LATAM | Decisores" (empresas medianas/
