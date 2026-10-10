@@ -116,31 +116,43 @@ const REGLA_SEGUIMIENTOS_GM = construirReglaSeguimientos(REGLA_ASUNTO_TIEMPO_GM)
 // con SU catálogo (7 ofertas empresariales en LATAM/GM-grande, 15
 // oportunidades PYME en GM normal), igual que ya pasa con el banco de
 // frases de asunto.
+//
+// Sin emoji desde el 2026-10-09 (antes cada frase traía uno, ej. "🔍
+// Diagnóstico gratuito..."). Encontrado al investigar por qué Microsoft
+// bloqueó 2 de los 8 buzones para enviar (550 5.1.8 bad outbound sender):
+// un correo real de Piloto traía 1 emoji + 3 links + "gratis" repetido 2
+// veces + una garantía de devolución de dinero en negrita — una
+// combinación de señales que usan los filtros de spam. No hay certeza de
+// que esto sea la causa (Google Maps usa el mismo banco y ningún buzón
+// suyo se bloqueó, con solo 2 de 8 casos no se puede probar causalidad),
+// pero quitar el emoji no cuesta nada y reduce una señal real sin tocar
+// ninguna oferta comercial (el texto de cada línea es idéntico, solo se
+// quitó el símbolo).
 const OFERTAS_GRATIS = [
-  "🎁 Assessment de IA y Automatización sin costo",
-  "🔍 Diagnóstico gratuito de uno de tus procesos actuales",
-  "💰 Identificación de oportunidades concretas de ahorro",
-  "📊 Estimación inicial de ROI de las oportunidades detectadas",
-  "⚙️ Identificación de procesos que pueden automatizarse con IA",
-  "⏱️ Estimación de horas operativas que podrías recuperar mensualmente",
-  "📉 Detección de tareas manuales y repetitivas que pueden reducirse",
-  "🚀 3 casos de uso de IA personalizados para tu empresa",
-  "🗺️ Roadmap inicial de automatización sin costo",
-  "🧪 Evaluación de viabilidad para implementar un piloto",
-  "💻 Demo personalizada de una solución aplicable a tu operación",
-  "📋 Reporte ejecutivo con oportunidades detectadas",
-  "🏗️ Assessment de modernización tecnológica para sistemas legacy",
-  "🤖 Assessment de productividad de desarrollo y AI-SDLC",
-  "🛡️ Revisión inicial de oportunidades de DevSecOps y automatización de seguridad",
-  "📈 Assessment para automatizar ventas, seguimiento de prospectos y cotizaciones",
-  "💳 Assessment de automatización de cobranza y procesos financieros",
-  "📄 Assessment para automatización de facturas, PDFs, correos y documentos",
-  "💬 Evaluación para automatizar atención mediante WhatsApp, chatbots o asistentes de voz",
-  "🧠 Evaluación de un copiloto privado conectado a la información de tu empresa",
-  "🧪 Acceso a un piloto de bajo riesgo antes de realizar una implementación mayor",
-  "🎓 Workshop ejecutivo introductorio de IA y automatización",
-  "🎁 Primer mes de soporte sin costo en proyectos seleccionados",
-  "💵 Precio preferencial en el primer piloto de automatización",
+  "Assessment de IA y Automatización sin costo",
+  "Diagnóstico gratuito de uno de tus procesos actuales",
+  "Identificación de oportunidades concretas de ahorro",
+  "Estimación inicial de ROI de las oportunidades detectadas",
+  "Identificación de procesos que pueden automatizarse con IA",
+  "Estimación de horas operativas que podrías recuperar mensualmente",
+  "Detección de tareas manuales y repetitivas que pueden reducirse",
+  "3 casos de uso de IA personalizados para tu empresa",
+  "Roadmap inicial de automatización sin costo",
+  "Evaluación de viabilidad para implementar un piloto",
+  "Demo personalizada de una solución aplicable a tu operación",
+  "Reporte ejecutivo con oportunidades detectadas",
+  "Assessment de modernización tecnológica para sistemas legacy",
+  "Assessment de productividad de desarrollo y AI-SDLC",
+  "Revisión inicial de oportunidades de DevSecOps y automatización de seguridad",
+  "Assessment para automatizar ventas, seguimiento de prospectos y cotizaciones",
+  "Assessment de automatización de cobranza y procesos financieros",
+  "Assessment para automatización de facturas, PDFs, correos y documentos",
+  "Evaluación para automatizar atención mediante WhatsApp, chatbots o asistentes de voz",
+  "Evaluación de un copiloto privado conectado a la información de tu empresa",
+  "Acceso a un piloto de bajo riesgo antes de realizar una implementación mayor",
+  "Workshop ejecutivo introductorio de IA y automatización",
+  "Primer mes de soporte sin costo en proyectos seleccionados",
+  "Precio preferencial en el primer piloto de automatización",
 ];
 
 // DeepInfra (Qwen3.5-9B) no soporta el modo estricto output_config/json_schema
@@ -156,7 +168,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin t
   "mensajeWhatsapp": "mensaje corto, máx 280 caracteres, tono cercano y directo en español de México, cierra con pregunta abierta. Nunca escribas placeholders entre corchetes como [Nombre] — no sabes el nombre de quien lee, dirígete directo al negocio o usa un saludo genérico ('Hola,'). NO incluyas firma ni datos de contacto, se agregan automáticamente después",
   "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_TIEMPO_GM}",
   "cuerpoEmail": "correo frío completo, 3-5 frases cortas, sin HTML. Igual que el asunto, el cuerpo también debe reforzar el enfoque de dinero perdido/dejado de ganar por el problema detectado — no basta con mencionarlo solo en el asunto, dedica al menos 1 frase del cuerpo a plantear el costo en dinero de NO resolver ese problema (ej. 'cada cliente que se va sin cotización es dinero que ya gastaste en atraerlo'), antes de presentar la oferta como la solución a esa pérdida. NUNCA inventes una cifra específica ($5,000, 30%, 'ahorra X pesos') ni afirmes resultados con otros clientes ('hemos ayudado a empresas a lograr...') que no puedas verificar — el enfoque de dinero se queda en pregunta retórica o concepto, jamás en un número o caso de éxito inventado. No te presentes por nombre en ningún punto del texto (ni al inicio ni al final) — nunca escribas 'me llamo...' ni placeholders entre corchetes como [Nombre]. No incluyas firma, despedida ('Saludos', 'Equipo Qi-Vanta') ni datos de contacto — todo eso se agrega automáticamente después, fuera de este texto. ARRANQUE (pedido explícito del usuario el 2026-09-26): entra DIRECTO al problema, nunca con recuento ni halago de la trayectoria del negocio — prohibido abrir con 'Vi que llevan X años', 'con su excelente reputación', 'felicidades por sus reseñas' o resúmenes de lo que hace el negocio como elogio. La forma correcta es nombrar de entrada lo que suele apretar en negocios de ESE giro (ej. 'En consultorios dentales como el tuyo suele pasar que...'), y de ahí al costo en dinero. Varía la redacción entre correos, no copies una frase fija. Sigue con el costo en dinero de no resolverlo, presenta la oferta, y termina invitando a un diagnóstico gratis con resultado concreto en 48 horas (NO invites a una llamada/plática de 15-20 minutos — ese CTA se reemplazó el 2026-09-20 por baja tasa de respuesta real: 30-59% de apertura pero solo ~0.4% de respuesta en ambas campañas, señal de que pedir una llamada de entrada no convierte)",
-  "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, con emoji incluido), el que mejor encaje con la oportunidad que ya elegiste en el Paso 2:\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
+  "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, sin agregar emoji), el que mejor encaje con la oportunidad que ya elegiste en el Paso 2:\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
   ${REGLA_SEGUIMIENTOS_GM}
 }
 No agregues ninguna clave adicional fuera de esas 10.`;
@@ -175,7 +187,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin t
   "mensajeWhatsapp": "mensaje corto, máx 280 caracteres, tono cercano y directo en español de México, cierra con pregunta abierta. Nunca escribas placeholders entre corchetes como [Nombre] — no sabes el nombre de quien lee, dirígete directo al negocio o usa un saludo genérico ('Hola,'). NO incluyas firma ni datos de contacto, se agregan automáticamente después",
   "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_TIEMPO_GM}",
   "cuerpoEmail": "correo frío completo, 3-5 párrafos cortos, sin HTML. Igual que el asunto, el cuerpo también debe reforzar el enfoque de dinero perdido/dejado de ganar por el problema detectado. NUNCA inventes una cifra específica ni afirmes resultados con otros clientes que no puedas verificar. No te presentes por nombre en ningún punto del texto. No incluyas firma, despedida ni datos de contacto — se agrega automáticamente después. ARRANQUE (pedido explícito del usuario el 2026-09-26): entra DIRECTO al problema, nunca con recuento ni halago de la trayectoria de la empresa — prohibido abrir con 'Vi que llevan X años', 'con su excelente reputación' o resúmenes de lo que hace la empresa como elogio. La forma correcta es nombrar de entrada lo que suele apretar en operaciones de ESE perfil (ej. 'En operaciones con varias sucursales como la de [Empresa] suele pasar que...'). Varía la redacción entre correos, no copies una frase fija. Sigue con el costo en dinero de no resolverlo, presenta la oferta, y termina invitando a un diagnóstico gratis con resultado concreto en 48 horas (NO invites a una llamada/plática de 15-20 minutos — ese CTA se reemplazó el 2026-09-20 por baja tasa de respuesta real: 30-59% de apertura pero solo ~0.4% de respuesta en ambas campañas, señal de que pedir una llamada de entrada no convierte)",
-  "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, con emoji incluido), el que mejor encaje con la 'oferta' que ya elegiste arriba:\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
+  "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, sin agregar emoji), el que mejor encaje con la 'oferta' que ya elegiste arriba:\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
   ${REGLA_SEGUIMIENTOS_GM}
 }
 No agregues ninguna clave adicional fuera de esas 11.`;
@@ -346,7 +358,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`, sin t
   "calificacion": "alta" | "media" | "baja" (qué tan buen prospecto es: alta si claramente necesita automatización/IA y parece tener presupuesto/tamaño para invertir, baja si no aplica bien),
   "razonamiento": "1 frase interna explicando la calificación, no se envía al lead, es para el vendedor",
   "oferta": "el id exacto de la oferta elegida del menú (ej. 'data_analytics', 'enterprise_automation')",
-  "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, con emoji incluido), el que mejor encaje con la 'oferta' que ya elegiste arriba (ej. si elegiste 'legacy_modernization', usa el de modernización de sistemas legacy; si elegiste 'devsecops_cybersecurity', usa el de DevSecOps):\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
+  "ofertaGratis": "elige EXACTAMENTE uno de estos 23 textos (cópialo tal cual, sin agregar emoji), el que mejor encaje con la 'oferta' que ya elegiste arriba (ej. si elegiste 'legacy_modernization', usa el de modernización de sistemas legacy; si elegiste 'devsecops_cybersecurity', usa el de DevSecOps):\n${OFERTAS_GRATIS.map((o) => `  - ${o}`).join("\n")}",
   "asuntoEmail": "asunto corto, máx 60 caracteres. ${REGLA_ASUNTO_LATAM}",
   "cuerpoEmail": "correo completo siguiendo la estructura de 5 pasos del prompt (saludo con nombre, gancho real sobre la empresa, reto plausible en tono hedgeado, oferta elegida, cierre invitando a un diagnóstico gratis con resultado concreto en 48 horas — NUNCA invites a una llamada/plática de 15-20 minutos, ese CTA se reemplazó el 2026-09-20 por baja conversión real), sin HTML. NUNCA inventes una cifra específica ($, %, ahorro en dinero) ni afirmes resultados con otros clientes ('hemos ayudado a bancos a lograr X%', 'nuestros clientes ahorran Y') que no puedas verificar — eso es mentir con datos y casos de éxito falsos a un tomador de decisión real. El enfoque de dinero/OPEX se queda en pregunta retórica o concepto, nunca en un número o cliente inventado. No te presentes por nombre en ningún punto del texto — nunca escribas 'me llamo...' ni placeholders entre corchetes. No incluyas firma ni despedida — se agrega automáticamente después, fuera de este texto. NO incluyas tú mismo el texto de 'ofertaGratis' dentro del cuerpo, se agrega aparte, en código, al final",
   ${REGLA_SEGUIMIENTOS}
