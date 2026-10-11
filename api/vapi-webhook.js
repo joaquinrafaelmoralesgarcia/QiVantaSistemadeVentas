@@ -18,6 +18,13 @@ const { getDb } = require("./_mongo");
 // conversación real, aunque haya sido corta o negativa.
 const SIN_CONTESTAR = new Set(["customer-did-not-answer", "customer-busy", "voicemail"]);
 
+function formatearDuracion(segundos) {
+  if (segundos == null || Number.isNaN(segundos)) return "duración desconocida";
+  const m = Math.floor(segundos / 60);
+  const s = Math.round(segundos % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
@@ -43,6 +50,19 @@ module.exports = async function handler(req, res) {
     const resumen = analysis.summary || "(sin resumen)";
     const transcripcion = message.artifact?.transcript || "(sin transcripción)";
     const callId = message.call?.id || null;
+
+    const duracionSeg =
+      message.durationSeconds ??
+      message.artifact?.durationSeconds ??
+      (message.startedAt && message.endedAt
+        ? (new Date(message.endedAt) - new Date(message.startedAt)) / 1000
+        : null);
+    const grabacion = message.recordingUrl || message.artifact?.recordingUrl || message.artifact?.stereoRecordingUrl || null;
+    const motivoFin = message.endedReason || "(desconocido)";
+    const inicioLlamada = message.startedAt || message.call?.startedAt || null;
+    const fechaHoraTexto = inicioLlamada
+      ? new Date(inicioLlamada).toLocaleString("es-MX", { timeZone: "America/Mexico_City", dateStyle: "medium", timeStyle: "short" })
+      : "(fecha desconocida)";
 
     const db = await getDb();
     if (callId) {
@@ -107,14 +127,55 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // Correo interno solo si hay interés real — pedido explícito del
-    // usuario el 2026-09-11: "esta bien que me llegue al correo info...
-    // pero solo de clientes interesados o que requieran sesion o cita".
-    // Antes se mandaba por cada llamada sin excepción; con el volumen de
-    // llamadas en frío eso saturaría la bandeja con puros "no, gracias".
-    if (interesado && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    // Llamada del botón "¡Llámame!" del sitio (no trae metadata.nombreNegocio
+    // porque solo las llamadas en frío de Google Maps la traen, puesta al
+    // marcar por lotes en marcarLlamadasFrias()) — pedido explícito del
+    // usuario el 2026-10-10: "TODOS LOS DATOS QUE SE RECOPILAN EN LA LLAMADA
+    // DEBEN LLEGAR" para este botón, sin el filtro de "solo interesados"
+    // (ese filtro solo aplica a las llamadas en frío, para no saturar la
+    // bandeja — ver nota de 2026-09-11 más abajo).
+    const esLlamadaBoton = !metadataLlamada.nombreNegocio;
+
+    if (esLlamadaBoton && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
       await enviarCorreoInterno({
-        asunto: `Nueva llamada del botón "Llámame": ${datos.nombre || numero}${datos.empresa ? " (" + datos.empresa + ")" : ""}`,
+        asunto: `Llamada Qi-Vanta: ${numero} (${formatearDuracion(duracionSeg)})`,
+        texto: [
+          `Teléfono: ${numero}`,
+          `Fecha y hora: ${fechaHoraTexto}`,
+          `Duración: ${formatearDuracion(duracionSeg)}`,
+          `Motivo de fin de llamada: ${motivoFin}`,
+          "",
+          `Nombre: ${datos.nombre || "(no capturado)"}`,
+          `Empresa: ${datos.empresa || "(no capturado)"}`,
+          `Correo: ${datos.correo || "(no capturado)"}`,
+          `Número de empleados: ${datos.numEmpleados || "(no capturado)"}`,
+          `Sector: ${datos.sector || "(no capturado)"}`,
+          `Reto/necesidad: ${datos.reto || "(no capturado)"}`,
+          `Interés: ${datos.interes || "(no capturado)"}`,
+          `Cita acordada: ${datos.citaAcordada || "(no capturado)"}`,
+          "",
+          `Resumen de la llamada: ${resumen}`,
+          "",
+          `Grabación: ${grabacion || "(no disponible)"}`,
+          "",
+          "--- Transcripción completa ---",
+          "",
+          transcripcion,
+        ].join("\n"),
+      });
+    } else if (esLlamadaBoton) {
+      console.error("Falta configurar GMAIL_USER/GMAIL_APP_PASSWORD — no se envió correo de la llamada del botón Llámame.");
+    }
+
+    // Correo interno de llamadas en frío solo si hay interés real — pedido
+    // explícito del usuario el 2026-09-11: "esta bien que me llegue al
+    // correo info... pero solo de clientes interesados o que requieran
+    // sesion o cita". Antes se mandaba por cada llamada sin excepción; con
+    // el volumen de llamadas en frío eso saturaría la bandeja con puros
+    // "no, gracias".
+    if (!esLlamadaBoton && interesado && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+      await enviarCorreoInterno({
+        asunto: `Lead interesado (llamada en frío): ${datos.nombre || numero}${datos.empresa ? " (" + datos.empresa + ")" : ""}`,
         texto: [
           `Teléfono: ${numero}`,
           `Nombre: ${datos.nombre || "(no capturado)"}`,
@@ -131,7 +192,7 @@ module.exports = async function handler(req, res) {
           transcripcion,
         ].join("\n"),
       });
-    } else if (interesado) {
+    } else if (!esLlamadaBoton && interesado) {
       console.error("Falta configurar GMAIL_USER/GMAIL_APP_PASSWORD — no se envió correo de la llamada interesada.");
     }
 
