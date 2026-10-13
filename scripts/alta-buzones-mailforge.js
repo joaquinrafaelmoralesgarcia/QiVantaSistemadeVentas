@@ -26,7 +26,7 @@ for (const line of fs.readFileSync(path.join(__dirname, "..", ".env.local"), "ut
 }
 
 const APPLY = process.argv.includes("--apply");
-const ARCHIVO = process.argv.find((a, i) => i >= 2 && !a.startsWith("--")) || "C:/Users/Joaquin/Downloads/Apis/mailforge-buzones.csv";
+const ARCHIVO = process.argv.find((a, i) => i >= 2 && !a.startsWith("--")) || (fs.existsSync("C:/Users/Joaquin/Downloads/Apis/mailforge-buzones.csv") ? "C:/Users/Joaquin/Downloads/Apis/mailforge-buzones.csv" : "C:/Users/Joaquin/Downloads/Mailbox_list_12_Oct_2026.csv");
 const KEY = process.env.SMARTLEAD_API_KEY;
 const BASE = "https://server.smartlead.ai/api/v1";
 
@@ -35,7 +35,7 @@ const BASE = "https://server.smartlead.ai/api/v1";
 const TOPE_INICIAL_POR_DIA = 5;
 // Warmup conservador y creciente. El warmup corre TODO el tiempo, tambien
 // cuando ya envien campanas.
-const WARMUP = { warmup_enabled: true, total_warmup_per_day: 40, daily_rampup: 2, reply_rate_percentage: 40 };
+const WARMUP = { warmup_enabled: true, total_warmup_per_day: 40, daily_rampup: 5, /* Smartlead exige >= 5 */ reply_rate_percentage: 40 };
 
 // Misma firma que el resto de buzones (la de configurar-cuentas-nuevas.js).
 const fuenteFirma = fs.readFileSync(path.join(__dirname, "configurar-cuentas-nuevas.js"), "utf8");
@@ -100,8 +100,10 @@ async function api(metodo, ruta, cuerpo) {
       smtp_port: Number(f.smtp_port),
       imap_host: f.imap_host,
       imap_port: Number(f.imap_port),
+      ...(f.imap_user_name ? { imap_user_name: f.imap_user_name } : {}),
+      ...(f.imap_password ? { imap_password: f.imap_password } : {}),
       max_email_per_day: TOPE_INICIAL_POR_DIA,
-      custom_tracking_url: "",
+      custom_tracking_url: f.custom_tracking_url || "",
       bcc: "",
       signature: FIRMA,
       ...WARMUP,
