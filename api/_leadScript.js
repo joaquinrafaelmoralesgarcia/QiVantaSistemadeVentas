@@ -510,15 +510,27 @@ async function generarScriptEmpresa(lead) {
     // que se lea como parte del análisis del negocio, no como anexo
     // publicitario. Si no hay sitio o el análisis falla, queda vacío y el
     // correo sale exactamente como antes.
-    const bloqueObservaciones = observaciones ? `\n\n${observaciones}` : "";
-    script.cuerpoEmail = script.cuerpoEmail.trim() + bloqueObservaciones + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${lineaVideoLatam()}\n\n${lineaProductoLatam(lead)}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}
+    //
+    // COPY CORTO (2026-10-12): el correo 1 sale SOLO con el texto de la IA —
+    // sin enlaces, sin HTML, sin ofertas extra. Antes llevaba 3-4 enlaces a
+    // qi-vanta.com, 5 ofertas distintas y ~350 palabras: los enlaces en el
+    // primer contacto son señal fuerte de spam y ataban la reputación del
+    // dominio principal a la de los dominios de envío. Los bloques fijos no
+    // se pierden, se mueven a los seguimientos (que solo llegan a quien no
+    // respondió y ya recibió el correo 1).
+    // El modelo a veces deja el marcador literal "[ofertaGratis]" en el
+    // cuerpo (visto el 2026-10-12): se sustituye por la oferta real o, si no
+    // hay una válida, por el diagnóstico gratis genérico.
+    const textoOferta = ofertaGratisValida ? ofertaGratisValida.charAt(0).toLowerCase() + ofertaGratisValida.slice(1) : "un diagnóstico gratis";
+    script.cuerpoEmail = script.cuerpoEmail.replace(/\[?\{?\{?ofertaGratis\}?\}?\]?/gi, textoOferta).trim();
+  }
+  const bloqueObservaciones = observaciones ? `\n\n${observaciones}` : "";
+  if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + bloqueObservaciones + `\n\n${lineaVideoLatam()}`;
+  if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_APPS_LATAM}` + (ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "") + `\n\n${lineaProductoLatam(lead)}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}
 
 ${LINEA_GARANTIA}`;
-  }
-  if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
-  if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_LANDING_LATAM}`;
   return script;
 }
 
@@ -559,19 +571,16 @@ async function generarScript(negocio) {
   const sufijoOfertaGratis = ofertaGratisValida ? `\n\n${ofertaGratisValida}` : "";
 
   if (script.mensajeWhatsapp) script.mensajeWhatsapp += FIRMA_WHATSAPP;
-  if (script.cuerpoEmail) {
-    script.cuerpoEmail = esGrande
-      ? script.cuerpoEmail.trim() + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}
-
-${LINEA_GARANTIA}`
-      : script.cuerpoEmail.trim() + `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}` + sufijoOfertaGratis + `\n\n${lineaVideoGM()}\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}
+  // COPY CORTO (2026-10-12): mismo criterio que generarScriptEmpresa — el
+  // correo 1 va sin enlaces ni bloques fijos; esos pasan a los seguimientos.
+  if (script.cuerpoEmail) script.cuerpoEmail = script.cuerpoEmail.trim();
+  const lineasExtraPyme = esGrande ? "" : `\n\n${LINEA_VOZ_IA}\n\n${LINEA_APPS_WEB_PYME}`;
+  if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
+  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${lineaVideoGM()}`;
+  if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
+  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + lineasExtraPyme + sufijoOfertaGratis + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}
 
 ${LINEA_GARANTIA}`;
-  }
-  if (script.seguimiento1Asunto) script.seguimiento1Asunto = script.seguimiento1Asunto.trim();
-  if (script.seguimiento1) script.seguimiento1 = script.seguimiento1.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}`;
-  if (script.seguimiento2Asunto) script.seguimiento2Asunto = script.seguimiento2Asunto.trim();
-  if (script.seguimiento2) script.seguimiento2 = script.seguimiento2.trim() + `\n\n${LINEA_DEMO_GRATIS}\n\n${LINEA_SERVICIOS_ENTERPRISE}\n\n${LINEA_LANDING_GM}`;
   return script;
 }
 
