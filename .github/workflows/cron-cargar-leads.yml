@@ -43,6 +43,7 @@ jobs:
           MONGODB_DB=${{ secrets.MONGODB_DB }}
           SMARTLEAD_API_KEY=${{ secrets.SMARTLEAD_API_KEY }}
           DEEPINFRA_API_KEY=${{ secrets.DEEPINFRA_API_KEY }}
+          MILLIONVERIFIER_API_KEY=${{ secrets.MILLIONVERIFIER_API_KEY }}
           EOF
       - name: Cargar leads pendientes a cada campaña
         run: node scripts/cron-cargar-leads.js

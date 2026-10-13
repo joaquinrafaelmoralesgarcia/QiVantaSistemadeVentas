@@ -77,6 +77,29 @@ const MAX_POR_CAMPANA_POR_CORRIDA = 60;
 const MAX_TOTAL_POR_CORRIDA = 150;
 const CONCURRENCIA = 5;
 
+// Verificación con MillionVerifier ANTES de generar copy y de cargar a
+// Smartlead (2026-10-12): Google Maps iba en 13% de rebote y Laboratorios en
+// 30%, sobre todo por correos genéricos/gratuitos sacados de sitios web. Va
+// antes del copy para no gastar DeepInfra en correos que no se van a usar.
+//   ok                  -> se carga
+//   invalid/disposable  -> no_contactar (no existe o es desechable)
+//   catch_all/unknown   -> verificacion_riesgosa (no se carga, no se reintenta)
+// Si la API falla o no hay créditos devuelve null y el lead sigue solo con la
+// validación de MX de siempre: un problema del verificador nunca frena la
+// carga. Una tasa de rebote real alta la sigue frenando cron-guardian-rebote.
+async function verificarCorreo(correo) {
+  const key = process.env.MILLIONVERIFIER_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch(`https://api.millionverifier.com/api/v3/?api=${encodeURIComponent(key)}&email=${encodeURIComponent(correo)}&timeout=20`);
+    const data = await res.json();
+    if (!res.ok || data.error || !data.result) return null;
+    return data.result;
+  } catch {
+    return null;
+  }
+}
+
 const CAMPOS_COPY = ["asuntoEmail", "cuerpoEmail", "seguimiento1Asunto", "seguimiento1", "seguimiento2Asunto", "seguimiento2"];
 
 const CAMPANAS = {
@@ -253,6 +276,19 @@ async function procesarCampania(col, key, presupuestoRestante) {
         if (!DRY) await col.updateOne({ _id: lead._id }, { $set: { estado: "duplicado_ya_contactado", emailEstado: "no_contactar" } });
         return;
       }
+
+      const verificacion = DRY ? null : await verificarCorreo(lead.correo);
+      if (verificacion && verificacion !== "ok") {
+        resumen.correoInvalido++;
+        const riesgoso = verificacion === "catch_all" || verificacion === "unknown";
+        await col.updateOne({ _id: lead._id }, { $set: {
+          estado: riesgoso ? "verificacion_riesgosa" : "correo_invalido",
+          emailEstado: riesgoso ? "verificacion_riesgosa" : "no_contactar",
+          verificacion, verificadoEn: new Date(),
+        } });
+        return;
+      }
+      if (verificacion === "ok" && !DRY) await col.updateOne({ _id: lead._id }, { $set: { verificacion, verificadoEn: new Date() } });
 
       let leadConCopy = lead;
       if (!tieneCopyCompleto(lead)) {
