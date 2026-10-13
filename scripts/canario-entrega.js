@@ -38,7 +38,16 @@ const ARCHIVO_MARCAS = path.join(__dirname, "..", ".canario-marcas.json");
 // por retrasos del cron de Smartlead o greylisting del receptor.
 // Configurable por entorno: en GitHub Actions el job no puede esperar 2h,
 // asi que ahi se baja a ~0.3h. En local 2h evita falsos negativos.
-const HORAS_DE_GRACIA = parseFloat(process.env.CANARIO_HORAS_DE_GRACIA || "2");
+// Buzones bloqueados por Microsoft (5.1.8) con solicitud de liberación abierta
+// en Smartlead (#411627, 2026-10-11). Soporte pidió explícitamente que NO
+// hagan más intentos de envío: cada intento rechazado entorpece la
+// liberación. Quitarlos de aquí cuando Smartlead confirme que se liberaron.
+const BUZONES_EN_LIBERACION = [
+  "automation.qivanta@qi-vantarush.com",
+  "transformation.qivanta@qi-vantaedge.com",
+  "solutions.qivanta@qi-vantanova.com",
+];
+const HORAS_DE_GRACIA =parseFloat(process.env.CANARIO_HORAS_DE_GRACIA || "2");
 
 async function api(metodo, ruta, cuerpo) {
   const sep = ruta.includes("?") ? "&" : "?";
@@ -188,7 +197,7 @@ async function retirarDeCampanas(cuentaId) {
     const lista = await api("GET", "/email-accounts/?offset=0&limit=100");
     const cuentas = (Array.isArray(lista.json) ? lista.json : []).filter((a) => {
       const d = ((a.from_email || "").split("@")[1] || "").toLowerCase();
-      return !["qi-vanta.com", "qi-vantatech.com"].includes(d);
+      return !["qi-vanta.com", "qi-vantatech.com"].includes(d) && !BUZONES_EN_LIBERACION.includes((a.from_email || "").toLowerCase());
     });
     // Un canario por DOMINIO, no por buzon: el problema se ha comportado
     // siempre a nivel de dominio/tenant, y asi no se gasta cupo de envio.
