@@ -46,6 +46,25 @@ const MINIMO_ENVIADOS_PARA_JUZGAR = 10; // por debajo de esto la tasa es ruido
 const DIAS_DE_GRACIA_REPUTACION = 14;
 const REPUTACION_MINIMA = 70; // % de warmup_reputation por debajo del cual se congela
 
+// Buzones SMTP de Mailforge (dados de alta el 2026-10-13). Smartlead recomienda
+// ~14 dias de warmup y luego 10-15 correos/dia, subiendo poco a poco. La
+// curva de SmartSenders (5 -> 40 en 28 dias desde el dia 0) los llevaria a
+// ~23/dia justo el dia 14: demasiado rapido para dominios nuevos. Durante los
+// primeros 14 dias no envian campanas (solo warmup), asi que el tope se queda
+// en el inicial; despues arranca en 10 y llega a 40 a los 28 dias de ahi.
+const DOMINIOS_MAILFORGE = ["qi-vantaconnect.com", "qi-vantaworks.com", "qi-vantalabs.com", "qi-vantapro.com", "qi-vantadirect.com"];
+const DIAS_SOLO_WARMUP_MAILFORGE = 14;
+const TOPE_ARRANQUE_MAILFORGE = 10;
+
+function topeParaCuenta(email, dias) {
+  const dominio = ((email || "").split("@")[1] || "").toLowerCase();
+  if (!DOMINIOS_MAILFORGE.includes(dominio)) return topeParaDia(dias);
+  if (dias < DIAS_SOLO_WARMUP_MAILFORGE) return TOPE_INICIAL + WARMUP_RESERVADO;
+  const dEf = dias - DIAS_SOLO_WARMUP_MAILFORGE;
+  const campana = Math.min(TOPE_META, Math.round(TOPE_ARRANQUE_MAILFORGE + ((TOPE_META - TOPE_ARRANQUE_MAILFORGE) * dEf) / DIAS_PARA_META));
+  return campana + WARMUP_RESERVADO;
+}
+
 function topeParaDia(dias) {
   const t = TOPE_INICIAL + ((TOPE_META - TOPE_INICIAL) * Math.max(0, dias)) / DIAS_PARA_META;
   const metaCampana = Math.min(TOPE_META, Math.round(t));
@@ -131,7 +150,7 @@ function motivoDeCongelacion(a, dias, rebote) {
   for (const a of cuentas) {
     const creada = new Date(a.created_at);
     const dias = Math.floor((Date.now() - creada.getTime()) / 86400000);
-    const deseado = topeParaDia(dias);
+    const deseado = topeParaCuenta(a.from_email, dias);
     const actual = a.message_per_day || 0; // se ESCRIBE con max_email_per_day, pero se LEE en message_per_day
 
     const motivo = motivoDeCongelacion(a, dias, rebotePorCuenta.get(a.id));

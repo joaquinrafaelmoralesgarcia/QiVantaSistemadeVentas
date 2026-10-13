@@ -1,0 +1,25 @@
+name: Asignar buzones de Mailforge a campañas
+
+# Pedido del usuario el 2026-10-13: todo debe ejecutarse solo, sin depender de
+# su laptop. Los 10 buzones SMTP de Mailforge entraron a Smartlead el
+# 2026-10-13 en solo warmup; este cron los pasa a su campaña (Piloto LATAM o
+# Google Maps, un dominio por campaña) en cuanto cumplen 14 dias de warmup y
+# estan sanos. Es idempotente: si ya estan asignados no hace nada.
+# Ver scripts/cron-asignar-buzones-mailforge.js para las reglas completas.
+on:
+  schedule:
+    - cron: "30 14 * * *" # despues de la rampa diaria (14:00 UTC)
+  workflow_dispatch: {}
+
+jobs:
+  asignar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Asignar buzones listos
+        env:
+          SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+        run: node scripts/cron-asignar-buzones-mailforge.js
