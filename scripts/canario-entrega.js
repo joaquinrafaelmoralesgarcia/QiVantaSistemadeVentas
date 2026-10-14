@@ -45,7 +45,13 @@ const ARCHIVO_MARCAS = path.join(__dirname, "..", ".canario-marcas.json");
 // 2026-10-14: Smartlead (chat #416412) confirmo que los 3 fueron liberados, asi
 // que la lista queda vacia y el canario vuelve a probarlos. Si Microsoft los
 // bloquea otra vez, el propio canario los retira de las campanas.
-const BUZONES_EN_LIBERACION = [];
+// Canario del mismo dia (2026-10-14): solutions@qi-vantanova SI entrega, pero
+// transformation@qi-vantaedge y automation@qi-vantarush siguen con 5.1.8. Se
+// vuelven a excluir hasta que Smartlead confirme y el canario los pruebe bien.
+const BUZONES_EN_LIBERACION = [
+  "automation.qivanta@qi-vantarush.com",
+  "transformation.qivanta@qi-vantaedge.com",
+];
 const HORAS_DE_GRACIA =parseFloat(process.env.CANARIO_HORAS_DE_GRACIA || "2");
 
 async function api(metodo, ruta, cuerpo) {
