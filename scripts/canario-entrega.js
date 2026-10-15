@@ -202,6 +202,10 @@ async function retirarDeCampanas(cuentaId) {
     const lista = await api("GET", "/email-accounts/?offset=0&limit=100");
     const cuentas = (Array.isArray(lista.json) ? lista.json : []).filter((a) => {
       const d = ((a.from_email || "").split("@")[1] || "").toLowerCase();
+      // CANARIO_SOLO="a@x.com,b@y.com": prueba solo esos buzones, ignorando la
+      // lista de exclusion (para comprobar a pedido si ya los liberaron).
+      const solo = (process.env.CANARIO_SOLO || "").toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
+      if (solo.length) return solo.includes((a.from_email || "").toLowerCase());
       return !["qi-vanta.com", "qi-vantatech.com"].includes(d) && !BUZONES_EN_LIBERACION.includes((a.from_email || "").toLowerCase());
     });
     // Un canario por DOMINIO, no por buzon: el problema se ha comportado
