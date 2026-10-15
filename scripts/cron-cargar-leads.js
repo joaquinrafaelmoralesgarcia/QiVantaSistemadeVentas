@@ -136,6 +136,11 @@ async function correosEnCampania(campaignId) {
 }
 
 function tieneCopyCompleto(lead) {
+  // Un correo 1 con enlaces es copy VIEJO (anterior al 2026-10-12): Smartlead
+  // senalo que los enlaces + firma pesada contribuyeron a los bloqueos de
+  // Microsoft. Aunque el lead ya traiga copy guardado en Mongo, se considera
+  // incompleto y se regenera con el generador actual (correo 1 sin enlaces).
+  if (/https?:\/\/|<a\s/i.test(lead.cuerpoEmail || "")) return false;
   return CAMPOS_COPY.every((c) => typeof lead[c] === "string" && lead[c].trim());
 }
 
