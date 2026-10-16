@@ -1,6 +1,6 @@
 const { generarScript } = require("./_leadScript");
 const { agregarLeadACampania } = require("./_smartlead");
-const { correoTieneServidorValido } = require("./_emailVerify");
+const { correoTieneServidorValido, verificarEntregable } = require("./_emailVerify");
 const { esCadenaConocida, esCorreoDePlataformaExcluida, esInmobiliaria, esEmpresaNoContactar } = require("./_empresaGrande");
 
 function normalizarTelefono(tel) {
@@ -177,6 +177,8 @@ async function procesarNegocios(coleccion, negocios, query, campaign = {}) {
       // asunto/cuerpo ya lo revisas/editas en el panel DESPUÉS (Smartlead
       // solo dispara el envío real cuando tú actives la campaña ahí).
       try {
+        const verif = await verificarEntregable(negocio.correo);
+        if (!verif.ok) throw new Error(`correo no verificado (${verif.resultado})`);
         await agregarLeadACampania({
           nombre: negocio.nombre,
           correo: negocio.correo,

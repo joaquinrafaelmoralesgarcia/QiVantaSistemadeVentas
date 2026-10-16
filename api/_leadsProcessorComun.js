@@ -1,7 +1,7 @@
 const { generarScriptEmpresa } = require("./_leadScript");
 const { generarCorreoAlianzaIA } = require("./_alianzasScript");
 const { agregarLeadACampania } = require("./_smartlead");
-const { correoTieneServidorValido } = require("./_emailVerify");
+const { correoTieneServidorValido, verificarEntregable } = require("./_emailVerify");
 const { esEmpresaNoContactar, esInmobiliaria } = require("./_empresaGrande");
 
 // Paso compartido por las 3 fuentes de contactos de Piloto LATAM (Apollo,
@@ -107,6 +107,8 @@ async function procesarPersonaEmpresa(leadsCol, persona, origen, camposExtra = {
   };
 
   try {
+    const verif = await verificarEntregable(persona.correo);
+    if (!verif.ok) throw new Error(`correo no verificado (${verif.resultado})`);
     await agregarLeadACampania({
       nombre: persona.nombre,
       correo: persona.correo,

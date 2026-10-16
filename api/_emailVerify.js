@@ -34,4 +34,25 @@ async function correoTieneServidorValido(correo) {
   }
 }
 
-module.exports = { correoTieneServidorValido };
+// Verificacion de entregabilidad con MillionVerifier (agregado 2026-10-16).
+// Los caminos de captacion (Apify y Apollo/Hunter) subian leads directo a
+// Smartlead sin verificar: en 72h entraron 42 asi, contra 61 por el cron de
+// carga. ok -> se puede cargar; invalid/disposable/catch_all/unknown -> no.
+// Si no hay API key, no hay creditos o la API falla, devuelve ok:true: un
+// problema del verificador nunca debe frenar la captacion (la regla completa
+// la sigue aplicando scripts/cron-cargar-leads.js, que reclasifica los leads
+// que quedan en "error").
+async function verificarEntregable(correo) {
+  const key = process.env.MILLIONVERIFIER_API_KEY;
+  if (!key || !correo) return { ok: true, resultado: null };
+  try {
+    const res = await conTimeout(fetch(`https://api.millionverifier.com/api/v3/?api=${encodeURIComponent(key)}&email=${encodeURIComponent(correo)}&timeout=10`), 12000);
+    const data = await res.json();
+    if (!res.ok || data.error || !data.result) return { ok: true, resultado: null };
+    return { ok: data.result === "ok", resultado: data.result };
+  } catch {
+    return { ok: true, resultado: null };
+  }
+}
+
+module.exports = { correoTieneServidorValido, verificarEntregable };
