@@ -16,9 +16,15 @@ const { getDb } = require("./_mongo");
 const SMARTLEAD_BASE_URL = "https://server.smartlead.ai/api/v1";
 const SITIO_BASE_URL = "https://chatbotwati.vercel.app";
 
+// 2026-10-20: antes vigilaba (y REACTIVABA al terminar) las 2 campanas viejas
+// de septiembre, que ya no se usan y tienen asignados buzones bloqueados por
+// Microsoft. Ahora vigila las 4 campanas vigentes. Una campana PAUSADA por el
+// guardian de rebote no esta en COMPLETED, asi que esto no la reactiva.
 const CAMPANAS_A_VIGILAR = [
-  { id: "3890342", nombre: "Qi-Vanta | Apify Google Maps" },
-  { id: "3842244", nombre: "Qi-Vanta | Piloto LATAM | Decisores" },
+  { id: "4093533", nombre: "Qi-Vanta | Piloto LATAM | Nuevos" },
+  { id: "4093547", nombre: "Qi-Vanta | Google Maps | Nuevos" },
+  { id: "4093546", nombre: "Qi-Vanta | Alianzas | Nuevos" },
+  { id: "4093548", nombre: "Qi-Vanta | Laboratorios | Nuevos" },
 ];
 
 // Rutas de las que depende el scrapeo diario — si cualquiera de estas
