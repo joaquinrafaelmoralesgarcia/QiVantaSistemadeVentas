@@ -19,7 +19,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - run: npm ci --omit=dev || npm install --omit=dev
       - name: Asignar buzones listos
         env:
           SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
         run: node scripts/cron-asignar-buzones-mailforge.js

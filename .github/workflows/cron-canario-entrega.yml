@@ -39,6 +39,8 @@ jobs:
           SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
         run: node scripts/canario-entrega.js
 
       # Las marcas viven en un archivo local que no sobrevive entre corridas de
@@ -51,6 +53,8 @@ jobs:
           SMARTLEAD_API_KEY: ${{ secrets.SMARTLEAD_API_KEY }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: ${{ secrets.MONGODB_DB }}
           CANARIO_HORAS_DE_GRACIA: "0.25"
         run: |
           echo "Esperando 20 minutos a que lleguen..."

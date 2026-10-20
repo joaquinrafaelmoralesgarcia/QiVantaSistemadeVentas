@@ -49,6 +49,38 @@ const CAMPANA_POR_DOMINIO = {
 };
 const DIAS_DE_WARMUP = 14;
 const REPUTACION_MINIMA = 70;
+// 2026-10-20, pedido del usuario: "ninguno debe caer en spam, no tengo prisa".
+// La reputacion de warmup de Smartlead no basta: el 2026-10-19 los 10 buzones
+// tenian 58-75% de reputacion y 0 spam en warmup, pero el canario real a Gmail
+// los encontro a TODOS en spam. Se exige que los ultimos N canarios del buzon
+// hayan llegado a bandeja de entrada (historial en Mongo, canario_resultados).
+const CANARIOS_EN_BANDEJA_SEGUIDOS = 3;
+
+let historialCanario = null;
+async function cargarHistorialCanario() {
+  if (!process.env.MONGODB_URI) return new Map();
+  try { require("dns").setServers(["8.8.8.8", "1.1.1.1"]); } catch {}
+  const { MongoClient } = require("mongodb");
+  const c = new MongoClient(process.env.MONGODB_URI);
+  await c.connect();
+  try {
+    const filas = await c.db(process.env.MONGODB_DB || "qivanta_chatbot").collection("canario_resultados").find({}).sort({ enviado: -1 }).toArray();
+    const porBuzon = new Map();
+    for (const f of filas) {
+      if (!porBuzon.has(f.buzon)) porBuzon.set(f.buzon, []);
+      porBuzon.get(f.buzon).push(f.resultado);
+    }
+    return porBuzon;
+  } finally { await c.close(); }
+}
+
+function motivoCanario(email) {
+  const ultimos = (historialCanario.get(email.toLowerCase()) || []).slice(0, CANARIOS_EN_BANDEJA_SEGUIDOS);
+  if (ultimos.length < CANARIOS_EN_BANDEJA_SEGUIDOS) return `solo ${ultimos.length} canario(s) registrados, se necesitan ${CANARIOS_EN_BANDEJA_SEGUIDOS}`;
+  const malos = ultimos.filter((r) => r !== "entregado");
+  if (malos.length) return `canario reciente: ${ultimos.join(", ")} (se necesitan ${CANARIOS_EN_BANDEJA_SEGUIDOS} en bandeja seguidos)`;
+  return null;
+}
 
 async function api(metodo, ruta, cuerpo) {
   const sep = ruta.includes("?") ? "&" : "?";
@@ -71,10 +103,11 @@ function motivoDeEspera(a) {
   if ((w.total_spam_count || 0) > 0) return `${w.total_spam_count} correo(s) de warmup en spam`;
   const rep = parseFloat(String(w.warmup_reputation ?? "").replace("%", ""));
   if (Number.isNaN(rep) || rep < REPUTACION_MINIMA) return `reputacion ${w.warmup_reputation ?? "?"} (< ${REPUTACION_MINIMA}%)`;
-  return null;
+  return motivoCanario(a.from_email);
 }
 
 (async () => {
+  historialCanario = await cargarHistorialCanario();
   const lista = await api("GET", "/email-accounts/?offset=0&limit=100");
   const cuentas = (Array.isArray(lista.json) ? lista.json : []).filter((a) => CAMPANA_POR_DOMINIO[((a.from_email || "").split("@")[1] || "").toLowerCase()]);
   console.log(`${DRY ? "SIMULACION" : "EJECUTANDO"} asignacion de buzones Mailforge — ${cuentas.length} buzones`);

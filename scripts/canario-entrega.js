@@ -71,6 +71,26 @@ async function api(metodo, ruta, cuerpo) {
   return { ok: res.ok, status: res.status, json };
 }
 
+// Historial de resultados en Mongo (coleccion canario_resultados), agregado
+// el 2026-10-20: el archivo de marcas no sobrevive entre corridas de Actions,
+// y cron-asignar-buzones-mailforge.js necesita saber si un buzon llego a
+// BANDEJA DE ENTRADA varios dias seguidos antes de meterlo a campanas
+// (pedido del usuario: "ninguno debe caer en spam"). Sin MONGODB_URI no hace nada.
+async function guardarHistorialEnMongo(resueltas) {
+  if (!resueltas.length || !process.env.MONGODB_URI) return;
+  try { require("dns").setServers(["8.8.8.8", "1.1.1.1"]); } catch {}
+  const { MongoClient } = require("mongodb");
+  const c = new MongoClient(process.env.MONGODB_URI);
+  await c.connect();
+  try {
+    const col = c.db(process.env.MONGODB_DB || "qivanta_chatbot").collection("canario_resultados");
+    for (const m of resueltas) {
+      await col.updateOne({ _id: m.marca }, { $set: { buzon: m.fromEmail.toLowerCase(), resultado: m.resultado, enviado: new Date(m.enviado), guardadoEn: new Date() } }, { upsert: true });
+      m.historialGuardado = true;
+    }
+  } finally { await c.close(); }
+}
+
 function leerMarcas() {
   try { return JSON.parse(fs.readFileSync(ARCHIVO_MARCAS, "utf8")); } catch { return []; }
 }
@@ -275,5 +295,6 @@ async function retirarDeCampanas(cuentaId) {
     }
   }
   guardarMarcas(marcas);
+  await guardarHistorialEnMongo(marcas.filter((m) => m.resultado && !m.historialGuardado)).catch((e) => console.error("historial Mongo:", e.message));
   if (perdidos > 0) process.exitCode = 1;
 })().catch((e) => { console.error("ERR", e.message); process.exit(1); });
