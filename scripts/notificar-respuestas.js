@@ -44,8 +44,12 @@ function clasificar(texto) {
   // traia la palabra "ticket"), "rechazó tus mensajes" como posible_real y
   // "ya no trabaja para..." tambien. Estas tres se revisan ANTES del resto.
   if (/rechaz[óo] (tus|sus) mensajes|no se pudo (entregar|encontrar)|delivery (failed|status notification)|mailer-daemon|nicht gefunden|konnte nicht gefunden|undeliverable|fehler bei der nachrichtenzustellung/i.test(t)) return "rebote";
-  if (/no (estamos|estoy|me encuentro) interesad[oa]s?|no nos interesa|no me interesa|no gracias|favor de no (volver|contactar)|darme de baja|unsubscribe|remove me/i.test(t.slice(0, 400))) return "rechazo";
+  if (/sin inter[eé]s|no (estamos|estoy|me encuentro) interesad[oa]s?|no nos interesa|no me interesa|no gracias|favor de no (volver|contactar)|darme de baja|unsubscribe|remove me/i.test(t.slice(0, 400))) return "rechazo";
   if (/ya no (trabaja|labora|se encuentra|forma parte)|no (trabaja|labora) (ya )?(para|en|con)|dej[óo] de (trabajar|laborar)/i.test(t)) return "persona_ya_no_trabaja";
+  // 2026-10-21: "¿pueden replicar una plataforma...?" (Luis Macias, primer
+  // interes real) caia como bot_ticket por palabras de su firma. Una pregunta
+  // al inicio del texto escrito por la persona es senal de interes.
+  if (/\?/.test(t.slice(0, 250)) && !/hemos recibido|caso #|n[uú]mero de (caso|ticket)/i.test(t.slice(0, 250))) return "posible_real";
   if (/fuera de (la )?oficina|de licencia|estar[ée] ausente|out of office|estoy de vacaciones|ausente del|ausente hasta/i.test(t)) return "fuera_de_oficina";
   if (/hemos recibido tu (mensaje|solicitud)|ticket|folio|zendesk|equipo de atenci[oó]n a client|te responderemos (lo antes posible|tan pronto)|reporte no\.|nro?\. de seguimiento/i.test(t)) return "bot_ticket";
   if (!t.trim()) return "sin_contenido";
