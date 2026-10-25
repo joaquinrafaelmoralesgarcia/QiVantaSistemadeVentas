@@ -20,6 +20,9 @@ const CATEGORIAS = [
   "consultorios de reumatología", "consultorios de oncología", "consultorios de geriatría",
   "consultorios de alergología", "clínicas de especialidades médicas", "clínicas de fisioterapia y rehabilitación",
   "clínicas de psicología", "clínicas de nutrición", "laboratorios clínicos",
+  // 2026-10-24: mas busquedas de laboratorios para alimentar su campana
+  "laboratorios de análisis clínicos", "laboratorios de patología", "laboratorios dentales",
+  "laboratorios de diagnóstico molecular", "bancos de sangre",
   "centros de diagnóstico por imagen",
   // Dental
   "consultorios dentales", "clínicas dentales", "ortodoncistas",

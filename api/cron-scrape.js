@@ -38,7 +38,12 @@ module.exports = async function handler(req, res) {
       }
 
       const db = await getDb();
-      const stats = await procesarNegocios(db.collection("leads"), resultado.negocios, query || "");
+      // 2026-10-24: los laboratorios caian todos en Google Maps y la campana
+      // de Laboratorios se quedo sin leads. Ahora van a su propia campana.
+      const campana = /laborator/i.test(query || "")
+        ? { key: "laboratorios", id: "4093548", name: "Qi-Vanta | Laboratorios | Nuevos" }
+        : {};
+      const stats = await procesarNegocios(db.collection("leads"), resultado.negocios, query || "", campana);
       console.log("Scrapeo diario terminado:", JSON.stringify(stats));
       res.status(200).json({ listo: true, ...stats });
       return;
