@@ -8,9 +8,76 @@ const { getDb } = require("./_mongo");
 const { esCadenaConocida, esEmpresaNoContactar } = require("./_empresaGrande");
 const { estadoFeriado } = require("./_feriadosMexico");
 const { CATEGORIAS } = require("./_prospectingSegments");
+const { enviarCorreoInterno } = require("./_mailer");
 
 const VAPI_API_URL = "https://api.vapi.ai/call";
 const COOLDOWN_MS = 10 * 60 * 1000; // 10 min entre solicitudes al mismo número
+
+// Candados contra abuso del boton "Llamame" -- agregados el 2026-10-26 tras
+// detectar un bot marcando decenas de numeros +972 (Israel) secuenciales en
+// un solo minuto, directo contra esta API (sin pasar por el sitio), cada uno
+// con costo real en Vapi/Twilio. Todos configurables por variable de entorno
+// por si el negocio se expande a otros paises sin tocar codigo.
+const ORIGENES_PERMITIDOS = (process.env.ORIGENES_PERMITIDOS_LLAMADA || "qi-vanta.com")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const PREFIJOS_TELEFONO_PERMITIDOS = (process.env.PREFIJOS_TELEFONO_PERMITIDOS || "+52")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const IP_MAX_EN_VENTANA = Number(process.env.CALL_IP_MAX_10MIN || 3);
+const MAX_LLAMADAS_DIA = Number(process.env.CALL_MAX_DIA || 40);
+
+function origenValido(req) {
+  const origin = req.headers.origin || "";
+  const referer = req.headers.referer || req.headers.referrer || "";
+  return ORIGENES_PERMITIDOS.some((dom) => origin.includes(dom) || referer.includes(dom));
+}
+
+function prefijoValido(normalized) {
+  return PREFIJOS_TELEFONO_PERMITIDOS.some((p) => normalized.startsWith(p));
+}
+
+function obtenerIp(req) {
+  return (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket?.remoteAddress || "desconocida";
+}
+
+function inicioDiaCDMX(ahora) {
+  const cdmx = new Date(ahora.toLocaleString("en-US", { timeZone: "America/Mexico_City" }));
+  cdmx.setHours(0, 0, 0, 0);
+  return cdmx;
+}
+
+// Avisa por correo cuando se bloquea un intento sospechoso -- maximo una vez
+// por hora (guardado en Mongo) para no saturar la bandeja si el ataque sigue
+// insistiendo.
+async function alertarAbusoLlamadas(db, motivo, detalle) {
+  const clave = "abuso_llamadas_boton";
+  const ahora = new Date();
+  try {
+    const alertas = db.collection("alertas_sistema");
+    const previa = await alertas.findOne({ _id: clave });
+    if (previa && ahora - previa.ultimaAlertaEn < 60 * 60 * 1000) return;
+    await alertas.updateOne({ _id: clave }, { $set: { ultimaAlertaEn: ahora, motivo, detalle } }, { upsert: true });
+  } catch (err) {
+    console.error("No se pudo registrar la alerta de abuso en Mongo:", err);
+  }
+  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+    try {
+      await enviarCorreoInterno({
+        asunto: `Alerta: intento de abuso bloqueado en el boton "Llamame" (${motivo})`,
+        texto: `Se bloqueo un intento de llamada sospechoso.
+
+Motivo: ${motivo}
+Detalle: ${JSON.stringify(detalle, null, 2)}
+Fecha: ${ahora.toISOString()}`,
+      });
+    } catch (err) {
+      console.error("No se pudo enviar el correo de alerta de abuso:", err);
+    }
+  }
+}
 
 // Ganchos de apertura para las llamadas en frío (Google Maps) — banco de
 // frases igual que el de los asuntos de correo, elegido al azar por
@@ -198,11 +265,11 @@ async function marcarLlamadasFrias(req, res) {
 // spamear llamadas al mismo número una y otra vez, con costo real de
 // Vapi/Twilio cada vez. También sirve de bitácora de quién pidió que le
 // llamaran.
-async function permitirLlamada(db, numero) {
+async function permitirLlamada(db, numero, ip) {
   const coleccion = db.collection("vapi_llamadas");
   const reciente = await coleccion.findOne({ numero, creadoEn: { $gte: new Date(Date.now() - COOLDOWN_MS) } });
   if (reciente) return null;
-  const { insertedId } = await coleccion.insertOne({ numero, creadoEn: new Date() });
+  const { insertedId } = await coleccion.insertOne({ numero, ip, creadoEn: new Date() });
   return insertedId;
 }
 
@@ -224,6 +291,19 @@ async function iniciarLlamada(req, res) {
 
     if (!phoneNumber || typeof phoneNumber !== "string") {
       res.status(400).json({ error: "Falta el número de teléfono." });
+      return;
+    }
+
+    const db = await getDb();
+    const ip = obtenerIp(req);
+
+    // Candado 1: solo peticiones que vienen del sitio (Origin/Referer) -- un
+    // bot pegandole directo a la API con curl/fetch no suele mandar estas
+    // cabeceras con el dominio correcto.
+    if (!origenValido(req)) {
+      console.error("Llamada bloqueada: origen no permitido.", { origin: req.headers.origin, referer: req.headers.referer, ip });
+      await alertarAbusoLlamadas(db, "origen_no_permitido", { origin: req.headers.origin, referer: req.headers.referer, ip, phoneNumber });
+      res.status(403).json({ error: "Origen no permitido." });
       return;
     }
 
@@ -250,10 +330,39 @@ async function iniciarLlamada(req, res) {
       return;
     }
 
-    const db = await getDb();
-    const registroId = await permitirLlamada(db, normalized);
+    // Candado 2: solo paises permitidos (Mexico por defecto) -- asi se colo
+    // el bot de numeros +972 (Israel).
+    if (!prefijoValido(normalized)) {
+      console.error("Llamada bloqueada: prefijo de país no permitido.", { normalized, ip });
+      await alertarAbusoLlamadas(db, "pais_no_permitido", { numero: normalized, ip });
+      res.status(400).json({ error: "Por ahora solo marcamos a números de México." });
+      return;
+    }
+
+    // Candado 3: limite por IP -- maximo IP_MAX_EN_VENTANA solicitudes en
+    // COOLDOWN_MS, sin importar si cada una usa un numero distinto.
+    const llamadasCol = db.collection("vapi_llamadas");
+    const enVentana = await llamadasCol.countDocuments({ ip, creadoEn: { $gte: new Date(Date.now() - COOLDOWN_MS) } });
+    if (enVentana >= IP_MAX_EN_VENTANA) {
+      console.error("Llamada bloqueada: demasiadas solicitudes desde la misma IP.", { ip, enVentana });
+      await alertarAbusoLlamadas(db, "limite_ip", { ip, enVentana });
+      res.status(429).json({ error: "Demasiadas solicitudes. Intenta de nuevo más tarde." });
+      return;
+    }
+
+    // Candado 4: cooldown por numero (ya existia).
+    const registroId = await permitirLlamada(db, normalized, ip);
     if (!registroId) {
       res.status(429).json({ error: "Ya se solicitó una llamada a este número hace poco. Espera unos minutos e intenta de nuevo." });
+      return;
+    }
+
+    // Candado 5: tope diario global del boton -- ultima linea de defensa.
+    const hoyCount = await llamadasCol.countDocuments({ callId: { $exists: true }, creadoEn: { $gte: inicioDiaCDMX(new Date()) } });
+    if (hoyCount >= MAX_LLAMADAS_DIA) {
+      console.error("Llamada bloqueada: tope diario global alcanzado.", { hoyCount, MAX_LLAMADAS_DIA });
+      await alertarAbusoLlamadas(db, "tope_diario_global", { hoyCount, MAX_LLAMADAS_DIA });
+      res.status(429).json({ error: "Alcanzamos el límite de llamadas de hoy. Escríbenos por WhatsApp mientras tanto." });
       return;
     }
 
